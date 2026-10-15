@@ -158,8 +158,17 @@ def legacy_train_step(bundle: MoPAEBundle, optimizer: torch.optim.Optimizer,
 
 def fixed_train_step(bundle: MoPAEBundle, opts: dict,
                       loc: torch.Tensor, weekday: torch.Tensor, hour: torch.Tensor,
-                      y_next_idx: torch.Tensor, z_user_idx: torch.Tensor, coord_target: torch.Tensor):
-    """Explicit min-max step: four independent optimizers, logits + single cross-entropy."""
+                      y_next_idx: torch.Tensor, z_user_idx: torch.Tensor, coord_target: torch.Tensor,
+                      fairness_fn=None, entropy_table: torch.Tensor = None, lambda4: float = 0.0):
+    """Explicit min-max step: four independent optimizers, logits + single cross-entropy.
+
+    `fairness_fn`/`entropy_table`/`lambda4` are optional and default to off, so
+    Phase 0's audit numbers (run before this fairness term existed) stay
+    reproducible. Pass `fairness_fn=puffin.fairness.losses.ed_soft` (the Phase
+    4 L_pair_threshold baseline) and a positive `lambda4` to enable it -- it
+    is added to the encoder's objective only, exactly where PUFFIN's lambda4
+    lived.
+    """
     for o in opts.values():
         o.zero_grad()
 
@@ -173,6 +182,9 @@ def fixed_train_step(bundle: MoPAEBundle, opts: dict,
     id_logits = bundle.id_recognizer(enc)
     loss_priv = F.cross_entropy(id_logits, z_user_idx)
 
+    loss_fair = (fairness_fn(id_logits, z_user_idx, entropy_table)
+                 if fairness_fn is not None else torch.zeros((), device=loc.device))
+
     # Mirrors the four independent GradientTapes in the original TF train_step:
     # compute every sub-network's gradient from the *same* pre-update forward
     # pass first (via autograd.grad, which doesn't mutate .grad or parameters),
@@ -183,9 +195,11 @@ def fixed_train_step(bundle: MoPAEBundle, opts: dict,
     dec_grads = torch.autograd.grad(loss_recon, list(bundle.decoder.parameters()), retain_graph=True)
     next_grads = torch.autograd.grad(loss_util, list(bundle.next_predictor.parameters()), retain_graph=True)
 
-    # encoder minimizes recon + utility but MAXIMIZES the adversary's loss (fools it).
+    # encoder minimizes recon + utility but MAXIMIZES the adversary's loss (fools it);
+    # the fairness term (if any) is added on top, same sign convention as PUFFIN's lambda4.
     l = FIXED_LAMBDAS
-    enc_total = l["l_recon"] * loss_recon + l["l_util"] * loss_util - l["l_priv"] * loss_priv
+    enc_total = (l["l_recon"] * loss_recon + l["l_util"] * loss_util - l["l_priv"] * loss_priv
+                 + lambda4 * loss_fair)
     enc_grads = torch.autograd.grad(enc_total, list(bundle.encoder.parameters()))
 
     for p, g in zip(bundle.id_recognizer.parameters(), id_grads):
@@ -202,4 +216,4 @@ def fixed_train_step(bundle: MoPAEBundle, opts: dict,
     opts["enc"].step()
 
     return dict(loss=enc_total.item(), loss_recon=loss_recon.item(),
-                loss_util=loss_util.item(), loss_priv=loss_priv.item())
+                loss_util=loss_util.item(), loss_priv=loss_priv.item(), loss_fair=float(loss_fair))
