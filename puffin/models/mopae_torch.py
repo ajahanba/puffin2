@@ -173,23 +173,32 @@ def fixed_train_step(bundle: MoPAEBundle, opts: dict,
     id_logits = bundle.id_recognizer(enc)
     loss_priv = F.cross_entropy(id_logits, z_user_idx)
 
-    # id_recognizer minimizes its own loss directly.
-    loss_priv.backward(retain_graph=True)
-    opts["id"].step()
-
-    # decoder/next_predictor minimize their own losses.
-    opts["dec"].zero_grad()
-    loss_recon.backward(retain_graph=True)
-    opts["dec"].step()
-    opts["next"].zero_grad()
-    loss_util.backward(retain_graph=True)
-    opts["next"].step()
+    # Mirrors the four independent GradientTapes in the original TF train_step:
+    # compute every sub-network's gradient from the *same* pre-update forward
+    # pass first (via autograd.grad, which doesn't mutate .grad or parameters),
+    # then apply all four optimizer steps. Interleaving an optimizer.step()
+    # between backward passes that share a retained graph corrupts the saved
+    # activations those passes still need (in-place-modified-tensor error).
+    id_grads = torch.autograd.grad(loss_priv, list(bundle.id_recognizer.parameters()), retain_graph=True)
+    dec_grads = torch.autograd.grad(loss_recon, list(bundle.decoder.parameters()), retain_graph=True)
+    next_grads = torch.autograd.grad(loss_util, list(bundle.next_predictor.parameters()), retain_graph=True)
 
     # encoder minimizes recon + utility but MAXIMIZES the adversary's loss (fools it).
     l = FIXED_LAMBDAS
     enc_total = l["l_recon"] * loss_recon + l["l_util"] * loss_util - l["l_priv"] * loss_priv
-    opts["enc"].zero_grad()
-    enc_total.backward()
+    enc_grads = torch.autograd.grad(enc_total, list(bundle.encoder.parameters()))
+
+    for p, g in zip(bundle.id_recognizer.parameters(), id_grads):
+        p.grad = g
+    opts["id"].step()
+    for p, g in zip(bundle.decoder.parameters(), dec_grads):
+        p.grad = g
+    opts["dec"].step()
+    for p, g in zip(bundle.next_predictor.parameters(), next_grads):
+        p.grad = g
+    opts["next"].step()
+    for p, g in zip(bundle.encoder.parameters(), enc_grads):
+        p.grad = g
     opts["enc"].step()
 
     return dict(loss=enc_total.item(), loss_recon=loss_recon.item(),
