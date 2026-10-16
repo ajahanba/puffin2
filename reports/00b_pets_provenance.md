@@ -21,3 +21,21 @@ This code corresponds to:
 ## Bottom line
 
 The public repo is, with high confidence, the authors' own implementation of the exact model described in PoPETs 2023(1):556–570, not an unrelated or much later re-implementation: naming, file layout, near-verbatim README text lifted from the paper's methods section, and a code comment date matching the arXiv submission date all point the same way, and the code has been untouched since Aug 2022 (apart from documentation edits), consistent with the paper's late-2022 review cycle. Every hyperparameter the paper actually discloses (λ weights, sequence length 10, epochs 1000, batch size 128, Adam optimizer, Euclidean/Manhattan distance metrics, top-n accuracy metric) matches the code exactly or is mathematically equivalent under a different sign convention, and the shipped GeoLife sample matches the paper's Table 1 GeoLife row almost exactly (exact match on user count and test-set size, very close on train-set size, ~10% off on POI/location count). However, two things prevent calling this a byte-for-byte guarantee: (1) the repo's own README says the shipped data is only a "sample... due to data security," not asserted to be the literal dataset behind the published tables, and the POI-count mismatch is consistent with that caveat; and (2) several details the paper simply never discloses — the exact learning rate, and the exact LSTM/dense layer sizes/dropout/activations — cannot be checked against the paper at all, so "same code" can only be asserted for what the paper actually documents, not confirmed for the full architecture. Given that, and independent of the already-documented train/test-evaluation bug and other issues inside `mopae.py` itself, it is reasonable to treat this repo as the authors' genuine reference implementation for the paper's method and *most* of its reported hyperparameters/dataset characteristics, while flagging that the exact numeric match between a given run of this public script and the paper's published tables cannot be fully verified from public information alone — particularly given the shipped data is an explicitly-labeled sample and the script as written never scores the held-out test split that the paper's own framing implies it should.
+
+## Addendum: README contradicts the shipped code on the train/test split
+
+Found while locating dataset links for Phase 1. `legacy/Mo-PAE_upstream/README.md`
+states the methodology as: *"After data pre-processing, 80% of each users
+
+## Addendum: README contradicts the shipped code on the train/test split
+
+Found while locating dataset links for Phase 1. `legacy/Mo-PAE_upstream/README.md`
+states the methodology as: "After data pre-processing, 80% of each user's
+records are segmented as the training set and the remaining 20% as the
+testing set." That is a per-user split -- exactly what Phase 1's
+`puffin.data.splits.temporal_split` implements, and exactly what issue #3 in
+`reports/00_mopae_audit.md` says the shipped `mopae.py` does NOT do: the code
+concatenates all users, builds windows, and only then splits 80/20 by
+position on the windowed arrays. The README describes one thing; the code
+does another. This is independent documentary evidence for issue #3, on top
+of reading the code directly.
