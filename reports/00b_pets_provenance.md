@@ -25,11 +25,6 @@ The public repo is, with high confidence, the authors' own implementation of the
 ## Addendum: README contradicts the shipped code on the train/test split
 
 Found while locating dataset links for Phase 1. `legacy/Mo-PAE_upstream/README.md`
-states the methodology as: *"After data pre-processing, 80% of each users
-
-## Addendum: README contradicts the shipped code on the train/test split
-
-Found while locating dataset links for Phase 1. `legacy/Mo-PAE_upstream/README.md`
 states the methodology as: "After data pre-processing, 80% of each user's
 records are segmented as the training set and the remaining 20% as the
 testing set." That is a per-user split -- exactly what Phase 1's
