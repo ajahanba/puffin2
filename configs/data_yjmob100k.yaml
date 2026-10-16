@@ -1,0 +1,12 @@
+# nrows is a smoke-test limit (reads a prefix of the file for fast iteration).
+# Set to null for the full 111.5M-row file -- that's a multi-GB-memory,
+# several-minute job; run it separately once this config has been validated.
+path: data/raw/yjmob100k/yjmob100k-dataset1.csv
+nrows: 2000000
+min_obs: 20
+train_frac: 0.8
+nonmember_traj_frac: 0.2
+user_disjoint_frac: 0.1
+seed: 0
+allow_null_latlon: true
+run_h3_check: false  # no coordinates in this dataset -- see loader docstring

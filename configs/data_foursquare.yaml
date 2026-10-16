@@ -1,0 +1,10 @@
+path: data/raw/foursquare/extracted/dataset_tsmc2014/dataset_TSMC2014_NYC.txt
+min_obs: 20
+train_frac: 0.8
+nonmember_traj_frac: 0.2
+user_disjoint_frac: 0.1
+seed: 0
+allow_null_latlon: false
+grid_resolution_deg: 0.01
+run_h3_check: true
+h3_resolution: 8
