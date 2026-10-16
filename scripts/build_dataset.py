@@ -17,16 +17,21 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from puffin.data import schema, splits, filtering, tessellation
 from puffin.data import stats as stats_mod
-from puffin.data.datasets.geolife_unified import load_geolife_unified, HAS_REAL_TIMESTAMP as GEOLIFE_HAS_TS
+from puffin.data.datasets.geolife_unified import load_geolife_unified, HAS_REAL_TIMESTAMP as GEOLIFE_SAMPLE_HAS_TS
+from puffin.data.datasets.geolife_full_unified import load_geolife_full_unified, HAS_REAL_TIMESTAMP as GEOLIFE_HAS_TS
 from puffin.data.datasets.foursquare_unified import load_foursquare_unified, HAS_REAL_TIMESTAMP as FSQ_HAS_TS
 from puffin.data.datasets.gowalla_unified import load_gowalla_unified, HAS_REAL_TIMESTAMP as GOWALLA_HAS_TS
 from puffin.data.datasets.yjmob100k_unified import load_yjmob100k_unified, HAS_REAL_TIMESTAMP as YJMOB_HAS_TS
 
 LOADERS = {
-    "geolife": lambda cfg: (load_geolife_unified(cfg["train_csv"], cfg["test_csv"]), GEOLIFE_HAS_TS),
+    # Raw Microsoft GeoLife 1.3 (182 users, real lat/lon) -- the main dataset going forward.
+    "geolife": lambda cfg: (load_geolife_full_unified(cfg["data_dir"]), GEOLIFE_HAS_TS),
+    # The small pre-gridded Mo-PAE sample -- kept ONLY for Phase 0 legacy-mode comparisons.
+    "geolife_sample": lambda cfg: (load_geolife_unified(cfg["train_csv"], cfg["test_csv"]), GEOLIFE_SAMPLE_HAS_TS),
     "foursquare": lambda cfg: (load_foursquare_unified(cfg["path"]), FSQ_HAS_TS),
-    "gowalla": lambda cfg: (load_gowalla_unified(cfg["path"], us_only=cfg.get("us_only", True)), GOWALLA_HAS_TS),
-    "yjmob100k": lambda cfg: (load_yjmob100k_unified(cfg["path"], nrows=cfg.get("nrows")), YJMOB_HAS_TS),
+    "gowalla": lambda cfg: (load_gowalla_unified(cfg["path"], bbox=cfg.get("bbox", "us")), GOWALLA_HAS_TS),
+    "yjmob100k": lambda cfg: (load_yjmob100k_unified(cfg["path"], nrows=cfg.get("nrows"),
+                                                      chunksize=cfg.get("chunksize", 10_000_000)), YJMOB_HAS_TS),
 }
 
 
@@ -44,10 +49,18 @@ def main():
     if "cell_id" not in df.columns:
         # Dataset has real lat/lon but no native grid -- tessellate here,
         # generically, rather than duplicating grid logic in every loader.
+        # rows_at_tessellation is logged explicitly because this step runs
+        # BEFORE min_obs filtering: grid_cells/h3_cells counts are over this
+        # row count, not over the smaller post-filter n_records reported
+        # below -- the two were getting silently confused (Gowalla: 3.67M
+        # rows here vs 3.52M n_records after filtering 22,637 sub-threshold
+        # users), so both stages are now named and visible side by side.
+        rows_at_tessellation = len(df)
         df = tessellation.assign_grid_cells(df, resolution_deg=cfg.get("grid_resolution_deg", 0.01))
         if cfg.get("run_h3_check", True):
             h3_df = tessellation.assign_h3_cells(df, resolution=cfg.get("h3_resolution", 8))
-            h3_check = dict(grid_cells=int(df["cell_id"].nunique()),
+            h3_check = dict(rows_at_tessellation=rows_at_tessellation,
+                             grid_cells=int(df["cell_id"].nunique()),
                              h3_cells=int(h3_df["cell_id_h3"].nunique()),
                              grid_resolution_deg=cfg.get("grid_resolution_deg", 0.01),
                              h3_resolution=cfg.get("h3_resolution", 8))
@@ -72,6 +85,7 @@ def main():
         split_counts={k: int(v) for k, v in df["split"].value_counts().items()},
         mi_split_counts={k: int(v) for k, v in df["mi_split"].value_counts().items()},
         n_user_disjoint=int(df.loc[df["user_disjoint"], "user_id"].nunique()),
+        windows_at_sl10=stats_mod.windows_at_sl(df, sl=cfg.get("sl", 10)),
     ))
     stats_mod.write_stats(dataset_stats, str(out_dir / "stats.json"))
     print(json.dumps(dataset_stats, indent=2))

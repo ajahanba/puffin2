@@ -1,5 +1,8 @@
+# Full-US Gowalla. Per the PI's direction, this is now for the Phase 8
+# scalability study ONLY -- metro-level subsets (data_gowalla_nyc.yaml etc.)
+# are the main experimental unit.
 path: data/raw/gowalla/loc-gowalla_totalCheckins.txt
-us_only: true
+bbox: us
 min_obs: 20
 train_frac: 0.8
 nonmember_traj_frac: 0.2

@@ -7,3 +7,4 @@ data/raw/*
 !data/raw/geolife_sample/
 data/processed/
 legacy/Mo-PAE_upstream/
+logs/

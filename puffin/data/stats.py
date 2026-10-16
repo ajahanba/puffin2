@@ -11,9 +11,34 @@ import pandas as pd
 
 
 def per_user_entropy(df: pd.DataFrame) -> pd.Series:
+    """Vectorized: built-in groupby aggregations ("sum"), not per-group
+    Python lambdas via .apply(). At YJMob100K's scale (100,000 users) the
+    .apply(lambda...) form -- fine for every other dataset in this repo --
+    was itself measurably slower (though not the dominant cost; that was
+    membership_split's O(n_users*n_rows) bug, see CHANGES_FROM_ORIGINAL.md).
+    Fixed alongside it since the two are the same class of mistake."""
     counts = df.groupby(["user_id", "cell_id"]).size().reset_index(name="count")
-    probs = counts.groupby("user_id")["count"].apply(lambda x: x / x.sum())
-    return probs.groupby(level=0).apply(lambda p: -float(np.sum(p * np.log2(p))))
+    user_totals = counts.groupby("user_id")["count"].transform("sum")
+    probs = counts["count"] / user_totals
+    counts["entropy_term"] = -probs * np.log2(probs)
+    return counts.groupby("user_id")["entropy_term"].sum()
+
+
+def windows_at_sl(df: pd.DataFrame, sl: int = 10) -> dict:
+    """How many usable length-`sl` windows this dataset actually yields, and
+    how many users have at least one -- requested explicitly (PI, Phase 1
+    Gowalla follow-up) because n_records alone doesn't say how much of a
+    dataset survives windowing, which is what training actually consumes."""
+    traj_sizes = df.groupby(["user_id", "traj_id"]).size()
+    windows_per_traj = (traj_sizes - sl).clip(lower=0)
+    windows_per_user = windows_per_traj.groupby(level=0).sum()
+    return dict(
+        sl=sl,
+        total_windows=int(windows_per_traj.sum()),
+        users_total=int(len(windows_per_user)),
+        users_with_ge1_window=int((windows_per_user >= 1).sum()),
+        location_vocab_size=int(df["cell_id"].nunique()),
+    )
 
 
 def compute_dataset_stats(df: pd.DataFrame, extra: dict | None = None) -> dict:

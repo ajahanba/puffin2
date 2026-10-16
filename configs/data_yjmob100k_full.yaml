@@ -1,0 +1,12 @@
+# Full 111.5M-row build. See configs/data_yjmob100k.yaml for the smoke-test
+# (nrows-limited) version used to validate the pipeline quickly.
+path: data/raw/yjmob100k/yjmob100k-dataset1.csv
+nrows: null
+chunksize: 10000000
+min_obs: 20
+train_frac: 0.8
+nonmember_traj_frac: 0.2
+user_disjoint_frac: 0.1
+seed: 0
+allow_null_latlon: true
+run_h3_check: false  # no coordinates in this dataset -- see loader docstring

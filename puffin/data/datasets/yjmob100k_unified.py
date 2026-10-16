@@ -2,12 +2,24 @@
 
 Raw format confirmed directly from the downloaded file (header present):
 uid, d (day 0-74), t (30-minute timeslot 0-47), x, y (500m grid cell, city
-undisclosed). dataset1.csv has 111,535,176 rows, 100,000 unique uids
-(80,000 "regular" + 20,000 "task" users whose later days were masked in the
-original prediction challenge -- see data/raw/yjmob100k/SOURCE.md). No real
-lat/lon (HAS_REAL_TIMESTAMP = True via d/t, but no H3 sensitivity check is
-possible here, same limitation as GeoLife's sample, for the opposite reason:
-no coordinates at all rather than already-gridded ones).
+undisclosed). dataset1.csv has 111,535,175 data rows, 100,000 unique uids.
+
+CORRECTION (checked directly, do not trust the earlier "80,000 regular +
+20,000 task users" claim from before this was verified): there is no 80K/20K
+split visible in this file by any mechanism checked. No x==999/y==999
+sentinel rows exist (0 found). Per-user day coverage is unimodal, not
+bimodal: 97,836 of 100,000 users reach day 74 (the max), the remaining 2,164
+have less (min 18 days), with no bimodal split by max-day or day-count that
+would separate "regular" from "task" users. The Zenodo page's text describes
+dataset1 as "80,000 people, business-as-usual" but the file plainly contains
+100,000 unique uids -- this is an unresolved discrepancy between the page's
+prose and the actual file, not something this loader can reconcile; treat
+dataset1 as one 100,000-user population. Per the PI's instruction, dataset2
+is not used by this loader.
+
+No real lat/lon (HAS_REAL_TIMESTAMP = True via d/t, but no H3 sensitivity
+check is possible here, same limitation as GeoLife's sample, for the
+opposite reason: no coordinates at all rather than already-gridded ones).
 
 `ts` = d*48 + t, a genuinely monotonic, evenly-spaced relative time (NOT a
 wall-clock timestamp, since the start date/city is undisclosed by design).
@@ -18,8 +30,14 @@ a real calendar date. `cell_id` is the dataset's own (x, y) grid cell, dense
 `traj_id` = day index (d), dense per user (handles the rare case where a
 user's observed days aren't contiguous from 0).
 
-This file is large (111M rows, ~2.1GB uncompressed): `nrows` lets you load a
-prefix for quick iteration; pass None for the full file.
+This file is large (111.5M rows). `nrows` loads a prefix for quick
+iteration. For the full file, reads in `chunksize`-row chunks with compact
+dtypes (int32/int16/int8) rather than one single read, then concatenates --
+on a 187GB-RAM box this is not strictly required for memory, but keeps peak
+RSS lower and bounded regardless of host. x==999/y==999 (the documented
+masking sentinel for this dataset family, even though none were found in
+*this* file) are dropped and counted, logged via `print` so a background
+run's log captures it.
 """
 from __future__ import annotations
 
@@ -27,9 +45,24 @@ import pandas as pd
 
 HAS_REAL_TIMESTAMP = True
 
+_DTYPE = {"uid": "int32", "d": "int16", "t": "int8", "x": "int16", "y": "int16"}
 
-def load_yjmob100k_unified(path: str, nrows: int | None = None) -> pd.DataFrame:
-    raw = pd.read_csv(path, nrows=nrows)
+
+def load_yjmob100k_unified(path: str, nrows: int | None = None, chunksize: int | None = 10_000_000) -> pd.DataFrame:
+    if nrows is not None or chunksize is None:
+        raw = pd.read_csv(path, nrows=nrows, dtype=_DTYPE)
+    else:
+        chunks = list(pd.read_csv(path, dtype=_DTYPE, chunksize=chunksize))
+        raw = pd.concat(chunks, ignore_index=True)
+        del chunks
+
+    sentinel = (raw["x"] == 999) | (raw["y"] == 999)
+    n_sentinel = int(sentinel.sum())
+    if n_sentinel:
+        print(f"load_yjmob100k_unified: dropping {n_sentinel} masked-sentinel (x==999 or y==999) rows")
+        raw = raw.loc[~sentinel].reset_index(drop=True)
+    else:
+        print("load_yjmob100k_unified: no x==999/y==999 sentinel rows found")
 
     df = pd.DataFrame()
     df["user_id"] = raw["uid"] + 1  # dense already (0-indexed uid -> 1-indexed user_id)
