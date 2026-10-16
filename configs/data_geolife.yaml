@@ -1,0 +1,8 @@
+train_csv: data/raw/geolife_sample/GeoLifeBeijing_grid_train.csv
+test_csv: data/raw/geolife_sample/GeoLifeBeijing_grid_test.csv
+min_obs: 20
+train_frac: 0.8
+nonmember_traj_frac: 0.2
+user_disjoint_frac: 0.1
+seed: 0
+allow_null_latlon: false
