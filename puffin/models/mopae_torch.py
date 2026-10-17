@@ -159,7 +159,8 @@ def legacy_train_step(bundle: MoPAEBundle, optimizer: torch.optim.Optimizer,
 def fixed_train_step(bundle: MoPAEBundle, opts: dict,
                       loc: torch.Tensor, weekday: torch.Tensor, hour: torch.Tensor,
                       y_next_idx: torch.Tensor, z_user_idx: torch.Tensor, coord_target: torch.Tensor,
-                      fairness_fn=None, entropy_table: torch.Tensor = None, lambda4: float = 0.0):
+                      fairness_fn=None, entropy_table: torch.Tensor = None, lambda4: float = 0.0,
+                      lambdas: dict = None):
     """Explicit min-max step: four independent optimizers, logits + single cross-entropy.
 
     `fairness_fn`/`entropy_table`/`lambda4` are optional and default to off, so
@@ -168,6 +169,11 @@ def fixed_train_step(bundle: MoPAEBundle, opts: dict,
     4 L_pair_threshold baseline) and a positive `lambda4` to enable it -- it
     is added to the encoder's objective only, exactly where PUFFIN's lambda4
     lived.
+
+    `lambdas`, if given, overrides FIXED_LAMBDAS (keys l_recon/l_util/l_priv)
+    for this call -- added so Phase 2's "plain Mo-PAE, lambda4=0, 2-3
+    operating points" sweep can vary the privacy/utility weighting without a
+    fairness term, instead of being stuck on one fixed global tradeoff point.
     """
     for o in opts.values():
         o.zero_grad()
@@ -197,7 +203,7 @@ def fixed_train_step(bundle: MoPAEBundle, opts: dict,
 
     # encoder minimizes recon + utility but MAXIMIZES the adversary's loss (fools it);
     # the fairness term (if any) is added on top, same sign convention as PUFFIN's lambda4.
-    l = FIXED_LAMBDAS
+    l = lambdas if lambdas is not None else FIXED_LAMBDAS
     enc_total = (l["l_recon"] * loss_recon + l["l_util"] * loss_util - l["l_priv"] * loss_priv
                  + lambda4 * loss_fair)
     enc_grads = torch.autograd.grad(enc_total, list(bundle.encoder.parameters()))

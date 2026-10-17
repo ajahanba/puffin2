@@ -86,3 +86,58 @@ after Checkpoint 0.
   `/backup/dataBackup09172026/` snapshot. Snapshot cadence/retention policy
   is not visible from a regular user account; ask erebor's sysadmin if that
   matters for anything irreplaceable.
+- Environment lockfile: `requirements.lock.txt` (`pip freeze` inside `.venv`),
+  generated after an unexpected erebor reboot mid-session corrupted two
+  packages (matplotlib, contourpy — both left as 0-byte `__init__.py`,
+  caught mid-write by the crash) so the exact working set is pinned and
+  reproducible going forward.
+
+## Phase 1 bugs found and fixed (data pipeline)
+
+- **Index-misalignment bug** (`puffin/data/datasets/_checkin_utils.py`):
+  `assign_daily_traj_id` returned a pandas Series carrying its own fresh
+  0..n-1 index; when the caller's dataframe had a non-contiguous index
+  (Gowalla's US bounding-box filter drops rows), the `df[...] = ...`
+  assignment silently misaligned by label instead of position, NaN-filling
+  ~32% of Gowalla's rows. Foursquare's loader shared the same code path but
+  never filters its input first, so it never manifested there. Fixed to
+  return a plain array (always positional); added a regression test
+  (`tests/test_checkin_utils.py`) with a deliberately non-contiguous index.
+- **Quadratic bug** (`puffin/data/splits.py`): `membership_split` recomputed
+  a full-dataframe boolean mask (`df["user_id"] == u`) once per *member*
+  user — O(n_users × n_rows). Fine up to tens of thousands of users; on
+  YJMob100K (100,000 users × 111.5M rows) it did not finish in over 90
+  minutes and had to be killed (found via a `py-spy` stack trace on the
+  stuck process). Rewrote `membership_split` and `temporal_split`
+  (same O(n_users) Python-loop class of issue) to use vectorized
+  groupby/merge operations; `stats.per_user_entropy`'s `.apply(lambda...)`
+  fixed the same way. Re-run: 4m09s (vs. killed after 90+ min). Verified via
+  `tests/test_splits_stats.py` and a byte-identical Gowalla-NYC rebuild
+  pre/post-fix.
+
+## Phase 2 — PI-directed correction after Checkpoint 2
+
+**Check-in windowing (Foursquare, Gowalla): dropped the daily-trajectory
+requirement.** The Checkpoint 2 version built SL=10 windows within each
+`traj_id` group, and for Foursquare/Gowalla that `traj_id` is not a real
+trajectory — `_checkin_utils.assign_daily_traj_id` invents one calendar-day
+segment per user, purely because those datasets have no native trajectory
+id. Requiring 10 check-ins inside a single calendar day left only 71/1083
+Foursquare users with even one usable window, and that 71 is not a random
+subset — it's whoever happens to check in unusually often. Per the PI:
+`puffin/attacks/windowing.py`'s `build_sl_windows` now takes
+`respect_traj_boundary` (default `True`, used for GeoLife's real GPS
+trajectories, unchanged) — `False` builds windows over each user's full
+chronological check-in sequence instead, still never crossing the user or
+train/test-split boundary. Effect, confirmed in `reports/02b_disparate_risk_v2.md`:
+Foursquare went from 71/1083 to **1083/1083** users with ≥1 test window at
+SL=10; Gowalla-NYC (not run at Checkpoint 2) reaches 587/1517 at SL=10 and
+1154/1517 at SL=5. This also measurably changed the finding, not just the
+sample size — see that report for why.
+
+Also hardened per the PI: the raw attacker is now "best of MLP vs. GRU" per
+seed (chosen by validation accuracy, 5 seeds, early stopping) instead of a
+single architecture trained for a fixed small number of epochs; the risk
+regression now reports proper standard errors/p-values
+(`puffin/attacks/analysis.py`) instead of point estimates only; decile means
+carry bootstrap 95% CIs over users.

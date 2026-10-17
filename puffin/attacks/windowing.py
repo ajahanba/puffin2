@@ -15,9 +15,46 @@ import numpy as np
 import pandas as pd
 
 
+def count_sl_coverage(df: pd.DataFrame, sl: int, respect_traj_boundary: bool) -> dict:
+    """How many users/windows a given SL and windowing mode actually yield,
+    per split -- computed via groupby sizes, without materializing window
+    arrays (cheap even at GeoLife's 24M-window scale). Used to report the
+    coverage trade-off between SL=10 (main) and SL=5 (sensitivity), and
+    between per-trajectory and full-sequence windowing."""
+    out = {}
+    for split_name in ("train", "test"):
+        split_df = df[df["split"] == split_name]
+        group_cols = ["user_id", "traj_id"] if respect_traj_boundary else ["user_id"]
+        sizes = split_df.groupby(group_cols, sort=False).size()
+        windows_per_group = (sizes - sl).clip(lower=0)
+        if respect_traj_boundary:
+            windows_per_user = windows_per_group.groupby(level=0).sum()
+        else:
+            windows_per_user = windows_per_group
+        out[split_name] = dict(
+            total_windows=int(windows_per_group.sum()),
+            users_with_ge1_window=int((windows_per_user >= 1).sum()),
+            users_total=int(split_df["user_id"].nunique()),
+        )
+    return out
+
+
 def build_sl_windows(df: pd.DataFrame, sl: int = 10, max_windows_per_user: int | None = None,
-                      seed: int = 0):
-    """Returns dict with 'train' and 'test' keys, each holding:
+                      seed: int = 0, respect_traj_boundary: bool = True):
+    """`respect_traj_boundary=True` (default, use for GPS data like GeoLife,
+    where traj_id is a real separate trip): windows never cross a
+    (user_id, traj_id) boundary. `respect_traj_boundary=False` (use for
+    check-in data like Foursquare/Gowalla): windows are built over each
+    user's FULL chronological sequence within the split, ignoring the
+    traj_id boundary -- a PI correction after Checkpoint 2 (see
+    CHANGES_FROM_ORIGINAL.md). Foursquare/Gowalla's traj_id is only a
+    same-calendar-day grouping invented by `_checkin_utils.py` because
+    those datasets have no native trajectory id; respecting it as if it
+    meant something to the user's actual behavior left only 71/1083
+    Foursquare users with even one SL=10 window. Windows still never cross
+    the train/test split boundary either way.
+
+    Returns dict with 'train' and 'test' keys, each holding:
     cell/weekday/hour: (N, sl) int arrays (the window itself);
     next_cell: (N,) int array, 0-indexed (same reason as `user` below --
     it's a cross_entropy target, not an embedding input; `cell`/`weekday`/
@@ -54,7 +91,9 @@ def build_sl_windows(df: pd.DataFrame, sl: int = 10, max_windows_per_user: int |
         split_df = df[df["split"] == split_name]
         for user_id, user_g in split_df.groupby("user_id", sort=False):
             user_cell, user_wd, user_hr, user_next = [], [], [], []
-            for _traj_id, g in user_g.groupby("traj_id", sort=False):
+            groups = (user_g.groupby("traj_id", sort=False) if respect_traj_boundary
+                      else [(None, user_g)])
+            for _traj_id, g in groups:
                 if len(g) <= sl:
                     continue
                 g = g.sort_values("ts")

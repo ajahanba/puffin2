@@ -1,23 +1,24 @@
 #!/usr/bin/env python
-"""Phase 2 (Checkpoint 2): is re-identification risk unequal across users,
-and does Mo-PAE (fixed) protect the people who need it most -- or least?
+"""Phase 2, hardened (post-Checkpoint-2 revision, PI-directed):
 
-For one dataset (its data/processed/<name>/unified.parquet from Phase 1):
-  1. Per-user mobility features (puffin.features.mobility): S_rand, S_unc,
-     S_real, radius of gyration, regularity.
-  2. A fresh "raw" re-id attacker (puffin.attacks.reid.train_raw_attacker) on
-     unprotected SL=10 windows -> per-user risk with no mechanism at all.
-  3. A risk ~ entropy + rog + n_records regression (plain OLS via
-     numpy.linalg.lstsq -- no new dependency).
-  4. Mo-PAE (fixed mode, puffin.models.mopae_torch) trained at a few
-     lambda4 (fairness weight) operating points, each followed by a FRESH
-     attacker trained on that run's frozen encoder output
-     (train_attacker_on_frozen_encoder) -- never the in-model adversary.
-  5. Per-user risk change (after vs. before) by entropy decile: who gains,
-     who loses, at each operating point.
-
-Writes a JSON blob of everything (for the report) and two PNGs (risk vs.
-entropy decile; risk vs. regularity) to the given --out-dir.
+  1. Mobility features (puffin.features.mobility): S_rand, S_unc, S_real,
+     radius of gyration, regularity, n_distinct_cells.
+  2. Windowing coverage reported at SL=10 (main) and, for check-in datasets
+     (--no-respect-traj-boundary), SL=5 (sensitivity) -- full-sequence
+     windowing for check-in data (Foursquare/Gowalla), per-trajectory for
+     GPS data (GeoLife); see puffin/attacks/windowing.py.
+  3. A fresh, hardened raw re-id attacker: best of {MLP, GRU} per seed
+     (chosen by validation accuracy), 5 seeds, early stopping. Reports which
+     architecture produced every number.
+  4. Per-user risk regressed on S_unc + radius_of_gyration + n_windows +
+     n_distinct_cells, with proper standard errors/p-values -- does entropy
+     survive the controls?
+  5. Bootstrap 95% CIs over users for each entropy decile.
+  6. PLAIN Mo-PAE (lambda4=0, no fairness term) at 2-3 operating points
+     (varying lambda_priv), each followed by a hardened attacker on that
+     run's frozen encoder output. Reports ABSOLUTE and RELATIVE risk
+     reduction by decile, with bootstrap CIs. The lambda4 (fairness) sweep
+     is deferred to Phases 4-5, per the PI.
 """
 import argparse
 import json
@@ -34,26 +35,15 @@ import torch
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from puffin.features.mobility import compute_mobility_features
-from puffin.attacks.windowing import build_sl_windows
-from puffin.attacks.reid import train_raw_attacker, train_attacker_on_frozen_encoder
+from puffin.attacks.windowing import build_sl_windows, count_sl_coverage
+from puffin.attacks.reid import train_raw_attacker_hardened, train_attacker_on_frozen_encoder_hardened
+from puffin.attacks.analysis import ols_with_pvalues, bootstrap_decile_ci
 from puffin.models.mopae_torch import build_bundle, fixed_train_step
-from puffin.fairness.losses import ed_soft, build_entropy_table
 
 
-def fit_ols(y: np.ndarray, X_cols: dict) -> dict:
-    names = list(X_cols.keys())
-    X = np.column_stack([np.ones(len(y))] + [X_cols[n] for n in names])
-    coef, residuals, rank, sv = np.linalg.lstsq(X, y, rcond=None)
-    y_hat = X @ coef
-    ss_res = float(np.sum((y - y_hat) ** 2))
-    ss_tot = float(np.sum((y - y.mean()) ** 2))
-    r2 = 1 - ss_res / ss_tot if ss_tot > 0 else float("nan")
-    return dict(intercept=float(coef[0]), coefficients={n: float(c) for n, c in zip(names, coef[1:])}, r2=r2)
-
-
-def train_mopae_fixed(df: pd.DataFrame, windows: dict, total_locations: int, total_users: int,
-                       entropy_table: torch.Tensor, lambda4: float, device, epochs: int,
-                       batch_size: int = 512, lr: float = 3e-4):
+def train_mopae_plain(windows: dict, total_locations: int, total_users: int, lambda_priv: float,
+                       device, epochs: int, batch_size: int = 512, lr: float = 3e-4, seed: int = 0):
+    torch.manual_seed(seed)
     sl = windows["train"]["cell"].shape[1]
     bundle = build_bundle("fixed", sl, total_locations, total_users)
     for m in (bundle.encoder, bundle.decoder, bundle.id_recognizer, bundle.next_predictor):
@@ -64,28 +54,21 @@ def train_mopae_fixed(df: pd.DataFrame, windows: dict, total_locations: int, tot
         id=torch.optim.Adam(bundle.id_recognizer.parameters(), lr=lr),
         next=torch.optim.Adam(bundle.next_predictor.parameters(), lr=lr),
     )
+    lambdas = dict(l_recon=0.1, l_util=0.8, l_priv=lambda_priv)
     tr = windows["train"]
     cell = torch.tensor(tr["cell"], dtype=torch.long, device=device)
     wd = torch.tensor(tr["weekday"], dtype=torch.long, device=device)
     hr = torch.tensor(tr["hour"], dtype=torch.long, device=device)
     user_idx = torch.tensor(tr["user"], dtype=torch.long, device=device)
-    y_next_idx = torch.tensor(tr["next_cell"], dtype=torch.long, device=device)  # real next-location target
-    # No real (lat, lon) reconstruction target is wired up for this Phase 2 check (that
-    # would need per-window coordinates threaded through windowing.py); reconstruction
-    # loss is computed against zeros, i.e. lambda_recon's term is present but uninformative.
-    # This does not affect what Phase 2 is measuring (identification risk vs. a REAL
-    # next-location utility objective + a real privacy adversary); flagged here rather
-    # than silently assumed harmless.
+    y_next_idx = torch.tensor(tr["next_cell"], dtype=torch.long, device=device)
     coord_target = torch.zeros((len(cell), sl, 2), dtype=torch.float32, device=device)
     n = len(cell)
-
     for epoch in range(epochs):
         perm = torch.randperm(n, device=device)
         for start in range(0, n, batch_size):
             idx = perm[start:start + batch_size]
-            fixed_train_step(bundle, opts, cell[idx], wd[idx], hr[idx],
-                              y_next_idx[idx], user_idx[idx], coord_target[idx],
-                              fairness_fn=ed_soft, entropy_table=entropy_table, lambda4=lambda4)
+            fixed_train_step(bundle, opts, cell[idx], wd[idx], hr[idx], y_next_idx[idx], user_idx[idx],
+                              coord_target[idx], fairness_fn=None, lambda4=0.0, lambdas=lambdas)
     return bundle
 
 
@@ -95,65 +78,87 @@ def main():
     ap.add_argument("--parquet", required=True)
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--sl", type=int, default=10)
+    ap.add_argument("--sl-sensitivity", type=int, default=None, help="extra SL to report coverage/risk for")
+    ap.add_argument("--respect-traj-boundary", action="store_true", default=True)
+    ap.add_argument("--no-respect-traj-boundary", dest="respect_traj_boundary", action="store_false")
     ap.add_argument("--max-windows-per-user", type=int, default=200)
-    ap.add_argument("--attacker-epochs", type=int, default=5)
-    ap.add_argument("--mopae-epochs", type=int, default=5)
-    ap.add_argument("--lambda4-points", type=str, default="0.0,0.3,1.0")
+    ap.add_argument("--max-epochs", type=int, default=60)
+    ap.add_argument("--patience", type=int, default=6)
+    ap.add_argument("--seeds", type=str, default="0,1,2,3,4")
+    ap.add_argument("--lambda-priv-points", type=str, default="0.05,0.1,0.3")
+    ap.add_argument("--skip-mopae", action="store_true",
+                     help="raw-attacker + regression + bootstrap CI only; for a lighter SL sensitivity pass")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-    ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
     device = torch.device(args.device)
-    torch.manual_seed(args.seed)
+    seeds = tuple(int(s) for s in args.seeds.split(","))
 
     df = pd.read_parquet(args.parquet)
     total_locations = int(df["cell_id"].max())
     total_users = int(df["user_id"].max())
 
+    print(f"[{args.dataset}] device={device}, respect_traj_boundary={args.respect_traj_boundary}", flush=True)
     print(f"[{args.dataset}] computing mobility features for {total_users} users...", flush=True)
     feats = compute_mobility_features(df)
 
-    print(f"[{args.dataset}] building SL={args.sl} windows...", flush=True)
-    windows = build_sl_windows(df, sl=args.sl, max_windows_per_user=args.max_windows_per_user, seed=args.seed)
-    print(f"[{args.dataset}] train windows={len(windows['train']['user'])}, test windows={len(windows['test']['user'])}", flush=True)
+    coverage = {args.sl: count_sl_coverage(df, args.sl, args.respect_traj_boundary)}
+    if args.sl_sensitivity:
+        coverage[args.sl_sensitivity] = count_sl_coverage(df, args.sl_sensitivity, args.respect_traj_boundary)
+    print(f"[{args.dataset}] coverage: {json.dumps(coverage)}", flush=True)
 
-    print(f"[{args.dataset}] training raw (unprotected) attacker...", flush=True)
-    raw_encoder, raw_head, raw_risk = train_raw_attacker(
-        windows, total_locations, total_users, device, epochs=args.attacker_epochs)
-    raw_risk_df = pd.DataFrame(raw_risk).rename(columns={"top1": "raw_top1", "top5": "raw_top5"})
+    print(f"[{args.dataset}] building SL={args.sl} windows (respect_traj_boundary={args.respect_traj_boundary})...",
+          flush=True)
+    windows = build_sl_windows(df, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
+                                respect_traj_boundary=args.respect_traj_boundary)
+    print(f"[{args.dataset}] train windows={len(windows['train']['user'])}, "
+          f"test windows={len(windows['test']['user'])}", flush=True)
+
+    print(f"[{args.dataset}] training hardened raw attacker "
+          f"(best-of MLP/GRU, seeds={seeds}, early stopping)...", flush=True)
+    raw_risk_df, winner_log = train_raw_attacker_hardened(
+        windows, total_locations, total_users, device, seeds=seeds,
+        max_epochs=args.max_epochs, patience=args.patience)
+    print(f"[{args.dataset}] attacker winners by seed: {winner_log}", flush=True)
 
     merged = feats.merge(raw_risk_df, on="user_id", how="inner")
     print(f"[{args.dataset}] {len(merged)} users have both features and >=1 test window "
           f"(of {total_users} total, {len(feats)} with features)", flush=True)
 
-    ols = fit_ols(merged["raw_top1"].to_numpy(), dict(
+    ols = ols_with_pvalues(merged["raw_top1"].to_numpy(), dict(
         s_unc=merged["s_unc"].to_numpy(), rog_km=merged["rog_km"].to_numpy(),
-        n_records=merged["n_records"].to_numpy()))
+        n_windows=merged["n_windows"].to_numpy(), n_distinct_cells=merged["n_distinct_cells"].to_numpy()))
 
     merged["entropy_decile"] = pd.qcut(merged["s_unc"], 10, labels=False, duplicates="drop")
-    decile_risk = merged.groupby("entropy_decile")["raw_top1"].mean().to_dict()
+    decile_ci = bootstrap_decile_ci(merged["raw_top1"].to_numpy(), merged["entropy_decile"].to_numpy())
 
-    entropy_by_user = dict(zip(feats["user_id"], feats["s_unc"]))
-    entropy_table = build_entropy_table(entropy_by_user, total_users, device=device)
-
-    operating_points = [float(x) for x in args.lambda4_points.split(",")]
+    lambda_priv_points = [] if args.skip_mopae else [float(x) for x in args.lambda_priv_points.split(",")]
     op_results = {}
-    for lambda4 in operating_points:
-        print(f"[{args.dataset}] training Mo-PAE (fixed) at lambda4={lambda4}...", flush=True)
-        bundle = train_mopae_fixed(df, windows, total_locations, total_users, entropy_table,
-                                    lambda4, device, epochs=args.mopae_epochs)
-        attacker_head, post_risk = train_attacker_on_frozen_encoder(
-            bundle.encoder, windows, total_users, device, epochs=args.attacker_epochs)
-        post_df = pd.DataFrame(post_risk).rename(columns={"top1": f"post_top1_l{lambda4}", "top5": f"post_top5_l{lambda4}"})
-        merged = merged.merge(post_df[["user_id", f"post_top1_l{lambda4}"]], on="user_id", how="left")
-        merged[f"delta_l{lambda4}"] = merged[f"post_top1_l{lambda4}"] - merged["raw_top1"]
-        op_results[str(lambda4)] = dict(
-            mean_post_top1=float(merged[f"post_top1_l{lambda4}"].mean()),
-            mean_delta=float(merged[f"delta_l{lambda4}"].mean()),
-            frac_helped=float((merged[f"delta_l{lambda4}"] < -1e-9).mean()),
-            frac_harmed=float((merged[f"delta_l{lambda4}"] > 1e-9).mean()),
-            frac_unchanged=float((merged[f"delta_l{lambda4}"].abs() <= 1e-9).mean()),
-            decile_mean_delta={int(k): float(v) for k, v in
-                                merged.groupby("entropy_decile")[f"delta_l{lambda4}"].mean().to_dict().items()},
+    for lp in lambda_priv_points:
+        print(f"[{args.dataset}] plain Mo-PAE (lambda4=0) at lambda_priv={lp}...", flush=True)
+        bundle = train_mopae_plain(windows, total_locations, total_users, lp, device,
+                                    epochs=args.max_epochs // 3 or 1)
+        post_df = train_attacker_on_frozen_encoder_hardened(
+            bundle.encoder, windows, total_users, device, seeds=seeds,
+            max_epochs=args.max_epochs, patience=args.patience)
+        colname = f"post_top1_lp{lp}"
+        merged = merged.merge(post_df[["user_id", "post_top1"]].rename(columns={"post_top1": colname}),
+                               on="user_id", how="left")
+        merged[f"abs_reduction_lp{lp}"] = merged["raw_top1"] - merged[colname]
+        merged[f"rel_reduction_lp{lp}"] = np.where(
+            merged["raw_top1"] > 0, merged[f"abs_reduction_lp{lp}"] / merged["raw_top1"], np.nan)
+
+        abs_ci = bootstrap_decile_ci(merged[f"abs_reduction_lp{lp}"].to_numpy(), merged["entropy_decile"].to_numpy())
+        rel_vals = merged[f"rel_reduction_lp{lp}"].to_numpy()
+        rel_deciles = merged["entropy_decile"].to_numpy()
+        rel_mask = ~np.isnan(rel_vals)
+        rel_ci = bootstrap_decile_ci(rel_vals[rel_mask], rel_deciles[rel_mask])
+
+        op_results[str(lp)] = dict(
+            mean_post_top1=float(merged[colname].mean()),
+            mean_abs_reduction=float(merged[f"abs_reduction_lp{lp}"].mean()),
+            mean_rel_reduction=float(np.nanmean(rel_vals)),
+            decile_abs_reduction_ci=abs_ci,
+            decile_rel_reduction_ci=rel_ci,
         )
 
     out_dir = pathlib.Path(args.out_dir)
@@ -161,34 +166,43 @@ def main():
     merged.to_csv(out_dir / "per_user_risk.csv", index=False)
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    deciles = sorted(decile_risk)
-    ax.plot(deciles, [decile_risk[d] for d in deciles], marker="o")
+    deciles = sorted(decile_ci)
+    means = [decile_ci[d]["mean"] for d in deciles]
+    los = [decile_ci[d]["mean"] - decile_ci[d]["ci_lo"] for d in deciles]
+    his = [decile_ci[d]["ci_hi"] - decile_ci[d]["mean"] for d in deciles]
+    ax.errorbar(deciles, means, yerr=[los, his], marker="o", capsize=3)
     ax.set_xlabel("entropy decile (0=lowest S_unc)")
-    ax.set_ylabel("mean raw top-1 re-id risk")
+    ax.set_ylabel("mean raw top-1 re-id risk (95% bootstrap CI)")
     ax.set_title(f"{args.dataset}: raw re-id risk by entropy decile")
     fig.tight_layout()
     fig.savefig(out_dir / "risk_by_entropy_decile.png", dpi=120)
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    ax.scatter(merged["regularity_top2"], merged["raw_top1"], alpha=0.5, s=10)
-    ax.set_xlabel("regularity (share of visits at top-2 locations)")
-    ax.set_ylabel("raw top-1 re-id risk")
-    ax.set_title(f"{args.dataset}: raw re-id risk vs. regularity")
+    for lp in lambda_priv_points:
+        abs_ci = op_results[str(lp)]["decile_abs_reduction_ci"]
+        ds = sorted(abs_ci)
+        ax.plot(ds, [abs_ci[d]["mean"] for d in ds], marker="o", label=f"lambda_priv={lp}")
+    ax.axhline(0, color="gray", linewidth=0.8)
+    ax.set_xlabel("entropy decile (0=lowest S_unc)")
+    ax.set_ylabel("absolute risk reduction (raw - post)")
+    ax.set_title(f"{args.dataset}: plain Mo-PAE risk reduction by decile")
+    ax.legend()
     fig.tight_layout()
-    fig.savefig(out_dir / "risk_vs_regularity.png", dpi=120)
+    fig.savefig(out_dir / "risk_reduction_by_decile.png", dpi=120)
     plt.close(fig)
 
     summary = dict(
         dataset=args.dataset, total_users=total_users, total_locations=total_locations,
+        respect_traj_boundary=args.respect_traj_boundary,
         n_users_with_features=len(feats), n_users_in_risk_analysis=len(merged),
-        sl=args.sl, max_windows_per_user=args.max_windows_per_user,
+        sl=args.sl, coverage=coverage,
         n_train_windows=len(windows["train"]["user"]), n_test_windows=len(windows["test"]["user"]),
-        raw_risk_summary=dict(mean_top1=float(merged["raw_top1"].mean()),
-                              mean_top5=float(merged["raw_top5"].mean())),
-        ols_risk_vs_entropy_rog_nrecords=ols,
-        decile_risk=({int(k): float(v) for k, v in decile_risk.items()}),
-        operating_points=op_results,
+        attacker_winner_log=winner_log,
+        raw_risk_summary=dict(mean_top1=float(merged["raw_top1"].mean()), mean_top5=float(merged["raw_top5"].mean())),
+        ols_risk_vs_entropy_rog_nwindows_ncells=ols,
+        decile_risk_ci=decile_ci,
+        lambda_priv_operating_points=op_results,
     )
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     print(json.dumps(summary, indent=2))
