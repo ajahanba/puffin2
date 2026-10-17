@@ -41,36 +41,38 @@ problem); everything lives under `/data/mashhadi/puffin2`.
   Code: `puffin/attacks/{windowing,reid,analysis}.py`,
   `scripts/run_phase2_disparate_risk.py`.
 
-## In progress right now
+- **Checkpoint 2c** (`reports/02c_robustness.md`): robustness checks on 2b,
+  all three datasets rerun with seed-paired bootstrap CIs, cluster-robust
+  regression, chronological early stopping, and a new contemporaneous-vs-
+  future split comparison. **Retracted one claim from 2b**: GeoLife's two
+  lowest-entropy deciles do NOT robustly get worse under Mo-PAE (CI
+  includes zero) — the more defensible claim is "no significant protection
+  either way" for the lowest/highest deciles, with only middle deciles (3-6)
+  robustly improving. Foursquare/Gowalla-NYC's "everyone improves in
+  absolute terms" from 2b held up fine under the same scrutiny. New finding:
+  drift (contemporaneous accuracy minus future accuracy) varies by entropy
+  decile on all three datasets, but in OPPOSITE directions for GPS
+  (GeoLife: low-entropy users drift most) vs. check-in data (Foursquare/
+  Gowalla-NYC: low-entropy users drift least) — worth keeping for Phase 8.
+  Top-level conclusion unchanged: proceeding to Phase 3 (stop condition not
+  triggered).
+  Code: `puffin/attacks/windowing.py`'s `build_sl_windows_contemporaneous`
+  and `_chronological_val_split`/per-seed-preserving changes in `reid.py`,
+  `ols_cluster_robust` in `analysis.py`,
+  `scripts/run_phase2c_robustness.py`.
 
-**Checkpoint 2c (robustness checks the PI asked for before Phase 3 goes
-deep), writing `reports/02c_robustness.md`:**
-1. GeoLife negative-risk-reduction: pair raw/post by seed (not by
-   seed-averaged means), bootstrap 95% CI over users per decile, state
-   plainly whether the low deciles' CI excludes zero.
-2. Regression: user-clustered SEs (or user-level), report coefficients +
-   CIs not just p-values.
-3. Attacker gap: redo early stopping with a chronological (not random)
-   per-user validation split; compare disparate risk under (a) a
-   contemporaneous split (no time gap between attack-model training data
-   and target data) vs (b) the existing future/temporal split; check
-   whether the entropy gap holds under (a); check whether drift itself
-   (future-accuracy minus contemporaneous-accuracy, per user) varies by
-   entropy decile.
+## Next concrete action — Phase 3, in this PI-specified order
 
-**Not started yet:** none of this is written yet. Next concrete action:
-implement chronological-val-split + per-seed-preserving attacker functions
-in `puffin/attacks/reid.py`, a contemporaneous-split windower in
-`windowing.py`, and `ols_cluster_robust`/paired-bootstrap in `analysis.py`.
-
-## Then, in this order (PI-specified)
-
-1. Phase 3.1 threat-model table + Phase 3.3 metrics module (as planned).
-2. Fresh external re-id attacker, finalized on top of what exists.
+1. Threat-model table + metrics module (Phase 3.1/3.3 of the plan).
+2. Fresh external re-id attacker, finalized on top of what exists
+   (`puffin/attacks/reid.py` already has a hardened one from 2b/2c — reuse,
+   don't rebuild).
 3. Membership inference via POIPrivacy (third-party repo).
 4. TUL via MainTUL (third-party repo) — only against mechanisms that
    release trajectories (TrajGAN, GI-DP), not Mo-PAE/PUFFIN directly.
 5. Adaptive adversary, last.
+
+Nothing on this list is started yet.
 
 **Time-box rule:** if MainTUL or POIPrivacy doesn't run on our data after
 ~half a day of real effort each, stop, implement an in-house equivalent
@@ -80,18 +82,17 @@ into third-party integration.
 
 Write a Phase 3 checkpoint report (5-line summary at top) when done, then
 continue straight to Phase 5 baselines unless something changes the
-framing (same "proceed unless" rule as Checkpoint 2b).
+framing (same "proceed unless" rule as Checkpoint 2b/2c).
 
 ## Open questions / things to watch
 
 - Gowalla-NYC's SL=10 test coverage is only 587/1517 (39%); SL=5 recovers
   1154/1517. Not yet a problem, but worth revisiting if a later phase needs
   fuller coverage.
-- The attacker val/test generalization gap (51-98% val vs 17-57% test,
-  consistent across all 3 datasets) might be pure temporal drift or might
-  be partly an artifact of validation being a random (non-chronological)
-  subsample of train — this is exactly what Checkpoint 2c's item 3 is
-  checking.
 - `lambda_priv` was swept on an arbitrary grid (0.05/0.1/0.3); not a tuned
   baseline, just enough to see the pattern. Phase 5's baseline sweep should
   not treat these 3 points as final.
+- Checkpoint 2c's drift-by-decile finding (opposite direction for GPS vs.
+  check-in data) has no explanation yet, just an observation across 3
+  datasets/1 seed-set each — worth a sanity check if it becomes load-bearing
+  for any later claim.

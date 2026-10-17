@@ -68,7 +68,11 @@ def build_sl_windows(df: pd.DataFrame, sl: int = 10, max_windows_per_user: int |
     utility loss almost for free and distorted the privacy/utility trade-off
     being measured);
     user: (N,) int array, 0-indexed (cross_entropy needs classes in
-    [0, total_users-1]; the dataset's own user_id is 1-indexed).
+    [0, total_users-1]; the dataset's own user_id is 1-indexed);
+    ts: (N,) array, the window's OWN FIRST point's timestamp -- added so a
+    caller can do a chronological (not random) validation split for early
+    stopping, per the PI's Checkpoint 2c request (puffin.attacks.reid's
+    `_train_sequence_attacker` sorts on this).
 
     Built only from that split's rows -- a window never crosses a
     (user_id, traj_id) boundary or the train/test boundary.
@@ -87,40 +91,90 @@ def build_sl_windows(df: pd.DataFrame, sl: int = 10, max_windows_per_user: int |
     rng = np.random.default_rng(seed)
     out = {}
     for split_name in ("train", "test"):
-        cell_rows, wd_rows, hr_rows, next_rows, user_rows = [], [], [], [], []
         split_df = df[df["split"] == split_name]
-        for user_id, user_g in split_df.groupby("user_id", sort=False):
-            user_cell, user_wd, user_hr, user_next = [], [], [], []
-            groups = (user_g.groupby("traj_id", sort=False) if respect_traj_boundary
-                      else [(None, user_g)])
-            for _traj_id, g in groups:
-                if len(g) <= sl:
-                    continue
-                g = g.sort_values("ts")
-                cell = g["cell_id"].to_numpy()
-                wd = g["weekday"].to_numpy()
-                hr = g["hour"].to_numpy()
-                for i in range(len(g) - sl):
-                    user_cell.append(cell[i:i + sl])
-                    user_wd.append(wd[i:i + sl])
-                    user_hr.append(hr[i:i + sl])
-                    user_next.append(cell[i + sl] - 1)
-            if not user_cell:
-                continue
-            idx = np.arange(len(user_cell))
-            if max_windows_per_user is not None and len(idx) > max_windows_per_user:
-                idx = rng.choice(idx, size=max_windows_per_user, replace=False)
-            for i in idx:
-                cell_rows.append(user_cell[i])
-                wd_rows.append(user_wd[i])
-                hr_rows.append(user_hr[i])
-                next_rows.append(user_next[i])
-                user_rows.append(user_id - 1)  # schema is 1-indexed; cross_entropy needs 0-indexed classes
-        out[split_name] = dict(
-            cell=np.array(cell_rows, dtype=np.int64) if cell_rows else np.zeros((0, sl), dtype=np.int64),
-            weekday=np.array(wd_rows, dtype=np.int64) if wd_rows else np.zeros((0, sl), dtype=np.int64),
-            hour=np.array(hr_rows, dtype=np.int64) if hr_rows else np.zeros((0, sl), dtype=np.int64),
-            next_cell=np.array(next_rows, dtype=np.int64) if next_rows else np.zeros((0,), dtype=np.int64),
-            user=np.array(user_rows, dtype=np.int64) if user_rows else np.zeros((0,), dtype=np.int64),
-        )
+        out[split_name] = _windows_from_frame(split_df, sl, max_windows_per_user, rng, respect_traj_boundary)
     return out
+
+
+def _windows_from_frame(frame: pd.DataFrame, sl: int, max_windows_per_user, rng, respect_traj_boundary: bool):
+    """Shared window-building loop used by both build_sl_windows (one call
+    per pre-existing split) and build_sl_windows_contemporaneous (one call
+    on each user's own randomly-partitioned pool)."""
+    cell_rows, wd_rows, hr_rows, next_rows, user_rows, ts_rows = [], [], [], [], [], []
+    for user_id, user_g in frame.groupby("user_id", sort=False):
+        user_cell, user_wd, user_hr, user_next, user_ts = [], [], [], [], []
+        groups = (user_g.groupby("traj_id", sort=False) if respect_traj_boundary
+                  else [(None, user_g)])
+        for _traj_id, g in groups:
+            if len(g) <= sl:
+                continue
+            g = g.sort_values("ts")
+            cell = g["cell_id"].to_numpy()
+            wd = g["weekday"].to_numpy()
+            hr = g["hour"].to_numpy()
+            ts = g["ts"].to_numpy()
+            for i in range(len(g) - sl):
+                user_cell.append(cell[i:i + sl])
+                user_wd.append(wd[i:i + sl])
+                user_hr.append(hr[i:i + sl])
+                user_next.append(cell[i + sl] - 1)
+                user_ts.append(ts[i])
+        if not user_cell:
+            continue
+        idx = np.arange(len(user_cell))
+        if max_windows_per_user is not None and len(idx) > max_windows_per_user:
+            idx = rng.choice(idx, size=max_windows_per_user, replace=False)
+        for i in idx:
+            cell_rows.append(user_cell[i])
+            wd_rows.append(user_wd[i])
+            hr_rows.append(user_hr[i])
+            next_rows.append(user_next[i])
+            ts_rows.append(user_ts[i])
+            user_rows.append(user_id - 1)  # schema is 1-indexed; cross_entropy needs 0-indexed classes
+    return dict(
+        cell=np.array(cell_rows, dtype=np.int64) if cell_rows else np.zeros((0, sl), dtype=np.int64),
+        weekday=np.array(wd_rows, dtype=np.int64) if wd_rows else np.zeros((0, sl), dtype=np.int64),
+        hour=np.array(hr_rows, dtype=np.int64) if hr_rows else np.zeros((0, sl), dtype=np.int64),
+        next_cell=np.array(next_rows, dtype=np.int64) if next_rows else np.zeros((0,), dtype=np.int64),
+        user=np.array(user_rows, dtype=np.int64) if user_rows else np.zeros((0,), dtype=np.int64),
+        ts=np.array(ts_rows) if ts_rows else np.zeros((0,)),
+    )
+
+
+def build_sl_windows_contemporaneous(df: pd.DataFrame, sl: int = 10, max_windows_per_user: int | None = None,
+                                      seed: int = 0, respect_traj_boundary: bool = True, test_frac: float = 0.2):
+    """Checkpoint 2c, PI-requested: a (b) is build_sl_windows's existing
+    chronological train/test split (Phase 1's temporal_split -- train is
+    strictly earlier than test for every user). This is (a), the
+    contemporaneous control: ALL of a user's windows (ignoring the `split`
+    column entirely, pooling what Phase 1 called train and test together),
+    then a RANDOM (not time-based) per-user partition into train/test --
+    so there's no forced time gap between what the attacker trains on and
+    what it's evaluated against. Comparing disparate-risk results from this
+    against build_sl_windows's output isolates how much of the earlier
+    attacker val/test gap was genuine behavioral drift over time vs. just
+    the general difficulty of predicting held-out windows at all."""
+    rng = np.random.default_rng(seed)
+    all_windows = _windows_from_frame(df, sl, None, rng, respect_traj_boundary)  # no cap yet -- cap after split
+
+    n = len(all_windows["user"])
+    perm = rng.permutation(n)
+    n_test = int(test_frac * n)
+    test_idx, train_idx = perm[:n_test], perm[n_test:]
+
+    def _subset_and_cap(idx):
+        sub = {k: v[idx] for k, v in all_windows.items()}
+        n_sub = len(sub["user"])
+        if max_windows_per_user is None or n_sub == 0:
+            return sub
+        # cap per user, same semantics as _windows_from_frame's own cap
+        keep = []
+        for u in np.unique(sub["user"]):
+            u_idx = np.where(sub["user"] == u)[0]
+            if len(u_idx) > max_windows_per_user:
+                u_idx = rng.choice(u_idx, size=max_windows_per_user, replace=False)
+            keep.append(u_idx)
+        keep = np.concatenate(keep)
+        return {k: v[keep] for k, v in sub.items()}
+
+    return {"train": _subset_and_cap(train_idx), "test": _subset_and_cap(test_idx)}

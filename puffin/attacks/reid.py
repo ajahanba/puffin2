@@ -94,20 +94,46 @@ def _batched_forward(fn, *tensors, batch_size=4096):
     return torch.cat([fn(*(t[i:i + batch_size] for t in tensors)) for i in range(0, n, batch_size)], dim=0)
 
 
+def _chronological_val_split(ts: np.ndarray, user: np.ndarray, val_frac: float, rng):
+    """Per-user chronological split: for each user, the LAST val_frac of
+    their windows BY TIME become validation, the rest fit -- not a random
+    subsample. Checkpoint 2c (PI): early stopping on a random subsample of
+    train doesn't test the thing early stopping is supposed to protect
+    against here (generalizing forward in time); a user with ties in `ts`
+    (e.g. coarse timestamps) breaks ties randomly via `rng`, not by array
+    order, so repeated calls with different seeds don't silently pick the
+    same split."""
+    val_mask = np.zeros(len(ts), dtype=bool)
+    tie_break = rng.random(len(ts))
+    for u in np.unique(user):
+        idx = np.where(user == u)[0]
+        order = idx[np.lexsort((tie_break[idx], ts[idx]))]  # sort by ts, ties broken randomly
+        n_val = max(1, int(round(val_frac * len(order))))
+        val_mask[order[-n_val:]] = True
+    return np.where(val_mask)[0], np.where(~val_mask)[0]
+
+
 def _train_sequence_attacker(encoder_cls, context: int, total_locations: int, total_users: int,
                               windows: dict, device, seed: int, max_epochs: int = 100, patience: int = 8,
-                              val_frac: float = 0.1, batch_size: int = 512, lr: float = 1e-3):
+                              val_frac: float = 0.1, batch_size: int = 512, lr: float = 1e-3,
+                              chronological_val: bool = True):
     """Trains one encoder+head on raw sequence windows, early-stopped on an
-    internal validation split carved from train. Returns (val_acc, test_per_user,
+    internal validation split carved from train. `chronological_val=True`
+    (default, Checkpoint 2c): validation is each user's own chronologically
+    LATEST val_frac of train windows, not a random subsample -- see
+    `_chronological_val_split`. Returns (val_acc, test_per_user,
     test_overall_acc)."""
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
 
     tr = windows["train"]
     n = len(tr["cell"])
-    perm = rng.permutation(n)
-    n_val = max(1, int(val_frac * n))
-    val_idx, fit_idx = perm[:n_val], perm[n_val:]
+    if chronological_val and "ts" in tr and len(tr["ts"]) == n:
+        val_idx, fit_idx = _chronological_val_split(tr["ts"], tr["user"], val_frac, rng)
+    else:
+        perm = rng.permutation(n)
+        n_val = max(1, int(val_frac * n))
+        val_idx, fit_idx = perm[:n_val], perm[n_val:]
 
     def to_t(arr, dtype=torch.long):
         return torch.tensor(arr, dtype=dtype, device=device)
@@ -163,11 +189,18 @@ def _train_sequence_attacker(encoder_cls, context: int, total_locations: int, to
 
 
 def train_raw_attacker_hardened(windows: dict, total_locations: int, total_users: int, device,
-                                 seeds=(0, 1, 2, 3, 4), max_epochs: int = 100, patience: int = 8):
+                                 seeds=(0, 1, 2, 3, 4), max_epochs: int = 100, patience: int = 8,
+                                 chronological_val: bool = True):
     """Best-of-{MLP,GRU} per seed (chosen by validation accuracy, never by
     peeking at test), per-user test risk averaged across seeds. Returns
-    (per_user_df[user_id, raw_top1_mean, raw_top1_std], winner_log) where
-    winner_log is a list of {seed, winner, val_acc, test_overall_acc}."""
+    (per_user_df, winner_log). per_user_df has user_id, n_windows,
+    raw_top1/raw_top5 (mean across seeds), raw_top1_std, AND
+    top1_seed{s}/top5_seed{s} for each seed in `seeds` -- kept (not just the
+    mean) so Checkpoint 2c's seed-paired bootstrap can line up this
+    function's seed-s result with train_attacker_on_frozen_encoder_hardened's
+    seed-s result for the same user, rather than comparing two independent
+    5-seed averages. winner_log is a list of {seed, winner, val_acc,
+    test_overall_acc, mlp_val_acc, gru_val_acc}."""
     import pandas as pd
     context = windows["train"]["cell"].shape[1]
     winner_log = []
@@ -177,7 +210,7 @@ def train_raw_attacker_hardened(windows: dict, total_locations: int, total_users
         for arch, cls in ENCODER_CLASSES.items():
             val_acc, test_per_user, test_acc = _train_sequence_attacker(
                 cls, context, total_locations, total_users, windows, device, seed,
-                max_epochs=max_epochs, patience=patience)
+                max_epochs=max_epochs, patience=patience, chronological_val=chronological_val)
             candidates[arch] = dict(val_acc=val_acc, test_per_user=test_per_user, test_acc=test_acc)
         winner = max(candidates, key=lambda a: candidates[a]["val_acc"])
         winner_log.append(dict(seed=seed, winner=winner,
@@ -199,16 +232,21 @@ def train_raw_attacker_hardened(windows: dict, total_locations: int, total_users
     merged["raw_top1"] = merged[top1_cols].mean(axis=1)
     merged["raw_top1_std"] = merged[top1_cols].std(axis=1)
     merged["raw_top5"] = merged[top5_cols].mean(axis=1)
-    out = merged[["user_id", "n_windows", "raw_top1", "raw_top1_std", "raw_top5"]].fillna(0.0)
-    return out, winner_log
+    out = merged[["user_id", "n_windows", "raw_top1", "raw_top1_std", "raw_top5"] + top1_cols + top5_cols]
+    return out.fillna(0.0), winner_log
 
 
 def train_attacker_on_frozen_encoder_hardened(encoder: nn.Module, windows: dict, total_users: int, device,
                                                seeds=(0, 1, 2, 3, 4), max_epochs: int = 100, patience: int = 8,
-                                               val_frac: float = 0.1, batch_size: int = 512, lr: float = 1e-3):
+                                               val_frac: float = 0.1, batch_size: int = 512, lr: float = 1e-3,
+                                               chronological_val: bool = True):
     """Same early-stopping/5-seed treatment as the raw attacker, but just an
     MLP head on a frozen pooled feature vector (no sequence left to feed a
-    GRU). Returns per_user_df[user_id, post_top1_mean, post_top1_std]."""
+    GRU). Returns per_user_df[user_id, post_top1 (mean), post_top1_std,
+    top1_seed{s} for each seed] -- per-seed columns kept for Checkpoint 2c's
+    seed-paired bootstrap (pair this function's seed-s result against
+    train_raw_attacker_hardened's seed-s result for the same user, instead
+    of comparing two independent 5-seed averages)."""
     import pandas as pd
     for p in encoder.parameters():
         p.requires_grad_(False)
@@ -232,9 +270,13 @@ def train_attacker_on_frozen_encoder_hardened(encoder: nn.Module, windows: dict,
     for seed in seeds:
         torch.manual_seed(seed)
         rng = np.random.default_rng(seed)
-        perm = rng.permutation(n)
-        n_val = max(1, int(val_frac * n))
-        val_idx, fit_idx = torch.tensor(perm[:n_val], device=device), torch.tensor(perm[n_val:], device=device)
+        if chronological_val and "ts" in tr and len(tr["ts"]) == n:
+            val_idx_np, fit_idx_np = _chronological_val_split(tr["ts"], tr["user"], val_frac, rng)
+        else:
+            perm = rng.permutation(n)
+            n_val = max(1, int(val_frac * n))
+            val_idx_np, fit_idx_np = perm[:n_val], perm[n_val:]
+        val_idx, fit_idx = torch.tensor(val_idx_np, device=device), torch.tensor(fit_idx_np, device=device)
 
         head = MLPHead(total_users).to(device)
         opt = torch.optim.Adam(head.parameters(), lr=lr)
@@ -272,4 +314,6 @@ def train_attacker_on_frozen_encoder_hardened(encoder: nn.Module, windows: dict,
     top1_cols = [c for c in merged.columns if c.startswith("top1_seed")]
     merged["post_top1"] = merged[top1_cols].mean(axis=1)
     merged["post_top1_std"] = merged[top1_cols].std(axis=1)
-    return merged[["user_id", "post_top1", "post_top1_std"]].fillna(0.0)
+    post_top1_cols = {c: c.replace("top1_seed", "post_top1_seed") for c in top1_cols}
+    merged = merged.rename(columns=post_top1_cols)
+    return merged[["user_id", "post_top1", "post_top1_std"] + list(post_top1_cols.values())].fillna(0.0)
