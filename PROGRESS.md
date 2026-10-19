@@ -54,8 +54,16 @@ what was in flight.
 
 ## Running now
 
-Nothing launched yet this session — about to start Phase 3's threat-model
-table + metrics module (not a GPU job).
+A background agent is investigating Phase 3 task 3 (membership inference
+via POIPrivacy, https://github.com/KunlinChoi/POIPrivacy) on erebor: clone,
+read, attempt a real integration against GeoLife within a time-box; if it
+doesn't run after a genuine bounded effort, fall back to an in-house
+loss-threshold MIA (`puffin/attacks/mia_inhouse.py`) and document why in
+`CHANGES_FROM_ORIGINAL.md`. No way to check progress directly (it's a
+different Claude session, not a shell job) — its outcome will arrive as a
+report; if resuming cold, just check `git log` on `erebor:/data/mashhadi/puffin2`
+for a commit mentioning MIA/POIPrivacy to see whether it already finished,
+and check `puffin/attacks/` for `mia_poiprivacy.py` or `mia_inhouse.py`.
 
 ## What's done
 
