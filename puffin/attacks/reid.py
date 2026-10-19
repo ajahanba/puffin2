@@ -1,17 +1,31 @@
-"""Phase 2 (hardened, post-Checkpoint-2) re-identification attacker.
+"""Re-identification attacker. Checkpoint 2b/2c used `train_raw_attacker_hardened`
+(best of {MLP, GRU} PER SEED, chosen by validation accuracy -- one winning
+architecture covers every user in that seed) and that function is left
+exactly as it was so those checkpoints' already-reported numbers stay
+reproducible from this module.
 
-Two attacker families on raw, unprotected windows:
+Phase 3 task 2 ("finalized" attacker, plan 3.2.1: "MLP, GRU, gradient-
+boosted trees... report the strongest attacker per user") adds a third
+architecture (gradient-boosted trees, sklearn's HistGradientBoostingClassifier,
+since tree models take flat feature vectors, not learned sequence
+embeddings) and changes the aggregation: `train_raw_attacker_strongest_per_user`
+takes the ELEMENT-WISE MAX across all three architectures' test-set top-1/
+top-5 for EACH user, not one global per-seed winner. This is not test-set
+leakage in the usual sense -- the thing being estimated here ("the risk this
+user faces from the best attacker we tried") is inherently a max over
+named strategies, not a generalization claim that picking per-user by test
+performance would bias. Every per-user row in this function's output
+records which architecture won for that user.
+
+Two attacker families used by the sequence-based (MLP/GRU) path:
   - MLPEncoder: flattens the window (no sequence order) + MLP.
   - GRUEncoder: embedding + 2-layer GRU (same shape as
     puffin.models.mopae_torch.FixedEncoder, but GRU as the PI specified,
     not LSTM).
-For each of 5 seeds, both are trained to convergence with early stopping on
-an internal validation split (carved out of train, never touching test);
-whichever has the higher validation accuracy for that seed is the "fresh
-external attacker" for that seed (Phase 3.2.1's "strongest attacker"
-principle, not an in-model adversary). Per-user test risk is averaged
-across the 5 seeds' chosen attackers. Every result this module returns
-carries which architecture(s) actually produced it.
+Both trained to convergence with early stopping on an internal validation
+split (carved out of train, never touching test; chronological per-user by
+default, Checkpoint 2c). Gradient-boosted trees use sklearn's own internal
+early stopping instead (no shared validation-split machinery needed).
 
 `train_attacker_on_frozen_encoder` attacks the frozen OUTPUT of an
 already-trained encoder (e.g. Mo-PAE-fixed) -- only an MLP head makes sense
@@ -317,3 +331,87 @@ def train_attacker_on_frozen_encoder_hardened(encoder: nn.Module, windows: dict,
     post_top1_cols = {c: c.replace("top1_seed", "post_top1_seed") for c in top1_cols}
     merged = merged.rename(columns=post_top1_cols)
     return merged[["user_id", "post_top1", "post_top1_std"] + list(post_top1_cols.values())].fillna(0.0)
+
+
+def _train_gbt_attacker(windows: dict, total_users: int, seed: int, max_iter: int = 150,
+                         validation_fraction: float = 0.1):
+    """Gradient-boosted trees attacker (plan 3.2.1's third architecture).
+    Operates on the raw flattened window (cell/weekday/hour concatenated)
+    since tree ensembles take feature vectors, not learned sequence
+    embeddings -- no separate chronological-val machinery needed, sklearn's
+    HistGradientBoostingClassifier does its own internal early stopping."""
+    from sklearn.ensemble import HistGradientBoostingClassifier
+
+    tr = windows["train"]
+    X_tr = np.concatenate([tr["cell"], tr["weekday"], tr["hour"]], axis=1).astype(np.float64)
+    y_tr = tr["user"]
+
+    clf = HistGradientBoostingClassifier(max_iter=max_iter, early_stopping=True,
+                                          validation_fraction=validation_fraction, random_state=seed)
+    clf.fit(X_tr, y_tr)
+
+    te = windows["test"]
+    X_te = np.concatenate([te["cell"], te["weekday"], te["hour"]], axis=1).astype(np.float64)
+    te_y = torch.tensor(te["user"], dtype=torch.long)
+
+    proba = clf.predict_proba(X_te)
+    logits_full = np.zeros((len(X_te), total_users))
+    logits_full[:, clf.classes_.astype(int)] = proba  # classes_ may skip users with 0 train windows
+    test_logits = torch.tensor(logits_full, dtype=torch.float32)
+
+    return clf.score(X_tr, y_tr), _per_user_topk(test_logits, te_y)
+
+
+def train_raw_attacker_strongest_per_user(windows: dict, total_locations: int, total_users: int, device,
+                                           seeds=(0, 1, 2, 3, 4), max_epochs: int = 100, patience: int = 8,
+                                           chronological_val: bool = True, include_gbt: bool = True):
+    """Phase 3 task 2's finalized attacker: for each seed, train MLP, GRU,
+    and (if include_gbt) gradient-boosted trees; take the per-user MAX
+    top-1/top-5 across all three (not one global winner), then average
+    that per-user max across seeds. Returns (per_user_df, arch_win_log)
+    where arch_win_log reports, per seed, what fraction of users each
+    architecture won (ties broken by whichever is checked first: mlp, gru,
+    gbt) -- so "which attacker produced every number" is still answerable,
+    just at per-user instead of per-seed granularity (see per_user_df's
+    `winner_seed{s}` columns for the literal per-user answer)."""
+    import pandas as pd
+    context = windows["train"]["cell"].shape[1]
+    arch_names = ["mlp", "gru"] + (["gbt"] if include_gbt else [])
+
+    per_seed_frames = []
+    arch_win_log = []
+    for seed in seeds:
+        per_arch_df = {}
+        for arch in ("mlp", "gru"):
+            _, test_per_user, _ = _train_sequence_attacker(
+                ENCODER_CLASSES[arch], context, total_locations, total_users, windows, device, seed,
+                max_epochs=max_epochs, patience=patience, chronological_val=chronological_val)
+            per_arch_df[arch] = pd.DataFrame(test_per_user)[["user_id", "n_windows", "top1", "top5"]]
+        if include_gbt:
+            _, test_per_user = _train_gbt_attacker(windows, total_users, seed)
+            per_arch_df["gbt"] = pd.DataFrame(test_per_user)[["user_id", "n_windows", "top1", "top5"]]
+
+        merged = per_arch_df[arch_names[0]][["user_id", "n_windows"]].copy()
+        top1_mat = np.column_stack([per_arch_df[a].sort_values("user_id")["top1"].to_numpy() for a in arch_names])
+        top5_mat = np.column_stack([per_arch_df[a].sort_values("user_id")["top5"].to_numpy() for a in arch_names])
+        merged = merged.sort_values("user_id").reset_index(drop=True)
+        winner_idx = top1_mat.argmax(axis=1)
+        merged[f"top1_seed{seed}"] = top1_mat.max(axis=1)
+        merged[f"top5_seed{seed}"] = top5_mat[np.arange(len(merged)), winner_idx]
+        merged[f"winner_seed{seed}"] = [arch_names[i] for i in winner_idx]
+        per_seed_frames.append(merged)
+
+        win_fracs = {a: float((merged[f"winner_seed{seed}"] == a).mean()) for a in arch_names}
+        arch_win_log.append(dict(seed=seed, win_fractions=win_fracs))
+
+    out = per_seed_frames[0][["user_id", "n_windows"]].copy()
+    for frame in per_seed_frames:
+        s = [c for c in frame.columns if c.startswith("winner_seed") or c.startswith("top1_seed")
+             or c.startswith("top5_seed")]
+        out = out.merge(frame[["user_id"] + s], on="user_id", how="outer")
+    top1_cols = [c for c in out.columns if c.startswith("top1_seed")]
+    top5_cols = [c for c in out.columns if c.startswith("top5_seed")]
+    out["raw_top1"] = out[top1_cols].mean(axis=1)
+    out["raw_top1_std"] = out[top1_cols].std(axis=1)
+    out["raw_top5"] = out[top5_cols].mean(axis=1)
+    return out.fillna(0.0), arch_win_log
