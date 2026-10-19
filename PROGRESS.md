@@ -1,6 +1,46 @@
 # PUFFIN v2 — Progress
 
-## Checkpoint 3b decision (read this first): stopped per the PI's gate
+## Current state (read this first): PI reframed, Phase 4 + 5 now running
+
+The PI reviewed Checkpoint 3b and made a framing decision, superseding
+3b's own "stop and report" call below (kept for history):
+- **Not adopting** "naive privacy_gain measures nothing trustworthy" --
+  that adversarially trained representations leak to post-hoc attackers
+  is established prior work (Elazar & Goldberg 2018; Song & Shmatikov
+  2020 -- both verified, see `reports/related_work_adversarial_leakage.md`),
+  not a new finding of this project.
+- **Adopted instead**: naive evaluation misstates privacy *unevenly
+  across users*, so fairness-of-privacy claims built on it are
+  unreliable. Checkpoint 3c (`reports/03c_uneven_gap.md`, pure analysis
+  of already-collected 3b data, no new training) confirmed this: the
+  naive-vs-adaptive measurement gap is significantly non-uniform across
+  entropy deciles in all 6 panels tested (Kruskal-Wallis p<=0.017),
+  consistently largest for the lowest-entropy (most vulnerable) users,
+  and ranking users by naive privacy_gain disagrees substantially with
+  ranking by adaptive privacy_gain (Spearman rho 0.16-0.67). Per the PI's
+  continue condition, **proceeded straight to Phase 4.**
+
+**Now running, both detached, in parallel** (see "Running now" below for
+full detail):
+1. **Phase 4 (item B)**: a grid evaluating 7 fairness formulations (the
+   old `ed_soft`/L_pair_threshold baseline plus 5 new ones --
+   `lipschitz_soft`, `floor_loss`, `variance_of_risk`, `group_dro_loss`,
+   `per_user_minimax_loss` -- plus a genuinely new architecture, group-aware
+   adversarial training) under the adaptive attacker, at lambda4=1.0,
+   across all 3 datasets. All 7 formulations are implemented in
+   `puffin/fairness/losses.py` and `puffin/fairness/group_adversarial.py`,
+   tested (`tests/test_phase4_losses.py`, 9 checks, all pass).
+2. **Phase 5 (item C) baselines**: the in-house baselines the PI asked
+   for (plain Mo-PAE lambda4=0, variance regularizer, group-DRO, per-user
+   minimax) are now fully covered for free by combining Checkpoint 3b's
+   existing lambda4=0 data with the Phase 4 grid above -- no separate
+   training needed. The remaining Phase 5 item, third-party TrajGAN and
+   GI-DP (each time-boxed to half a day), was handed to a background
+   general-purpose agent (matching this project's established pattern for
+   POIPrivacy/MainTUL in Phase 3) -- see "Running now" for how to check on
+   it.
+
+## Superseded: Checkpoint 3b decision (kept for history)
 
 Item A (harden the Task 5 adaptive-adversary result) is done — full
 report: `reports/03b_adaptive_robustness.md`. 12 runs: 3 datasets
@@ -138,20 +178,58 @@ what was in flight.
 
 ## Running now
 
-**Nothing.** The Phase 3b grid (12 runs) finished and was analyzed; see
-the decision section at the top of this file and
-`reports/03b_adaptive_robustness.md`. Per the PI's stop condition, no new
-compute was started pending the PI's review of the reframed question.
-Two of the 12 original runs (`foursquare_lambda4_0.0`,
-`gowalla_nyc_lambda4_0.0`) OOM'd on their first attempt because an
-unrelated `mashhadi`-owned vLLM process claimed ~19.5GB on GPU 0 mid-grid
-(not this project's process -- did not touch it); both were relaunched
-successfully on a free GPU and are included in the final 12/12 results.
+**1. Phase 4 formulation grid** (item B): `scripts/launch_phase4_grid.sh`,
+launched detached (`nohup ... & disown`) on erebor at 16:56 PDT
+2026-10-19. 21 runs: 7 formulations (`ed_soft`, `lipschitz`, `floor`,
+`variance`, `group_dro`, `per_user_minimax`, `group_adversarial`) x 3
+datasets (geolife, foursquare, gowalla_nyc), all at lambda4=1.0 (matching
+Checkpoint 3b's reference point), 5 seeds on the attacker side, batched
+3-at-a-time on GPUs 1/2/3 (GPU 0 is occupied by an unrelated
+`mashhadi`-owned vLLM process -- confirmed via `ps -p <pid> -o user,cmd`
+it's not this project's; do not touch it, just avoid GPU 0 when launching
+anything here). Resumable: relaunching `bash scripts/launch_phase4_grid.sh`
+skips any `(dataset, formulation)` whose `summary.json` already exists.
 
-**If resuming cold:** read `reports/03b_adaptive_robustness.md` first.
-The next action is the PI's call, not an automatic continuation -- do not
-start Phase 4 (B) or Phase 5 (C) construction without hearing back on the
-reframed question the report proposes.
+Driver: `scripts/run_phase4_formulations.py`. Each run trains the
+mechanism, evaluates utility (next-location top-1 on held-out test --
+needed because the PI wants formulations compared "at matched utility",
+not matched lambda) and the primary metric: the WORST-OFF decile's mean
+risk under the adaptive attacker (not the naive one), using the same
+5-seed/bootstrap-CI adaptive-attack pipeline as Checkpoint 3b.
+
+- Logs: `logs/phase4/<dataset>_<formulation>.log`, orchestrator log
+  `logs/phase4/orchestrator.log`.
+- Output: `reports/figures/phase4/<dataset>_<formulation>/{summary.json,per_user_phase4.csv}`.
+- **If resuming cold:** check `tail logs/phase4/orchestrator.log`, and
+  whether `reports/04_formulations.md` already exists (if so, read that
+  instead of re-running anything). If the orchestrator is gone but not
+  all 21 `summary.json` files exist, relaunch
+  `nohup bash scripts/launch_phase4_grid.sh > logs/phase4/orchestrator_stdout.log 2>&1 < /dev/null & disown`
+  -- it skips completed runs. Check `nvidia-smi` before relaunching in
+  case GPU 0 has freed up or a different GPU is now occupied, and adjust
+  the `GPUS=(1 2 3)` line in `scripts/launch_phase4_grid.sh` if so.
+- **Next step once all 21 finish:** compare each formulation's worst-off-
+  decile adaptive risk at roughly matched utility across the 3 datasets
+  (utility is reported per-run, not pre-calibrated -- this grid uses one
+  lambda4 value per formulation, so "matched utility" comparison happens
+  at analysis time, not via an automated search; note this scope choice
+  explicitly in `reports/04_formulations.md` in case the PI wants a finer
+  lambda sweep later), then write `reports/04_formulations.md` (5-line
+  summary at top, like every other report here).
+
+**2. Phase 5 (item C) third-party baselines**: a background
+general-purpose agent is investigating TrajGAN and GI-DP (each
+time-boxed to roughly half a day of effort), following this project's
+established POIPrivacy/MainTUL pattern -- port if it runs after
+reasonable fixes, build an in-house equivalent and document why if it
+doesn't. It was given full project context and told to commit/push its
+own work and add its own note here when done; if its own addition to
+this section isn't here yet, it's still running -- do not duplicate its
+work by starting a separate TrajGAN/GI-DP investigation.
+
+**If resuming cold:** read this section, then check
+`logs/phase4/orchestrator.log` and whether `reports/04_formulations.md`
+or `reports/05_baselines_trajgan_gidp.md` exist yet.
 
 Old single-seed gating check (`geolife_lambda4_0`,
 `reports/figures/phase3_adaptive/geolife_lambda4_0/`) is superseded by
