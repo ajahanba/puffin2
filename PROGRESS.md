@@ -1,5 +1,11 @@
 # PUFFIN v2 — Progress
 
+## Checkpoint 2c, in 5 lines
+(a) Yes — entropy survives the user-clustered regression on all three datasets (e.g. GeoLife S_unc coef -0.044, 95% CI [-0.065, -0.023], excludes zero; Foursquare/Gowalla-NYC likewise).
+(b) The low- vs high-entropy risk gap holds under BOTH splits, on all three datasets — if anything more cleanly under the contemporaneous split (e.g. GeoLife decile 0 = 81.7% vs decile 9 = 21.0%, non-overlapping CIs) than under the future split.
+(c) Strongest defensible claim: plain Mo-PAE reliably protects middle-entropy users but gives the lowest- and highest-entropy users no statistically detectable benefit — it does not equalize risk, and the people most at risk (lowest entropy) see no significant gain.
+(d) Retracted: 2b's claim that GeoLife's two lowest-entropy deciles get actively WORSE — under seed-paired bootstrap CIs decile 0 includes zero and decile 1 flips sign; the point estimates in 2b came from comparing two independently-averaged 5-seed means rather than seed-paired differences, which overstated how reliable that specific apparent harm was.
+
 A fresh session should be able to resume from this file alone. Repo:
 `/data/mashhadi/puffin2` on `erebor.uwb.edu` (ssh `mashhadi@erebor.uwb.edu`),
 pushed to `https://github.com/ajahanba/puffin2` (private). Plan:
@@ -9,6 +15,47 @@ every deviation/bugfix: `CHANGES_FROM_ORIGINAL.md`.
 **Environment:** `.venv` (Python 3.10, PyTorch 2.5.1+cu121, 4x A4500 GPUs),
 pinned in `requirements.lock.txt`. `/home` on erebor is nearly full (not our
 problem); everything lives under `/data/mashhadi/puffin2`.
+
+## Erebor reliability — two unexplained reboots, for the PI to raise with the sysadmin
+
+Confirmed via `last reboot`/`who -b` (both "still running" until the next
+one superseded them):
+- **2026-10-16, ~17:20** (local erebor time) — discovered mid-session when
+  an SSH connection was refused; on reconnect `uptime` showed 0 minutes.
+  Corrupted two Python packages mid-write (matplotlib, contourpy — both
+  left as 0-byte `__init__.py`); both reinstalled and verified.
+- **2026-10-17, ~12:01** — discovered at the start of a later session via
+  `uptime`. No corruption found this time (nothing was mid-write).
+
+**Cause undetermined.** Checked and ruled out: `dnf-automatic` is not
+installed or configured (no `/etc/dnf/automatic.conf`, no
+`dnf-automatic(-install).timer` unit) — these are NOT unattended-upgrade
+reboots. No `at` jobs, no user crontab, and `/etc/cron.d/` has only the
+standard `0hourly`/`raid-check` entries (neither reboots anything).
+`/var/log/messages` (and its rotated copies) would likely show the actual
+cause but are root-only; `journalctl --list-boots` only retains the
+current boot, so the in-session logs for either reboot are gone. Could be
+sysadmin-initiated maintenance, a host-level/power event, or something else
+infrastructure-side — worth asking directly since it's now happened twice
+in two days.
+
+## Operating policy going forward (per the PI)
+
+Every long-running job (attacker training, sweeps) runs detached
+(`nohup ... &` with `disown`, as already practiced) and writes results
+incrementally rather than only at the very end, so a reboot loses at most
+the in-flight run, not completed work — true so far since every checkpoint
+has committed its outputs as soon as a script finishes, but worth stating
+as a hard rule now that reboots are a real, recurring risk, not a one-off.
+Every session ends by launching the next batch of compute jobs (not idle)
+and recording here what's running and how to check it (see "Running now"
+below, kept current) — so a reboot or a fresh session never has to guess
+what was in flight.
+
+## Running now
+
+Nothing launched yet this session — about to start Phase 3's threat-model
+table + metrics module (not a GPU job).
 
 ## What's done
 
