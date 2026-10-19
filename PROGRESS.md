@@ -54,16 +54,19 @@ what was in flight.
 
 ## Running now
 
-A background agent is investigating Phase 3 task 3 (membership inference
-via POIPrivacy, https://github.com/KunlinChoi/POIPrivacy) on erebor: clone,
-read, attempt a real integration against GeoLife within a time-box; if it
-doesn't run after a genuine bounded effort, fall back to an in-house
-loss-threshold MIA (`puffin/attacks/mia_inhouse.py`) and document why in
-`CHANGES_FROM_ORIGINAL.md`. No way to check progress directly (it's a
-different Claude session, not a shell job) — its outcome will arrive as a
-report; if resuming cold, just check `git log` on `erebor:/data/mashhadi/puffin2`
-for a commit mentioning MIA/POIPrivacy to see whether it already finished,
-and check `puffin/attacks/` for `mia_poiprivacy.py` or `mia_inhouse.py`.
+A background agent is investigating Phase 3 task 4 (TUL via MainTUL,
+https://github.com/Onedean/MainTUL) on erebor, same time-boxed pattern as
+task 3: clone, read, attempt a real integration within a bounded effort;
+fall back to an in-house GRU/TULER-style TUL if it doesn't run, documenting
+why in `CHANGES_FROM_ORIGINAL.md`. Per the plan, TUL only applies to
+mechanisms that release trajectories (TrajGAN, GI-DP) — Phase 5 hasn't
+built either baseline yet, so this task is building/validating the TUL
+*attack* module itself against synthetic/placeholder trajectory data for
+now, not a real attack on a trained baseline. No way to check progress
+directly (different Claude session, not a shell job) — outcome arrives as
+a report; if resuming cold, check `git log` on `erebor:/data/mashhadi/puffin2`
+for a commit mentioning TUL/MainTUL, and `puffin/attacks/` for `tul.py` or
+`tul_maintul.py`/`tul_inhouse.py`.
 
 ## What's done
 
@@ -116,24 +119,47 @@ and check `puffin/attacks/` for `mia_poiprivacy.py` or `mia_inhouse.py`.
   `ols_cluster_robust` in `analysis.py`,
   `scripts/run_phase2c_robustness.py`.
 
-## Next concrete action — Phase 3, in this PI-specified order
+## Phase 3, in this PI-specified order
 
-1. Threat-model table + metrics module (Phase 3.1/3.3 of the plan).
-2. Fresh external re-id attacker, finalized on top of what exists
-   (`puffin/attacks/reid.py` already has a hardened one from 2b/2c — reuse,
-   don't rebuild).
-3. Membership inference via POIPrivacy (third-party repo).
-4. TUL via MainTUL (third-party repo) — only against mechanisms that
-   release trajectories (TrajGAN, GI-DP), not Mo-PAE/PUFFIN directly.
-5. Adaptive adversary, last.
+1. **Done.** Threat-model table (`puffin/attacks/README.md`) + metrics
+   module (`puffin/metrics/{privacy,fairness,leveling_down}.py`:
+   privacy_gain, protection_at_k, similar_pairs_within_epsilon,
+   lipschitz_violation, max_min_gain, gini, gain_percentiles,
+   leveling_down_check; `puffin/attacks/analysis.py` gained
+   `paired_bootstrap_test`). Tested: `tests/test_metrics.py`.
+2. **Done.** Finalized external re-id attacker:
+   `train_raw_attacker_strongest_per_user` in `puffin/attacks/reid.py` —
+   MLP + GRU + gradient-boosted trees (sklearn `HistGradientBoostingClassifier`),
+   per-user element-wise max (not one global per-seed winner, per the
+   plan's literal wording), each user's row records which architecture won.
+   2b/2c's `train_raw_attacker_hardened` (2-arch, per-seed winner) is left
+   unchanged so those checkpoints stay reproducible. Verified on real
+   GeoLife data: `scripts/smoke_test_phase3_attacker.py`.
+3. **Done.** Membership inference. POIPrivacy
+   (https://github.com/KunlinChoi/POIPrivacy) given a genuine, bounded
+   attempt (cloned, read in full, its own demo run successfully) but ruled
+   out for two independent structural reasons: its LocMIA/TrajMIA attacks
+   are hardwired to GETNext, a specific POI-recommender architecture, whose
+   dense POI-adjacency graph would need ~29GB for GeoLife's 85,074 cells,
+   and whose required POI-category node features don't exist in this
+   project's schema. Built in-house instead:
+   `puffin/attacks/mia_inhouse.py`, a classic Yeom/Shokri loss-threshold
+   MIA attacking Mo-PAE-fixed's own next-location model, with a
+   calibration split (avoids circularity) and per-user output. Real test on
+   GeoLife: overall AUC 0.555, accuracy 0.598 (181 users, SL=10) — a real,
+   modest, non-suspicious signal. Tested: `tests/test_mia_inhouse.py` (5
+   checks, all pass). Full reasoning logged in `CHANGES_FROM_ORIGINAL.md`.
+4. **In progress** (background agent) — TUL via MainTUL
+   (https://github.com/Onedean/MainTUL), same time-boxed pattern as task 3.
+   Only applies to mechanisms that release trajectories (TrajGAN, GI-DP),
+   neither of which Phase 5 has built yet — so this task validates the TUL
+   attack module itself (against synthetic/placeholder trajectories), not a
+   real attack on a trained baseline.
+5. **Not started.** Adaptive adversary, last.
 
-Nothing on this list is started yet.
-
-**Time-box rule:** if MainTUL or POIPrivacy doesn't run on our data after
-~half a day of real effort each, stop, implement an in-house equivalent
-(GRU-based TULER-style TUL; loss-threshold MIA), document why in
-`CHANGES_FROM_ORIGINAL.md`, and move on. Don't sink more time than that
-into third-party integration.
+**Time-box rule** (already applied once, for task 3): if a third-party repo
+doesn't run on our data after ~half a day of real effort, stop, implement
+an in-house equivalent, document why in `CHANGES_FROM_ORIGINAL.md`, move on.
 
 Write a Phase 3 checkpoint report (5-line summary at top) when done, then
 continue straight to Phase 5 baselines unless something changes the
