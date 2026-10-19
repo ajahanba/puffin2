@@ -1,6 +1,42 @@
 # PUFFIN v2 — Progress
 
-## PI correction after Checkpoint 3 (read this first)
+## Checkpoint 3b decision (read this first): stopped per the PI's gate
+
+Item A (harden the Task 5 adaptive-adversary result) is done — full
+report: `reports/03b_adaptive_robustness.md`. 12 runs: 3 datasets
+(GeoLife, Foursquare, Gowalla-NYC) x 4 lambda4 values (0, 0.3, 1.0, 3.0),
+5 seeds each, bootstrap CIs.
+
+**Finding: the specialized-attacker gain over a naive attacker is
+statistically real (CI excludes zero) in all 12 runs, including every
+plain-Mo-PAE (lambda4=0) run.** The group-reweighted variant shows the
+same pattern on GeoLife and Foursquare (positive, overlapping-magnitude
+gain even at lambda4=0), but reverses sign on Gowalla-NYC (negative under
+plain Mo-PAE, positive once fairness is active) -- one genuine
+fairness-specific exception out of six (3 datasets x 2 attack variants),
+kept as a caveat in the report, not treated as overriding the dominant
+pattern.
+
+**Per the PI's explicit stop condition** ("stop and report if the gain
+turns out not to be specific to the fairness term"), this is read as
+"not specific" -- the dominant, cross-dataset, both-attack-variant
+pattern is that any trained encoder is vulnerable to a subgroup-aware
+attacker, fairness-active or not. **Stopping here. Not proceeding to
+Phase 4 (B: new fairness-loss formulations) or Phase 5 (C: baselines)
+construction** without the PI's review of this reframing. The report
+recommends revising the paper's central question from "does Mo-PAE's
+fairness mechanism survive an adaptive adversary" to the broader "does
+naive-attacker privacy_gain measure anything trustworthy, for any
+mechanism" -- which would change what Phase 4/5 need to compare if the PI
+decides to continue.
+
+Also newly answered: a user's entropy decile is itself recoverable from
+released encoder features alone (34-42% top-1 vs. 10% chance, all three
+datasets) -- the adaptive adversary's side-information requirement is
+realistic, not a hypothetical worst case (item A.4, the "state the threat
+model" ask).
+
+## Superseded: PI correction after Checkpoint 3 (kept for history)
 
 Two corrections to how Checkpoint 3 was framed:
 1. **Phase 4 is not skipped.** The earlier "proceed to Phase 5" instruction
@@ -102,49 +138,25 @@ what was in flight.
 
 ## Running now
 
-**Phase 3b hardening grid** (item A of the PI's latest correction, see top
-of file): `scripts/launch_phase3b_grid.sh`, launched detached via
-`nohup ... & disown` on erebor at 14:40 PDT 2026-10-19, orchestrator pid
-in `ps aux | grep launch_phase3b_grid`. 12 runs total — 3 datasets
-(geolife, foursquare, gowalla_nyc) x 4 lambda4 values (0.0, 0.3, 1.0, 3.0)
-— batched 4-at-a-time (one per GPU) to avoid contention, resumable (skips
-any run whose `summary.json` already exists if relaunched).
+**Nothing.** The Phase 3b grid (12 runs) finished and was analyzed; see
+the decision section at the top of this file and
+`reports/03b_adaptive_robustness.md`. Per the PI's stop condition, no new
+compute was started pending the PI's review of the reframed question.
+Two of the 12 original runs (`foursquare_lambda4_0.0`,
+`gowalla_nyc_lambda4_0.0`) OOM'd on their first attempt because an
+unrelated `mashhadi`-owned vLLM process claimed ~19.5GB on GPU 0 mid-grid
+(not this project's process -- did not touch it); both were relaunched
+successfully on a free GPU and are included in the final 12/12 results.
 
-Each run uses `scripts/run_phase3b_adaptive_robustness.py`: trains the
-mechanism, finds its most-protected decile via a 5-seed naive attacker,
-then runs BOTH adaptive attacks (per-group specialized, group-reweighted)
-with 5 seeds + bootstrap CIs each (new `*_multiseed` functions in
-`puffin/attacks/adaptive.py`), reports the 3-stage per-decile table
-(raw -> post/naive -> post/adaptive). The lambda4=1.0 run on each dataset
-additionally runs `can_infer_decile_from_features` (the threat-model
-check: can decile be inferred from released features alone?) and a
-5-seed-with-CI version of the in-house MIA.
+**If resuming cold:** read `reports/03b_adaptive_robustness.md` first.
+The next action is the PI's call, not an automatic continuation -- do not
+start Phase 4 (B) or Phase 5 (C) construction without hearing back on the
+reframed question the report proposes.
 
-- Logs: `logs/phase3b/<dataset>_lambda4_<l4>.log`, orchestrator log
-  `logs/phase3b/orchestrator.log`.
-- Output: `reports/figures/phase3b/<dataset>_lambda4_<l4>/{summary.json,per_user_3b.csv}`.
-- **If resuming cold:** check `tail logs/phase3b/orchestrator.log` for
-  progress, and whether `reports/03b_adaptive_robustness.md` already
-  exists (if so, the hardening is done and the stop/continue decision was
-  already made -- read that report instead of re-running anything). If
-  the orchestrator process is gone but not all 12 `summary.json` files
-  exist, just relaunch `nohup bash scripts/launch_phase3b_grid.sh ... &
-  disown` -- it skips completed runs.
-- **The decision rule once all 12 finish:** for each dataset, compare the
-  lambda4=0.0 run's `target_group` multipliers (specialized/reweighted
-  top1 over naive top1) against the lambda4 in {0.3,1.0,3.0} runs. If the
-  lambda4=0.0 multipliers are comparable in magnitude (as the single-seed
-  check already suggested) across all 3 datasets, the effect is NOT
-  specific to the fairness mechanism -- stop and report (write
-  `reports/03b_adaptive_robustness.md` documenting this, do not start
-  Phase 4/5 construction). If lambda4=0.0 multipliers are reliably smaller
-  (CIs don't overlap with the fairness-active ones) on at least most
-  datasets, continue to Phase 4 (B) and Phase 5 (C) per the PI's
-  instructions.
-- Old single-seed gating check (`geolife_lambda4_0`,
-  `reports/figures/phase3_adaptive/geolife_lambda4_0/`) is now superseded
-  by this grid's `geolife_lambda4_0.0` run; kept on disk for reference,
-  not deleted.
+Old single-seed gating check (`geolife_lambda4_0`,
+`reports/figures/phase3_adaptive/geolife_lambda4_0/`) is superseded by
+the grid's `geolife_lambda4_0.0` run; kept on disk for reference, not
+deleted.
 
 ## What's done
 
