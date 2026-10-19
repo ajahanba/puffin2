@@ -10,7 +10,11 @@ import torch
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from puffin.attacks.reid import GRUEncoder
-from puffin.attacks.adaptive import user_decile_map, per_group_specialized_attack, group_reweighted_attack
+from puffin.attacks.adaptive import (
+    user_decile_map, per_group_specialized_attack, group_reweighted_attack,
+    per_group_specialized_attack_multiseed, group_reweighted_attack_multiseed,
+    can_infer_decile_from_features,
+)
 
 DEVICE = torch.device("cpu")
 
@@ -105,9 +109,62 @@ def test_reweighting_shifts_accuracy_toward_target_group():
     print("OK: reweighting toward the target group does not decrease its accuracy")
 
 
+def test_multiseed_wrappers_aggregate_correctly():
+    windows = _synthetic_windows(n_users=20, windows_per_user=15)
+    feats = _synthetic_feats(20)
+    encoder = GRUEncoder(context=10, total_locations=50).to(DEVICE)
+    out = per_group_specialized_attack_multiseed(encoder, windows, feats, total_users=20, device=DEVICE,
+                                                  seeds=(0, 1), epochs=3, batch_size=64)
+    seed_cols = [c for c in out.columns if c.startswith("specialized_top1_seed")]
+    assert len(seed_cols) == 2
+    assert np.allclose(out["specialized_top1"], out[seed_cols].mean(axis=1))
+    assert "specialized_top1_std" in out.columns
+
+    encoder2 = GRUEncoder(context=10, total_locations=50).to(DEVICE)
+    out2 = group_reweighted_attack_multiseed(encoder2, windows, feats, total_users=20, device=DEVICE,
+                                              target_deciles=[0], seeds=(0, 1), epochs=3, batch_size=64)
+    seed_cols2 = [c for c in out2.columns if c.startswith("reweighted_top1_seed")]
+    assert len(seed_cols2) == 2
+    assert np.allclose(out2["reweighted_top1"], out2[seed_cols2].mean(axis=1))
+    print("OK: multiseed wrappers average correctly across seeds and keep per-seed columns")
+
+
+def test_can_infer_decile_from_features_beats_chance_on_informative_signal():
+    """Build windows where the LOCATION VOCABULARY itself leaks the decile
+    (low-decile users confined to a small sub-range of locations, high-decile
+    users spread across the full range) -- an encoder with real structure
+    should recover decile membership well above chance (1/10)."""
+    rng = np.random.default_rng(1)
+    n_users, windows_per_user, sl, total_locations = 20, 30, 10, 100
+
+    def build(n_per_user):
+        cell, wd, hr, user = [], [], [], []
+        for u in range(n_users):
+            decile = u % 10
+            # decile 0 -> locations confined to [1, 10]; decile 9 -> full range [1, 100]
+            hi = 10 + decile * 10
+            for _ in range(n_per_user):
+                cell.append(rng.integers(1, hi + 1, size=sl))
+                wd.append(rng.integers(0, 7, size=sl))
+                hr.append(rng.integers(0, 24, size=sl))
+                user.append(u)
+        return dict(cell=np.array(cell), weekday=np.array(wd), hour=np.array(hr), user=np.array(user),
+                    next_cell=np.zeros(len(user), dtype=np.int64))
+
+    windows = dict(train=build(windows_per_user), test=build(max(1, windows_per_user // 4)))
+    feats = _synthetic_feats(n_users)
+    encoder = GRUEncoder(context=sl, total_locations=total_locations).to(DEVICE)
+    out = can_infer_decile_from_features(encoder, windows, feats, device=DEVICE, epochs=15, batch_size=64)
+    assert out["chance_accuracy"] == 0.1
+    print(f"OK: can_infer_decile_from_features on an informative signal: {out} (chance=0.10)")
+    assert out["user_level_majority_accuracy"] > out["chance_accuracy"]
+
+
 if __name__ == "__main__":
     test_user_decile_map_spans_expected_range()
     test_per_group_specialized_attack_runs_and_labels_deciles_correctly()
     test_group_reweighted_attack_runs_and_labels_deciles_correctly()
     test_reweighting_shifts_accuracy_toward_target_group()
+    test_multiseed_wrappers_aggregate_correctly()
+    test_can_infer_decile_from_features_beats_chance_on_informative_signal()
     print("All adaptive-adversary tests passed.")

@@ -156,3 +156,93 @@ def group_reweighted_attack(encoder, windows: dict, feats: pd.DataFrame, total_u
     out = pd.DataFrame(per_user).rename(columns={"top1": "reweighted_top1", "top5": "reweighted_top5"})
     out["entropy_decile"] = out["user_id"].map(decile_map)
     return out
+
+
+def can_infer_decile_from_features(encoder, windows: dict, feats: pd.DataFrame, device,
+                                    n_deciles: int = 10, epochs: int = 20, batch_size: int = 512,
+                                    lr: float = 1e-3, seed: int = 0) -> dict:
+    """Checkpoint 3b (PI-requested): states the threat model for the
+    specialized/reweighted attacker precisely, instead of leaving it
+    implicit. Both attack functions above use `feats["s_unc"]` -- computed
+    from the RAW trajectory (puffin.features.mobility) -- to assign each
+    user's entropy decile. A real adversary attacking only RELEASED
+    features `f` doesn't have the raw trajectory; this function checks
+    whether the decile is recoverable from `f` alone, by training a small
+    classifier (frozen encoder output -> 10-way decile classification) and
+    comparing its accuracy to chance (1/n_deciles). High accuracy here
+    means "no side information needed, the group is implicit in the
+    released features themselves"; low accuracy means the specialized/
+    reweighted attacker as implemented IS assuming side information (the
+    true entropy label) a real adversary attacking only `f` wouldn't have.
+    """
+    torch.manual_seed(seed)
+    decile_map = user_decile_map(feats, n_deciles)
+
+    def to_t(arr, dtype=torch.long):
+        return torch.tensor(arr, dtype=dtype, device=device)
+
+    tr, te = windows["train"], windows["test"]
+    tr_user_1idx, te_user_1idx = tr["user"] + 1, te["user"] + 1
+    tr_decile = to_t(np.array([decile_map[u] for u in tr_user_1idx]))
+    te_decile = np.array([decile_map[u] for u in te_user_1idx])
+
+    cell, wd, hr = to_t(tr["cell"]), to_t(tr["weekday"]), to_t(tr["hour"])
+    head = _train_mlp_head_on_frozen(encoder, cell, wd, hr, tr_decile, n_deciles, device,
+                                      epochs, batch_size, lr)
+
+    te_cell, te_wd, te_hr = to_t(te["cell"]), to_t(te["weekday"]), to_t(te["hour"])
+    with torch.no_grad():
+        te_feat = _batched_forward(lambda c, w, h: encoder(c, w, h), te_cell, te_wd, te_hr)
+        pred = head(te_feat).argmax(-1).cpu().numpy()
+    window_acc = float((pred == te_decile).mean())
+
+    # Per-user majority vote -- the realistic unit for "did the adversary
+    # correctly place this USER's group," not an isolated window.
+    per_user_pred = pd.DataFrame({"user": te_user_1idx, "pred": pred, "true": te_decile})
+    user_majority = per_user_pred.groupby("user").agg(
+        pred=("pred", lambda s: s.mode().iloc[0]), true=("true", "first"))
+    user_acc = float((user_majority["pred"] == user_majority["true"]).mean())
+
+    return dict(window_level_accuracy=window_acc, user_level_majority_accuracy=user_acc,
+                chance_accuracy=1.0 / n_deciles, n_deciles=n_deciles)
+
+
+def _multiseed(fn, value_col: str, seeds, **kwargs) -> pd.DataFrame:
+    """Shared multi-seed wrapper (Checkpoint 3b, PI-requested rigor upgrade):
+    runs `fn` once per seed, averages `value_col` (and its "top5" sibling,
+    if present) per user, keeping per-seed columns too so a bootstrap over
+    users downstream can use either the mean or the full per-seed spread."""
+    per_seed = []
+    for s in seeds:
+        df = fn(seed=s, **kwargs)
+        keep = ["user_id", "entropy_decile", value_col]
+        top5_col = value_col.replace("top1", "top5")
+        if top5_col in df.columns and top5_col != value_col:
+            keep.append(top5_col)
+        df = df[keep].rename(columns={value_col: f"{value_col}_seed{s}", top5_col: f"{top5_col}_seed{s}"})
+        per_seed.append(df)
+    merged = per_seed[0][["user_id", "entropy_decile"]].copy()
+    for df in per_seed:
+        merged = merged.merge(df.drop(columns=["entropy_decile"]), on="user_id", how="outer")
+    top1_cols = [c for c in merged.columns if c.startswith(f"{value_col}_seed")]
+    merged[value_col] = merged[top1_cols].mean(axis=1)
+    merged[f"{value_col}_std"] = merged[top1_cols].std(axis=1)
+    return merged.fillna(0.0)
+
+
+def per_group_specialized_attack_multiseed(encoder, windows, feats, total_users, device,
+                                            seeds=(0, 1, 2, 3, 4), **kwargs) -> pd.DataFrame:
+    """Multi-seed wrapper around per_group_specialized_attack. Returns the
+    same shape plus `specialized_top1_std` and per-seed columns."""
+    return _multiseed(per_group_specialized_attack, "specialized_top1", seeds,
+                       encoder=encoder, windows=windows, feats=feats, total_users=total_users,
+                       device=device, **kwargs)
+
+
+def group_reweighted_attack_multiseed(encoder, windows, feats, total_users, device,
+                                       target_deciles, seeds=(0, 1, 2, 3, 4), **kwargs) -> pd.DataFrame:
+    """Multi-seed wrapper around group_reweighted_attack. Returns the same
+    shape plus `reweighted_top1_std` and per-seed columns."""
+    return _multiseed(group_reweighted_attack, "reweighted_top1", seeds,
+                       encoder=encoder, windows=windows, feats=feats, total_users=total_users,
+                       device=device, target_deciles=target_deciles, **kwargs)
