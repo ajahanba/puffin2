@@ -1,5 +1,31 @@
 # PUFFIN v2 — Progress
 
+## PI correction after Checkpoint 3 (read this first)
+
+Two corrections to how Checkpoint 3 was framed:
+1. **Phase 4 is not skipped.** The earlier "proceed to Phase 5" instruction
+   was a mistake on the PI's part — Phase 4 (the paper's method
+   contribution: L_pair_threshold/ed, L_lipschitz, L_floor, plus variance-
+   of-gain and group-DRO regularizers) stays in, and can run IN PARALLEL
+   with Phase 3/5, not after them.
+2. **The Task 5 adaptive-adversary result DOES change the framing.** It
+   isn't just "a strengthening detail" — it reframes the paper's central
+   method question from "does Mo-PAE+ed_soft achieve individual fairness"
+   to **"does ANY fairness formulation give protection that survives an
+   adaptive adversary?"** Every Phase 4 formulation must now be judged by
+   that standard, at matched utility, not just by the naive-attacker
+   privacy_gain metric Checkpoints 2/2b/2c used throughout.
+
+**Gating step before anything else** (PI's explicit stop condition): does
+the adaptive-adversary gain found in Checkpoint 3 (2.4-2.8x on the
+fairness-active model's most-protected decile) ALSO appear against PLAIN
+Mo-PAE (lambda4=0)? If yes — the effect is generic to any trained model,
+not specific to the fairness mechanism — **stop and report, do not proceed
+to Phase 4/5 construction.** If no — the fairness term itself is what
+creates the exploitable gap — continue to the full hardening (3b), then
+Phase 4 (judged by the adaptive-adversary standard) and Phase 5 in
+parallel. This check is running now; see "Running now" below.
+
 ## Checkpoint 2c, in 5 lines
 (a) Yes — entropy survives the user-clustered regression on all three datasets (e.g. GeoLife S_unc coef -0.044, 95% CI [-0.065, -0.023], excludes zero; Foursquare/Gowalla-NYC likewise).
 (b) The low- vs high-entropy risk gap holds under BOTH splits, on all three datasets — if anything more cleanly under the contemporaneous split (e.g. GeoLife decile 0 = 81.7% vs decile 9 = 21.0%, non-overlapping CIs) than under the future split.
@@ -68,11 +94,18 @@ what was in flight.
 
 ## Running now
 
-Nothing compute-heavy in flight. **Phase 3 is fully done** (all 5 tasks;
-`reports/03_attack_suite.md`). Starting Phase 5 (baselines) next, per the
-PI's explicit "continue to Phase 5 baselines" (skipping Phase 4 — the PI's
-own instruction, not an oversight; Phase 4's core piece, the `ed_soft`
-fairness loss, already exists from the Checkpoint 0 fairness-loss port).
+The gating check (see "PI correction" above, top of file): pid 286526 on
+erebor, `--dataset geolife_lambda4_0 --lambda4 0.0`, same adaptive-adversary
+attack as Checkpoint 3 but against PLAIN Mo-PAE instead of the
+fairness-active one. Log: `logs/phase3_adaptive_geolife_lambda4_0.log`.
+Out-dir: `reports/figures/phase3_adaptive/geolife_lambda4_0/`. Compare its
+`target_group.mean_specialized_top1`/`mean_reweighted_top1` multipliers
+over `mean_global_post_top1` against Checkpoint 3's 2.4x/2.8x (lambda4=1.0)
+to resolve the stop condition. If resuming cold: check whether this run
+finished (`ls reports/figures/phase3_adaptive/geolife_lambda4_0/summary.json`)
+and whether `reports/03b_adaptive_robustness.md` already exists (if so,
+the gating decision was already made -- read that report instead of
+re-running this check).
 
 ## What's done
 
