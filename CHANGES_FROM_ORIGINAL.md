@@ -141,3 +141,113 @@ single architecture trained for a fixed small number of epochs; the risk
 regression now reports proper standard errors/p-values
 (`puffin/attacks/analysis.py`) instead of point estimates only; decile means
 carry bootstrap 95% CIs over users.
+
+## Phase 3 task 3 — membership inference: POIPrivacy tried and ruled out, in-house fallback built
+
+Per the plan's explicit time-box ("if POIPrivacy doesn't run on our data
+after ~half a day of real effort, stop, implement an in-house equivalent,
+document why, and move on" — `PROGRESS.md`).
+
+**POIPrivacy was cloned and given a genuine, bounded attempt**
+(`legacy/POIPrivacy/`, not committed, same convention as
+`legacy/Mo-PAE_upstream/`; `.gitignore` updated the same way): its README
+and all four attacks' code (LocExtract, TrajExtract, LocMIA, TrajMIA) were
+read in full, a fresh isolated venv was built
+(`legacy/POIPrivacy/.venv`, this project's `.venv` untouched), its
+non-torch dependencies installed cleanly, and `torch==2.5.1+cu121` (this
+project's own pinned wheel) installed in place of its pinned
+`torch==1.12.1+cu113` without issue. Its own demo was then actually run:
+`Attack3_LocMIA/build_graph.py` against the bundled 4sq-NYC sample data
+executed successfully end to end. **POIPrivacy is not abandoned or broken
+code** — it was ruled out for a structural reason, found by reading what
+that successful demo run actually produced and what the attack code
+actually needs:
+
+1. **LocMIA and TrajMIA (the two attacks that correspond to "is this
+   user's data in the training set") are both built around GETNext**, a
+   specific graph-convolution + transformer POI *recommender*
+   (`Attack3_LocMIA/model_batch.py`, `Attack4_TrajMIA/model.py`), not a
+   generic "any next-location model" interface. There is no supported path
+   to point either attack at a different target architecture — the
+   recommender *is* the attack's target model, hardcoded throughout
+   `train_target.py`/`traintarget.py`.
+2. **GETNext's graph is a dense POI-to-POI adjacency matrix written as a
+   single `O(n_pois^2)` CSV** (`build_graph.py`'s `save_graph_to_csv`:
+   `np.savetxt(..., A.todense(), delimiter=',')`). Running it against the
+   bundled 4sq-NYC sample (this attempt's own test run) produced a 519MB
+   dense CSV for roughly 11,000 POIs. GeoLife — this project's main
+   dataset — has 85,074 distinct grid cells
+   (`data/processed/geolife/stats.json`); a dense 85074×85074 float32
+   matrix alone is ~29GB, before a single GCN forward pass is run on it.
+   This is not a performance-tuning problem, it rules GeoLife out outright.
+3. **GETNext's node features and an auxiliary training loss are built on
+   POI categories** (`poi_catid`/`poi_catname`, one-hot encoded) **that do
+   not exist anywhere in this project's data.** `puffin/data/schema.py`'s
+   unified schema — what every processed parquet in this repo conforms to
+   — has no category field: meaningless for GeoLife's raw GPS fixes (a GPS
+   point isn't a venue with a type), and dropped even for Foursquare's
+   check-ins by `puffin/data/datasets/foursquare_unified.py`, since the
+   unified schema has nowhere to put it. Recovering it would mean
+   fabricating label data this project's pipeline was deliberately built
+   not to depend on.
+4. On top of both, LocMIA/TrajMIA are LiRA-style (shadow-model) attacks —
+   `attack3_shadowmodel.py`/`train_shadow.py` train many independent
+   copies of this same heavy GCN+transformer model, multiplying problem
+   #2's memory wall by however many shadow models the attack needs.
+
+Items #2 and #3 are each, independently, exactly the stop condition the
+plan names ("undocumented/unrecoverable data format assumptions") — not a
+dependency-version problem a pin would fix, but a structural mismatch
+between what GETNext's MIA attacks need (a modest-cardinality, category-
+labeled POI graph) and what this project's data is (large-vocabulary GPS
+grid cells with no category labels at all).
+
+**In-house fallback: `puffin/attacks/mia_inhouse.py`.** A classic Yeom et
+al. (2018) / Shokri et al. loss-threshold MIA — deliberately the simplest
+attack in the MIA literature, not a LiRA/shadow-model attack, since this
+module's job is to demonstrate the standard member/nonmember loss
+asymmetry exists on our data and give later phases a real per-user signal,
+not to find the strongest possible attacker (if that's ever needed,
+POIPrivacy's shadow-model machinery is where that escalation would return
+to scope). Ground truth comes directly from `mi_split`
+(`puffin.data.splits.membership_split`, already in every processed
+parquet). The attacked target model is Mo-PAE-fixed's own
+`FixedEncoder` + `MLPHead` (`puffin/models/mopae_torch.py`) — i.e. "the
+utility (next-location) model trained on released features `f`" that
+`puffin/attacks/README.md`'s threat-model table names as Mo-PAE/PUFFIN's
+MIA attack surface — trained directly on raw member windows via plain
+cross-entropy (no adversarial/privacy terms: those are Mo-PAE's own
+defense mechanism, `fixed_train_step`, orthogonal to needing *a* trained
+next-location model to attack).
+
+`run_loss_threshold_mia(df, device, ...)` builds membership-keyed windows
+by reusing `puffin.attacks.windowing.build_sl_windows` unchanged (relabels
+`mi_split` as the `split` column it already expects), trains the target
+model on member windows, then calibrates a single confidence threshold on
+a random half of each class's windows (member and nonmember, independently
+sampled) and reports attack performance only on the other half — so the
+threshold was never set by looking at the instances it later classifies.
+Returns a per-user DataFrame (`user_id`, member/nonmember window counts,
+mean confidence on each, `attack_accuracy`) plus a summary dict
+(calibrated threshold, overall AUC, overall accuracy) — per-user, not just
+an aggregate number, matching this project's whole per-user-risk
+methodology (`puffin/attacks/reid.py`'s convention).
+
+Tested two ways: `tests/test_mia_inhouse.py` (run via
+`python tests/test_mia_inhouse.py`) checks `_windows_by_membership` never
+mixes member/nonmember windows (including a deliberately-asymmetric-length
+case that would catch a leak), `_best_threshold`'s ROC-based threshold
+selection against a clean synthetic signal and a degenerate single-class
+calibration split, and an end-to-end run on synthetic data confirming the
+textbook overfitting asymmetry (member windows end up more confidently
+predicted than never-seen nonmember windows) — all five checks pass. Also
+run once against the real GeoLife parquet (`data/processed/geolife/`,
+181 users, SL=10, capped at 50 windows/user, 12 epochs, one A4500, 73.7s
+wall time): overall AUC 0.555, overall accuracy 0.598 over 4,056
+member / 4,128 nonmember eval windows — a real, modest-but-above-chance
+signal (not suspiciously perfect, consistent with a model that's seen only
+12 epochs over GeoLife's 85,074-location vocabulary rather than having
+memorized it), with per-user `attack_accuracy` ranging from near 0 to 1
+across the 181 users. That run was a validation step only, not committed
+as a script or a results artifact — Phase 3 task 3's deliverable is the
+module and its test, not a full sweep.

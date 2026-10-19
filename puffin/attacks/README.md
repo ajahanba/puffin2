@@ -31,9 +31,15 @@ audit (`reports/00_mopae_audit.md`).
 - `analysis.py` — OLS (plain and cluster-robust) with proper SEs/CIs,
   bootstrap CIs over users per decile, paired bootstrap tests between two
   methods on the same users.
-- `mia_poiprivacy.py` / `mia_inhouse.py` — Phase 3 task 3, membership
-  inference (whichever one is live; see that module's docstring for which
-  this project ended up using and why).
+- `mia_inhouse.py` — Phase 3 task 3, membership inference. POIPrivacy
+  (https://github.com/KunlinChoi/POIPrivacy) was tried first and ruled out
+  after a genuine, bounded attempt — its LocMIA/TrajMIA attacks are built
+  around a specific GETNext graph-transformer POI recommender needing a
+  dense O(n_pois^2) adjacency matrix and POI-category node features this
+  project's data doesn't have (infeasible for GeoLife's 85,074 cells
+  outright); see `CHANGES_FROM_ORIGINAL.md` for the full account.
+  `mia_inhouse.py` is a plain Yeom/Shokri loss-threshold MIA against Mo-PAE-
+  fixed's own encoder+next_predictor, using `mi_split` for ground truth.
 - `tul.py` — Phase 3 task 4, trajectory-user linking, only ever run against
   TrajGAN/GI-DP outputs (never Mo-PAE/PUFFIN, per the table above).
 - `adaptive.py` — Phase 3 task 5, the fairness-aware adaptive adversary.
