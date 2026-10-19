@@ -8,8 +8,8 @@ against Mo-PAE/PUFFIN, which releases encoder features, not trajectories.
 | Mechanism | Released artifact | Attacks that apply |
 |---|---|---|
 | Mo-PAE / PUFFIN | encoder output features `f` (worst case: the trained encoder itself, so an attacker can run arbitrary inputs through it) | fresh external re-id on `f` (`reid.py`); MIA on the utility (next-location) model trained on `f`; reconstruction attack on the decoder, if released |
-| TrajGAN | synthetic trajectories | TUL on the synthetic trajectories (MainTUL / in-house TULER fallback); MIA (was a given trajectory in the generator's training set?) |
-| GI-DP | perturbed (noised) location sequences | TUL on the perturbed sequences; re-id directly on the perturbed sequences (same `reid.py` attacker, different input) |
+| TrajGAN | synthetic trajectories | TUL on the synthetic trajectories (`tul_maintul.py`, ported from MainTUL); MIA (was a given trajectory in the generator's training set?) |
+| GI-DP | perturbed (noised) location sequences | TUL on the perturbed sequences (`tul_maintul.py`); re-id directly on the perturbed sequences (same `reid.py` attacker, different input) |
 
 Re-id risk numbers reported anywhere in this repo (Checkpoints 2/2b/2c) are
 always from a **fresh external attacker** trained after the mechanism is
@@ -40,8 +40,18 @@ audit (`reports/00_mopae_audit.md`).
   outright); see `CHANGES_FROM_ORIGINAL.md` for the full account.
   `mia_inhouse.py` is a plain Yeom/Shokri loss-threshold MIA against Mo-PAE-
   fixed's own encoder+next_predictor, using `mi_split` for ground truth.
-- `tul.py` — Phase 3 task 4, trajectory-user linking, only ever run against
-  TrajGAN/GI-DP outputs (never Mo-PAE/PUFFIN, per the table above).
+- `tul_maintul.py` — Phase 3 task 4, trajectory-user linking, only ever run
+  against TrajGAN/GI-DP outputs (never Mo-PAE/PUFFIN, per the table above).
+  Unlike task 3's POIPrivacy, MainTUL (https://github.com/Onedean/MainTUL)
+  actually ran on its own demo after two trivial compat fixes, so this
+  module PORTS (does not import -- the clone in `legacy/MainTUL/` is not
+  committed) its mutual-distillation LSTM-student/Transformer-teacher
+  method into this project's own schema, dropping only the POI-category
+  view MainTUL fuses in (this project has no POI category data, same
+  reasoning as the POIPrivacy writeup below). Validated end-to-end on
+  GeoLife's own real trajectories (no TrajGAN/GI-DP output exists yet to
+  attack for real): see `CHANGES_FROM_ORIGINAL.md` for the full account
+  and numbers.
 - `adaptive.py` — Phase 3 task 5, the fairness-aware adaptive adversary.
 
 See `../metrics/` for the per-user metrics (privacy gain, fairness,

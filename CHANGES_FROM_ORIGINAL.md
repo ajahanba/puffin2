@@ -251,3 +251,172 @@ memorized it), with per-user `attack_accuracy` ranging from near 0 to 1
 across the 181 users. That run was a validation step only, not committed
 as a script or a results artifact — Phase 3 task 3's deliverable is the
 module and its test, not a full sweep.
+
+## Phase 3 task 4 — trajectory-user linking: MainTUL ported (not ruled out)
+
+Per the plan's time-box (PROGRESS.md): give the named third-party repo a
+genuine, bounded attempt (~half a day) before falling back to an in-house
+equivalent. Unlike task 3's POIPrivacy, **MainTUL actually ran**, so the
+outcome here is a port of its real method, not an in-house TULER fallback.
+
+**MainTUL was cloned and given a genuine attempt**
+(`legacy/MainTUL/`, not committed, same convention as
+`legacy/Mo-PAE_upstream/` and `legacy/POIPrivacy/`; `.gitignore` updated
+the same way): its README and all of `project/{preprocess,loaddataset,
+model,main,utils}.py` were read in full, a fresh isolated venv was built
+(`legacy/MainTUL/.venv`, this project's own `.venv` untouched), and
+`torch==2.5.1+cu121` (this project's own pinned wheel) installed in place
+of its pinned `torch==1.10.1+cu102` without issue (plus `scikit-learn`,
+`pandas`, `tqdm`, `matplotlib`). Its own `foursquare_mini` demo was then
+run (`python project/main.py --dataset foursquare_mini --epochs 2
+--batch_size 64`, from the repo root as its own logging path requires)
+and hit two bugs before training, both plain version/code bugs, neither a
+data-format or architecture problem:
+
+1. `utils.py`'s `EarlyStopping.__init__` sets `self.val_loss_min = np.Inf`
+   -- removed in numpy>=2.0 (`AttributeError`); `np.inf` is identical and
+   still works. One-line fix.
+2. `main.py`'s per-batch training-loop log line formats
+   `"...acc@1:{:.6f} acc@5:{:.6f} macro_p:{:.6f} macro_r:{:.6f}
+   macro_f1:{:.6f}"` (5 more placeholders beyond loss) against only the 7
+   loss-related values the TRAINING loop actually has -- those 5 metrics
+   are only ever computed in the VALIDATION loop a few lines later.
+   `str.format` raises `IndexError` on the very first logged batch
+   (`batch_idx % 40 == 0` is true at batch 0) under the authors' own
+   default args, independent of numpy/torch version -- this looks like
+   the published repo's own default training config was never actually
+   run end-to-end in its current committed state. Trimmed the format
+   string to the 7 metrics the training loop has.
+
+With both fixed, the demo trained and tested successfully end to end: 2
+epochs, batch_size 64, ~200s single-threaded CPU, logged test performance
+`acc@1 0.573 / acc@5 0.684` (student) and `acc@1 0.499 / acc@5 0.613`
+(teacher). **This is a real, working demo run on the authors' own data**
+-- a materially different outcome from task 3's POIPrivacy, which also ran
+its own demo but was then ruled out for structural reasons found by
+reading what that demo actually needed (GETNext's O(n_pois^2) graph and
+POI-category features). MainTUL's architecture (read directly from
+`model.py`, not guessed from the README) is a mutual-distillation pair --
+a lightweight LSTM "student" and a Transformer "teacher", each with its
+own classifier head and a bidirectional KL-divergence term distilling
+between their output distributions, trained so the cheap student alone
+becomes as accurate as the Transformer teacher and can be deployed on its
+own at inference. Its only architectural dependency that this project's
+schema lacks is a POI category id, fused in via a learnable alpha-weighted
+sum alongside the POI-id embedding in both encoders -- unlike POIPrivacy's
+GETNext graph, this is NOT a hard blocker (no graph construction, no
+quadratic memory wall): the category branch can simply be omitted.
+
+## The port: `puffin/attacks/tul_maintul.py`
+
+Because MainTUL ran, it was PORTED (not imported -- `legacy/MainTUL/` is
+not committed, so nothing under `puffin/` may depend on it at runtime)
+into this project's own schema and conventions, rather than falling back
+to a simpler in-house TULER baseline. What was ported as-is vs. simplified,
+and why (full reasoning also in the module's own docstring):
+
+- **Category view dropped entirely**, for the reason above: GeoLife (this
+  validation's dataset) has no POI category info at all -- a GPS fix isn't
+  a venue with a type, the same reasoning this file's POIPrivacy section
+  already gave for why `puffin/data/schema.py` has nowhere to put one.
+  Faking a constant dummy category would run, but would only add dead
+  parameters for zero signal while looking like real data; the port keeps
+  the single POI-id view instead.
+- **Trajectory length capped** at `max_traj_len` (default 150). GeoLife's
+  real per-trip GPS trajectories run up to 92,645 points
+  (`df.groupby(["user_id","traj_id"]).size().max()` on
+  `data/processed/geolife/unified.parquet`) -- orders of magnitude longer
+  than the check-in trajectories (tens of points/day) MainTUL was built
+  for; a Transformer encoder over a 92,645-token sequence is quadratic-
+  attention infeasible. Each trajectory is truncated to its first
+  `max_traj_len` points (chronological order) -- a practical necessity,
+  not a claim that longer context wouldn't help.
+- **Train/test split reuses this project's own `mi_split` column**
+  (`puffin.data.splits.membership_split`: whole trajectories held out per
+  user, never split mid-sequence) instead of re-deriving MainTUL's own ad
+  hoc 80/20 `split_dataset` -- same default fraction
+  (`nonmember_traj_frac=0.2`) and the same "whole trajectory" property,
+  reusing existing infra instead of duplicating it (the same pattern
+  `mia_inhouse.py`'s `_windows_by_membership` already established).
+  `user_disjoint` users are EXCLUDED here, unlike `mia_inhouse.py`: TUL is
+  a CLOSED-WORLD classification problem (the classifier's output layer has
+  one slot per training user), so a disjoint user's trajectory is
+  guaranteed-wrong by construction, not a real attack signal -- MIA's
+  open-world threshold test has no such constraint, which is why
+  `mia_inhouse.py` keeps them.
+- **Long-term augmentation kept** -- MainTUL's actual "mutual
+  distillation" trick (during training only, the teacher sees the
+  student's trajectory concatenated with up to `long_term_num` other
+  random trajectories of the same user, for richer soft targets; at test
+  time both networks see only the single trajectory being attacked, no
+  side information). The original crashes (`random.sample` on a
+  population smaller than `long_term_num`) for any user with too few
+  training trajectories; `long_term_num` is clamped per user here instead
+  (46/181 GeoLife users have fewer than 9 train trajectories after the
+  80/20-equivalent split).
+- **Temporal encoding uses a within-sequence position index**, not a raw
+  unix timestamp (this project's `ts` is a `datetime64`, and the original
+  only ever used the raw timestamp as an arbitrary large number fed
+  through a learnable per-dimension frequency anyway).
+- **Not ported**: `--times` multi-seed repeats, file logging, loss-curve
+  plotting, multi-GPU `DataParallel`, MainTUL's own file-based mid-training
+  checkpoint -- experiment-harness scaffolding, not the method. Uses the
+  in-memory best-state pattern (`copy.deepcopy` + early stopping on
+  validation accuracy) `puffin.attacks.reid` already uses, and
+  `reduction="batchmean"` in place of `F.kl_div`'s deprecated
+  `size_average=False` (identical computation, no deprecation warning).
+
+**Why this is structurally different from `puffin.attacks.reid.py`, not
+the same thing relabeled**: `reid.py`'s GRU/MLP attackers always consume a
+FIXED-length SL window (sliding windows carved out of a trajectory,
+trajectory identity discarded) -- never padded, never masked, because
+every input is exactly `sl` long. TUL's actual object is an entire
+VARIABLE-length released trajectory, so `tul_maintul.py` needs real
+sequence machinery `reid.py` never does (padding, a Transformer key-
+padding mask, `pack_padded_sequence` for the LSTM), and the long-term
+augmentation trick has no analogue for a fixed-length window (there's no
+notion of "a longer version of this window" the way there is for "this
+user's other trajectories"). The distinction named in the task
+instructions is real, not cosmetic.
+
+**Output convention**: `run_tul_maintul(df, device, ...)` returns
+`(per_user_df, summary)`, matching `reid.py`/`mia_inhouse.py`'s
+established per-user-not-just-aggregate convention. `per_user_df` has one
+row per user with >=1 train trajectory: `user_id`, `n_train_trajectories`,
+`n_test_trajectories`, `student_top1`/`top5`, `teacher_top1`/`top5`, and
+both networks' mean confidence on their test trajectories' true label.
+
+**Tested**: `tests/test_tul_maintul.py` (run via
+`python tests/test_tul_maintul.py`) checks `build_trajectory_dataset`
+excludes `user_disjoint` users entirely (closed-world requirement),
+correctly relabels `mi_split` into train/test and truncates to
+`max_traj_len`, that `_sample_long_term` clamps instead of crashing for
+users with few trajectories, and an end-to-end run on synthetic data with
+user-specific cell-id bands confirming both the student and teacher link
+held-out trajectories well above chance -- all four checks pass.
+
+**Real validation run on GeoLife**
+(`data/processed/geolife/unified.parquet`, one A4500, `embed_size=128,
+hidden_size=256, num_layers=2, num_heads=4, long_term_num=8,
+max_traj_len=150, batch_size=128`, early-stopped within 25 max epochs,
+~17.6 minutes wall time): 163 non-disjoint users, 13,611 train trajectories
+(12,196 fit / 1,415 validation) and 3,403 test trajectories. **Overall
+(trajectory-pooled) test performance: student top-1 0.557, top-5 0.795;
+teacher top-1 0.569, top-5 0.803** -- chance is ~1/163 ≈ 0.006, so this is
+a large, real signal, and the student (the network actually meant for
+deployment after distillation) is essentially as good as the teacher,
+which is the whole point of the method. The per-user distribution is
+notably skewed, though, in a way worth flagging rather than hiding behind
+the pooled number: median per-user `student_top1` is only 0.071 (153/163
+users have >=1 test trajectory; 25th percentile is exactly 0), while a
+handful of very-prolific users (e.g. one user with 1,722 train / 431 test
+trajectories) get linked at 0.79-0.85 top-1 alone -- the pooled metric,
+being trajectory-weighted, is dominated by these heavy users. This mirrors
+the disparate-risk pattern Checkpoints 2/2b/2c already found for re-id
+risk (more data from a user = more risk to that user), now observed for
+TUL too; worth carrying into the real attack once a TrajGAN/GI-DP
+baseline exists to attack for real, rather than re-discovering it then.
+This run used `scripts/smoke_test_phase3_tul.py` (committed, same
+convention as task 2's `scripts/smoke_test_phase3_attacker.py`), not a
+results artifact -- Phase 3 task 4's deliverable is the module and its
+test, not a full sweep.

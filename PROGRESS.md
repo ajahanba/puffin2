@@ -6,6 +6,13 @@
 (c) Strongest defensible claim: plain Mo-PAE reliably protects middle-entropy users but gives the lowest- and highest-entropy users no statistically detectable benefit — it does not equalize risk, and the people most at risk (lowest entropy) see no significant gain.
 (d) Retracted: 2b's claim that GeoLife's two lowest-entropy deciles get actively WORSE — under seed-paired bootstrap CIs decile 0 includes zero and decile 1 flips sign; the point estimates in 2b came from comparing two independently-averaged 5-seed means rather than seed-paired differences, which overstated how reliable that specific apparent harm was.
 
+## Phase 3 task 4, in 5 lines
+(a) Unlike task 3's POIPrivacy, MainTUL (https://github.com/Onedean/MainTUL) actually ran: after two trivial compat fixes (numpy's removed `np.Inf`; a logging format-string bug that was broken even under the authors' own default args), its own `foursquare_mini` demo trained and tested end to end.
+(b) Because it ran, ported (not vendored-imported) its mutual-distillation LSTM-student/Transformer-teacher architecture into `puffin/attacks/tul_maintul.py`, dropping only the POI-category view (GeoLife has no POI category data, same reasoning as task 3's POIPrivacy writeup).
+(c) Validated on GeoLife's own real trajectories (163 non-disjoint users, 13,611 train / 3,403 test trajectories): student (the network actually meant for deployment) gets overall top-1 0.557, top-5 0.795 on held-out trajectories — chance is ~1/163 ≈ 0.006.
+(d) That pooled number is trajectory-weighted and dominated by a handful of very prolific users (one user with 1,722 train trajectories hits 0.79 top-1 alone); the median PER-USER top-1 is only 0.071 — most users have just a handful of test trajectories and are much harder to link than the pooled number suggests, a disparate-risk pattern consistent with Phase 2's findings, now worth carrying into TUL once a real TrajGAN/GI-DP target exists.
+(e) Tested: `tests/test_tul_maintul.py` (4 checks, all pass). Full account: `CHANGES_FROM_ORIGINAL.md`.
+
 A fresh session should be able to resume from this file alone. Repo:
 `/data/mashhadi/puffin2` on `erebor.uwb.edu` (ssh `mashhadi@erebor.uwb.edu`),
 pushed to `https://github.com/ajahanba/puffin2` (private). Plan:
@@ -54,19 +61,10 @@ what was in flight.
 
 ## Running now
 
-A background agent is investigating Phase 3 task 4 (TUL via MainTUL,
-https://github.com/Onedean/MainTUL) on erebor, same time-boxed pattern as
-task 3: clone, read, attempt a real integration within a bounded effort;
-fall back to an in-house GRU/TULER-style TUL if it doesn't run, documenting
-why in `CHANGES_FROM_ORIGINAL.md`. Per the plan, TUL only applies to
-mechanisms that release trajectories (TrajGAN, GI-DP) — Phase 5 hasn't
-built either baseline yet, so this task is building/validating the TUL
-*attack* module itself against synthetic/placeholder trajectory data for
-now, not a real attack on a trained baseline. No way to check progress
-directly (different Claude session, not a shell job) — outcome arrives as
-a report; if resuming cold, check `git log` on `erebor:/data/mashhadi/puffin2`
-for a commit mentioning TUL/MainTUL, and `puffin/attacks/` for `tul.py` or
-`tul_maintul.py`/`tul_inhouse.py`.
+Nothing compute-heavy in flight. Phase 3 (threat-model table, re-id, MIA,
+TUL) is now fully done (tasks 1-4); next up is task 5 (adaptive adversary,
+the last Phase 3 item), then straight to Phase 5 baselines per the
+"proceed unless" rule.
 
 ## What's done
 
@@ -149,12 +147,27 @@ for a commit mentioning TUL/MainTUL, and `puffin/attacks/` for `tul.py` or
    GeoLife: overall AUC 0.555, accuracy 0.598 (181 users, SL=10) — a real,
    modest, non-suspicious signal. Tested: `tests/test_mia_inhouse.py` (5
    checks, all pass). Full reasoning logged in `CHANGES_FROM_ORIGINAL.md`.
-4. **In progress** (background agent) — TUL via MainTUL
-   (https://github.com/Onedean/MainTUL), same time-boxed pattern as task 3.
-   Only applies to mechanisms that release trajectories (TrajGAN, GI-DP),
-   neither of which Phase 5 has built yet — so this task validates the TUL
-   attack module itself (against synthetic/placeholder trajectories), not a
-   real attack on a trained baseline.
+4. **Done.** Trajectory-user linking. MainTUL
+   (https://github.com/Onedean/MainTUL) given the same genuine, bounded
+   attempt as task 3's POIPrivacy -- cloned to `legacy/MainTUL/` (not
+   committed), read in full, two trivial compat bugs fixed (`np.Inf`
+   removed in numpy>=2.0; a logging format-string mismatch that crashed
+   the authors' own default training config on its very first logged
+   batch), and its `foursquare_mini` demo trained+tested successfully end
+   to end. Because it ran (unlike POIPrivacy), ported its mutual-
+   distillation LSTM-student/Transformer-teacher method into
+   `puffin/attacks/tul_maintul.py` instead of importing the uncommitted
+   clone, dropping only the POI-category view (no POI category data in
+   this project's schema, same reasoning as task 3). Validated on real
+   GeoLife trajectories (163 non-disjoint users): overall top-1 0.557 /
+   top-5 0.795 (student), chance ~0.006 -- a real, large, non-suspicious
+   signal, with a skewed per-user distribution (median per-user top-1 only
+   0.071; a few very-prolific users drive the pooled number). Only applies
+   to mechanisms that release trajectories (TrajGAN, GI-DP), neither of
+   which Phase 5 has built yet, so this was validated against GeoLife's
+   own trajectories as a stand-in released-trajectory set, not a real
+   attack on a trained baseline. Tested: `tests/test_tul_maintul.py` (4
+   checks, all pass). Full reasoning logged in `CHANGES_FROM_ORIGINAL.md`.
 5. **Not started.** Adaptive adversary, last.
 
 **Time-box rule** (already applied once, for task 3): if a third-party repo
