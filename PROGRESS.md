@@ -24,7 +24,15 @@ not specific to the fairness mechanism — **stop and report, do not proceed
 to Phase 4/5 construction.** If no — the fairness term itself is what
 creates the exploitable gap — continue to the full hardening (3b), then
 Phase 4 (judged by the adaptive-adversary standard) and Phase 5 in
-parallel. This check is running now; see "Running now" below.
+parallel.
+
+**Single-seed gating check already run** (`geolife_lambda4_0`, see old
+"Running now" below, superseded): multipliers 2.31x/3.07x vs. Checkpoint
+3's 2.37x/2.83x at lambda4=1.0 — strikingly similar, leaning toward "not
+specific to the fairness term," but one seed each isn't enough to decide
+something this consequential. The rigorous version (5 seeds + bootstrap
+CIs, full lambda4 grid, all 3 datasets) is running now; see "Running now"
+below for how to read it when it's done.
 
 ## Checkpoint 2c, in 5 lines
 (a) Yes — entropy survives the user-clustered regression on all three datasets (e.g. GeoLife S_unc coef -0.044, 95% CI [-0.065, -0.023], excludes zero; Foursquare/Gowalla-NYC likewise).
@@ -94,18 +102,49 @@ what was in flight.
 
 ## Running now
 
-The gating check (see "PI correction" above, top of file): pid 286526 on
-erebor, `--dataset geolife_lambda4_0 --lambda4 0.0`, same adaptive-adversary
-attack as Checkpoint 3 but against PLAIN Mo-PAE instead of the
-fairness-active one. Log: `logs/phase3_adaptive_geolife_lambda4_0.log`.
-Out-dir: `reports/figures/phase3_adaptive/geolife_lambda4_0/`. Compare its
-`target_group.mean_specialized_top1`/`mean_reweighted_top1` multipliers
-over `mean_global_post_top1` against Checkpoint 3's 2.4x/2.8x (lambda4=1.0)
-to resolve the stop condition. If resuming cold: check whether this run
-finished (`ls reports/figures/phase3_adaptive/geolife_lambda4_0/summary.json`)
-and whether `reports/03b_adaptive_robustness.md` already exists (if so,
-the gating decision was already made -- read that report instead of
-re-running this check).
+**Phase 3b hardening grid** (item A of the PI's latest correction, see top
+of file): `scripts/launch_phase3b_grid.sh`, launched detached via
+`nohup ... & disown` on erebor at 14:40 PDT 2026-10-19, orchestrator pid
+in `ps aux | grep launch_phase3b_grid`. 12 runs total — 3 datasets
+(geolife, foursquare, gowalla_nyc) x 4 lambda4 values (0.0, 0.3, 1.0, 3.0)
+— batched 4-at-a-time (one per GPU) to avoid contention, resumable (skips
+any run whose `summary.json` already exists if relaunched).
+
+Each run uses `scripts/run_phase3b_adaptive_robustness.py`: trains the
+mechanism, finds its most-protected decile via a 5-seed naive attacker,
+then runs BOTH adaptive attacks (per-group specialized, group-reweighted)
+with 5 seeds + bootstrap CIs each (new `*_multiseed` functions in
+`puffin/attacks/adaptive.py`), reports the 3-stage per-decile table
+(raw -> post/naive -> post/adaptive). The lambda4=1.0 run on each dataset
+additionally runs `can_infer_decile_from_features` (the threat-model
+check: can decile be inferred from released features alone?) and a
+5-seed-with-CI version of the in-house MIA.
+
+- Logs: `logs/phase3b/<dataset>_lambda4_<l4>.log`, orchestrator log
+  `logs/phase3b/orchestrator.log`.
+- Output: `reports/figures/phase3b/<dataset>_lambda4_<l4>/{summary.json,per_user_3b.csv}`.
+- **If resuming cold:** check `tail logs/phase3b/orchestrator.log` for
+  progress, and whether `reports/03b_adaptive_robustness.md` already
+  exists (if so, the hardening is done and the stop/continue decision was
+  already made -- read that report instead of re-running anything). If
+  the orchestrator process is gone but not all 12 `summary.json` files
+  exist, just relaunch `nohup bash scripts/launch_phase3b_grid.sh ... &
+  disown` -- it skips completed runs.
+- **The decision rule once all 12 finish:** for each dataset, compare the
+  lambda4=0.0 run's `target_group` multipliers (specialized/reweighted
+  top1 over naive top1) against the lambda4 in {0.3,1.0,3.0} runs. If the
+  lambda4=0.0 multipliers are comparable in magnitude (as the single-seed
+  check already suggested) across all 3 datasets, the effect is NOT
+  specific to the fairness mechanism -- stop and report (write
+  `reports/03b_adaptive_robustness.md` documenting this, do not start
+  Phase 4/5 construction). If lambda4=0.0 multipliers are reliably smaller
+  (CIs don't overlap with the fairness-active ones) on at least most
+  datasets, continue to Phase 4 (B) and Phase 5 (C) per the PI's
+  instructions.
+- Old single-seed gating check (`geolife_lambda4_0`,
+  `reports/figures/phase3_adaptive/geolife_lambda4_0/`) is now superseded
+  by this grid's `geolife_lambda4_0.0` run; kept on disk for reference,
+  not deleted.
 
 ## What's done
 
