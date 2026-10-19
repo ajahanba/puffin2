@@ -13,6 +13,13 @@
 (d) That pooled number is trajectory-weighted and dominated by a handful of very prolific users (one user with 1,722 train trajectories hits 0.79 top-1 alone); the median PER-USER top-1 is only 0.071 — most users have just a handful of test trajectories and are much harder to link than the pooled number suggests, a disparate-risk pattern consistent with Phase 2's findings, now worth carrying into TUL once a real TrajGAN/GI-DP target exists.
 (e) Tested: `tests/test_tul_maintul.py` (4 checks, all pass). Full account: `CHANGES_FROM_ORIGINAL.md`.
 
+## Phase 3 task 5 (last), in 5 lines — full checkpoint: `reports/03_attack_suite.md`
+(a) Trained an actually fairness-ACTIVE Mo-PAE (`ed_soft`, `lambda4=1.0`) on GeoLife — every prior Mo-PAE run in this project (Checkpoints 2/2b/2c) kept `lambda4=0` ("plain Mo-PAE") on purpose; this is the first one testing the fairness mechanism itself.
+(b) Found its most-protected entropy decile (5) via the ordinary group-agnostic attacker; checked it wasn't a near-zero-denominator artifact (unlike one other decile's -4.69 mean gain, which was) before trusting it.
+(c) A fairness-aware adaptive adversary who knows that group recovers 2.4x (per-group specialized) to 2.8x (group-reweighted) more risk than the naive attacker on exactly that group (18%→31–37% top-1); the reweighted variant's effect is cleanly concentrated there (~0 change for everyone else), exactly as designed.
+(d) This answers the plan's "old paper's own limitation" directly: a mechanism's apparent fairness, measured against a naive attacker, can be partly an artifact of not testing against the right adversary.
+(e) Doesn't change the framing — strengthens the existing story — so proceeding straight to Phase 5 per the "proceed unless" rule.
+
 A fresh session should be able to resume from this file alone. Repo:
 `/data/mashhadi/puffin2` on `erebor.uwb.edu` (ssh `mashhadi@erebor.uwb.edu`),
 pushed to `https://github.com/ajahanba/puffin2` (private). Plan:
@@ -61,10 +68,11 @@ what was in flight.
 
 ## Running now
 
-Nothing compute-heavy in flight. Phase 3 (threat-model table, re-id, MIA,
-TUL) is now fully done (tasks 1-4); next up is task 5 (adaptive adversary,
-the last Phase 3 item), then straight to Phase 5 baselines per the
-"proceed unless" rule.
+Nothing compute-heavy in flight. **Phase 3 is fully done** (all 5 tasks;
+`reports/03_attack_suite.md`). Starting Phase 5 (baselines) next, per the
+PI's explicit "continue to Phase 5 baselines" (skipping Phase 4 — the PI's
+own instruction, not an oversight; Phase 4's core piece, the `ed_soft`
+fairness loss, already exists from the Checkpoint 0 fairness-loss port).
 
 ## What's done
 
@@ -168,14 +176,23 @@ the last Phase 3 item), then straight to Phase 5 baselines per the
    own trajectories as a stand-in released-trajectory set, not a real
    attack on a trained baseline. Tested: `tests/test_tul_maintul.py` (4
    checks, all pass). Full reasoning logged in `CHANGES_FROM_ORIGINAL.md`.
-5. **Not started.** Adaptive adversary, last.
+5. **Done.** Fairness-aware adaptive adversary (`puffin/attacks/adaptive.py`:
+   `per_group_specialized_attack`, `group_reweighted_attack`;
+   `scripts/run_phase3_adaptive_adversary.py` trains the first
+   fairness-ACTIVE Mo-PAE in this project and attacks it). Result: a 2.4-2.8x
+   risk recovery on the mechanism's most-protected decile vs. a naive
+   attacker — see `reports/03_attack_suite.md` for the full numbers and the
+   near-zero-denominator sanity check. Tested: `tests/test_adaptive.py`
+   (4 checks, including a planted-signal case). **Phase 3 is now fully
+   done.**
 
 **Time-box rule** (already applied once, for task 3): if a third-party repo
 doesn't run on our data after ~half a day of real effort, stop, implement
 an in-house equivalent, document why in `CHANGES_FROM_ORIGINAL.md`, move on.
 
-Write a Phase 3 checkpoint report (5-line summary at top) when done, then
-continue straight to Phase 5 baselines unless something changes the
+Phase 3 checkpoint report written: `reports/03_attack_suite.md` (5-line
+summary at top). Continuing straight to Phase 5 baselines — this result
+doesn't change the
 framing (same "proceed unless" rule as Checkpoint 2b/2c).
 
 ## Open questions / things to watch
