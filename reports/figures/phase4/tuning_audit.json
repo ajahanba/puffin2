@@ -1,0 +1,233 @@
+[
+  {
+    "formulation": "ed_soft",
+    "dataset": "geolife",
+    "lambda4": 0.0,
+    "seeds": 5,
+    "source": "phase3b/geolife_lambda4_0.0"
+  },
+  {
+    "formulation": "ed_soft",
+    "dataset": "geolife",
+    "lambda4": 0.3,
+    "seeds": 5,
+    "source": "phase3b/geolife_lambda4_0.3"
+  },
+  {
+    "formulation": "ed_soft",
+    "dataset": "geolife",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase3b/geolife_lambda4_1.0"
+  },
+  {
+    "formulation": "ed_soft",
+    "dataset": "geolife",
+    "lambda4": 3.0,
+    "seeds": 5,
+    "source": "phase3b/geolife_lambda4_3.0"
+  },
+  {
+    "formulation": "ed_soft",
+    "dataset": "foursquare",
+    "lambda4": 0.0,
+    "seeds": 5,
+    "source": "phase3b/foursquare_lambda4_0.0"
+  },
+  {
+    "formulation": "ed_soft",
+    "dataset": "foursquare",
+    "lambda4": 0.3,
+    "seeds": 5,
+    "source": "phase3b/foursquare_lambda4_0.3"
+  },
+  {
+    "formulation": "ed_soft",
+    "dataset": "foursquare",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase3b/foursquare_lambda4_1.0"
+  },
+  {
+    "formulation": "ed_soft",
+    "dataset": "foursquare",
+    "lambda4": 3.0,
+    "seeds": 5,
+    "source": "phase3b/foursquare_lambda4_3.0"
+  },
+  {
+    "formulation": "ed_soft",
+    "dataset": "gowalla_nyc",
+    "lambda4": 0.0,
+    "seeds": 5,
+    "source": "phase3b/gowalla_nyc_lambda4_0.0"
+  },
+  {
+    "formulation": "ed_soft",
+    "dataset": "gowalla_nyc",
+    "lambda4": 0.3,
+    "seeds": 5,
+    "source": "phase3b/gowalla_nyc_lambda4_0.3"
+  },
+  {
+    "formulation": "ed_soft",
+    "dataset": "gowalla_nyc",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase3b/gowalla_nyc_lambda4_1.0"
+  },
+  {
+    "formulation": "ed_soft",
+    "dataset": "gowalla_nyc",
+    "lambda4": 3.0,
+    "seeds": 5,
+    "source": "phase3b/gowalla_nyc_lambda4_3.0"
+  },
+  {
+    "formulation": "lipschitz",
+    "dataset": "geolife",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/geolife_lipschitz"
+  },
+  {
+    "formulation": "floor",
+    "dataset": "geolife",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/geolife_floor"
+  },
+  {
+    "formulation": "variance",
+    "dataset": "geolife",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/geolife_variance"
+  },
+  {
+    "formulation": "group_dro",
+    "dataset": "geolife",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/geolife_group_dro"
+  },
+  {
+    "formulation": "per_user_minimax",
+    "dataset": "geolife",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/geolife_per_user_minimax"
+  },
+  {
+    "formulation": "group_adversarial",
+    "dataset": "geolife",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/geolife_group_adversarial"
+  },
+  {
+    "formulation": "group_adversarial",
+    "dataset": "geolife",
+    "lambda4": 0.3,
+    "seeds": 5,
+    "source": "phase4/geolife_group_adversarial_lambda0.3"
+  },
+  {
+    "formulation": "lipschitz",
+    "dataset": "foursquare",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/foursquare_lipschitz"
+  },
+  {
+    "formulation": "floor",
+    "dataset": "foursquare",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/foursquare_floor"
+  },
+  {
+    "formulation": "variance",
+    "dataset": "foursquare",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/foursquare_variance"
+  },
+  {
+    "formulation": "group_dro",
+    "dataset": "foursquare",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/foursquare_group_dro"
+  },
+  {
+    "formulation": "per_user_minimax",
+    "dataset": "foursquare",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/foursquare_per_user_minimax"
+  },
+  {
+    "formulation": "group_adversarial",
+    "dataset": "foursquare",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/foursquare_group_adversarial"
+  },
+  {
+    "formulation": "group_adversarial",
+    "dataset": "foursquare",
+    "lambda4": 0.3,
+    "seeds": 5,
+    "source": "phase4/foursquare_group_adversarial_lambda0.3"
+  },
+  {
+    "formulation": "lipschitz",
+    "dataset": "gowalla_nyc",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/gowalla_nyc_lipschitz"
+  },
+  {
+    "formulation": "floor",
+    "dataset": "gowalla_nyc",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/gowalla_nyc_floor"
+  },
+  {
+    "formulation": "variance",
+    "dataset": "gowalla_nyc",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/gowalla_nyc_variance"
+  },
+  {
+    "formulation": "group_dro",
+    "dataset": "gowalla_nyc",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/gowalla_nyc_group_dro"
+  },
+  {
+    "formulation": "per_user_minimax",
+    "dataset": "gowalla_nyc",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/gowalla_nyc_per_user_minimax"
+  },
+  {
+    "formulation": "group_adversarial",
+    "dataset": "gowalla_nyc",
+    "lambda4": 1.0,
+    "seeds": 5,
+    "source": "phase4/gowalla_nyc_group_adversarial"
+  },
+  {
+    "formulation": "group_adversarial",
+    "dataset": "gowalla_nyc",
+    "lambda4": 0.3,
+    "seeds": 5,
+    "source": "phase4/gowalla_nyc_group_adversarial_lambda0.3"
+  }
+]
