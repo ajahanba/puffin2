@@ -1,0 +1,275 @@
+[
+  {
+    "dataset": "geolife",
+    "formulation": "ed_soft",
+    "utility": 0.6795694828033447,
+    "worst_decile": 1,
+    "naive": 0.1978454398508701,
+    "adaptive": 0.4384566583670676,
+    "adaptive_ci": [
+      0.3062218495587716,
+      0.5800532599406626
+    ],
+    "gap": 0.2406112185161975
+  },
+  {
+    "dataset": "geolife",
+    "formulation": "lipschitz",
+    "utility": 0.5313979387283325,
+    "worst_decile": 0,
+    "naive": 0.31648178004349276,
+    "adaptive": 0.42405506265867093,
+    "adaptive_ci": [
+      0.2643389731166988,
+      0.5966865385698877
+    ],
+    "gap": 0.10757328261517818
+  },
+  {
+    "dataset": "geolife",
+    "formulation": "floor",
+    "utility": 0.4733351469039917,
+    "worst_decile": 1,
+    "naive": 0.22618731833580463,
+    "adaptive": 0.3978467513082755,
+    "adaptive_ci": [
+      0.26042153763688275,
+      0.5406186017202628
+    ],
+    "gap": 0.17165943297247088
+  },
+  {
+    "dataset": "geolife",
+    "formulation": "variance",
+    "utility": 0.48397696018218994,
+    "worst_decile": 1,
+    "naive": 0.250332615027825,
+    "adaptive": 0.4265182519538535,
+    "adaptive_ci": [
+      0.2936495341958168,
+      0.5720228888787743
+    ],
+    "gap": 0.1761856369260285
+  },
+  {
+    "dataset": "geolife",
+    "formulation": "group_dro",
+    "utility": 0.5593138933181763,
+    "worst_decile": 1,
+    "naive": 0.25424073666541114,
+    "adaptive": 0.4227545687204434,
+    "adaptive_ci": [
+      0.2933350099726684,
+      0.5614464657570027
+    ],
+    "gap": 0.1685138320550323
+  },
+  {
+    "dataset": "geolife",
+    "formulation": "per_user_minimax",
+    "utility": 0.5053510665893555,
+    "worst_decile": 1,
+    "naive": 0.2571652375368608,
+    "adaptive": 0.4418014618464643,
+    "adaptive_ci": [
+      0.30713975762042944,
+      0.5862573445277909
+    ],
+    "gap": 0.18463622430960347
+  },
+  {
+    "dataset": "geolife",
+    "formulation": "group_adversarial",
+    "utility": 0.6603358387947083,
+    "worst_decile": 0,
+    "naive": 0.3297549829300907,
+    "adaptive": 0.3690396388992667,
+    "adaptive_ci": [
+      0.21136055924670982,
+      0.5392960126516924
+    ],
+    "gap": 0.03928465596917602
+  },
+  {
+    "dataset": "foursquare",
+    "formulation": "ed_soft",
+    "utility": 0.20505370199680328,
+    "worst_decile": 0,
+    "naive": 0.6702636313171836,
+    "adaptive": 0.8048119391870061,
+    "adaptive_ci": [
+      0.7494035196711027,
+      0.8537272700875861
+    ],
+    "gap": 0.13454830786982253
+  },
+  {
+    "dataset": "foursquare",
+    "formulation": "lipschitz",
+    "utility": 0.1061219722032547,
+    "worst_decile": 0,
+    "naive": 0.40009678606319865,
+    "adaptive": 0.4704037330190249,
+    "adaptive_ci": [
+      0.40555055337616264,
+      0.5351712030091177
+    ],
+    "gap": 0.07030694695582623
+  },
+  {
+    "dataset": "foursquare",
+    "formulation": "floor",
+    "utility": 0.10811762511730194,
+    "worst_decile": 0,
+    "naive": 0.4399589557747502,
+    "adaptive": 0.4960258977026295,
+    "adaptive_ci": [
+      0.4370406240787049,
+      0.560808052464619
+    ],
+    "gap": 0.05606694192787931
+  },
+  {
+    "dataset": "foursquare",
+    "formulation": "variance",
+    "utility": 0.10882197320461273,
+    "worst_decile": 0,
+    "naive": 0.41330304174863414,
+    "adaptive": 0.5105425630106566,
+    "adaptive_ci": [
+      0.4481539585157683,
+      0.57781084513343
+    ],
+    "gap": 0.09723952126202245
+  },
+  {
+    "dataset": "foursquare",
+    "formulation": "group_dro",
+    "utility": 0.0861654058098793,
+    "worst_decile": 0,
+    "naive": 0.4220644042220547,
+    "adaptive": 0.4283410663588332,
+    "adaptive_ci": [
+      0.36745794793479836,
+      0.4915236810993813
+    ],
+    "gap": 0.006276662136778466
+  },
+  {
+    "dataset": "foursquare",
+    "formulation": "per_user_minimax",
+    "utility": 0.05482185631990433,
+    "worst_decile": 3,
+    "naive": 0.01373436941454808,
+    "adaptive": 0.09560597707448457,
+    "adaptive_ci": [
+      0.06590208779576373,
+      0.12677216471996397
+    ],
+    "gap": 0.08187160765993648
+  },
+  {
+    "dataset": "foursquare",
+    "formulation": "group_adversarial",
+    "utility": 0.04267183318734169,
+    "worst_decile": 0,
+    "naive": 0.3542692738217771,
+    "adaptive": 0.2964697872074919,
+    "adaptive_ci": [
+      0.24187807039426074,
+      0.35661846571465217
+    ],
+    "gap": -0.05779948661428519
+  },
+  {
+    "dataset": "gowalla_nyc",
+    "formulation": "ed_soft",
+    "utility": 0.25829383730888367,
+    "worst_decile": 0,
+    "naive": 0.4548808597912222,
+    "adaptive": 0.6589510094311278,
+    "adaptive_ci": [
+      0.556794573573743,
+      0.7573706538937354
+    ],
+    "gap": 0.2040701496399056
+  },
+  {
+    "dataset": "gowalla_nyc",
+    "formulation": "lipschitz",
+    "utility": 0.2876952886581421,
+    "worst_decile": 0,
+    "naive": 0.3504390633870232,
+    "adaptive": 0.5877739100638083,
+    "adaptive_ci": [
+      0.4874052188065598,
+      0.6939133945360022
+    ],
+    "gap": 0.23733484667678512
+  },
+  {
+    "dataset": "gowalla_nyc",
+    "formulation": "floor",
+    "utility": 0.23556257784366608,
+    "worst_decile": 0,
+    "naive": 0.286491872862739,
+    "adaptive": 0.49133326133428995,
+    "adaptive_ci": [
+      0.39621319324914694,
+      0.5960550316473691
+    ],
+    "gap": 0.20484138847155092
+  },
+  {
+    "dataset": "gowalla_nyc",
+    "formulation": "variance",
+    "utility": 0.25855714082717896,
+    "worst_decile": 0,
+    "naive": 0.33639784219469554,
+    "adaptive": 0.5683950968213001,
+    "adaptive_ci": [
+      0.4676072094766266,
+      0.6671624787290722
+    ],
+    "gap": 0.23199725462660453
+  },
+  {
+    "dataset": "gowalla_nyc",
+    "formulation": "group_dro",
+    "utility": 0.22494295239448547,
+    "worst_decile": 0,
+    "naive": 0.31971653894979063,
+    "adaptive": 0.5193311645317886,
+    "adaptive_ci": [
+      0.4189323782024243,
+      0.6288816693564088
+    ],
+    "gap": 0.199614625581998
+  },
+  {
+    "dataset": "gowalla_nyc",
+    "formulation": "per_user_minimax",
+    "utility": 0.15622256696224213,
+    "worst_decile": 0,
+    "naive": 0.29090863179604887,
+    "adaptive": 0.4062735897252115,
+    "adaptive_ci": [
+      0.31006305049662874,
+      0.5098937465806128
+    ],
+    "gap": 0.11536495792916263
+  },
+  {
+    "dataset": "gowalla_nyc",
+    "formulation": "group_adversarial",
+    "utility": 0.049938563257455826,
+    "worst_decile": 0,
+    "naive": 0.1525549860702733,
+    "adaptive": 0.1202825903134831,
+    "adaptive_ci": [
+      0.05815953346569155,
+      0.19081515522831569
+    ],
+    "gap": -0.032272395756790195
+  }
+]
