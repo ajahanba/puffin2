@@ -1,5 +1,41 @@
 # PUFFIN v2 — Progress
 
+## Erebor infrastructure note (2026-10-20): the "restart" was a full OS/driver upgrade
+
+What was announced as a restart turned out to be a full reinstall: erebor
+is now Rocky Linux 10.2 (was an older release) with a new NVIDIA driver
+(615.71.10, CUDA UMD 13.4). SSH's host key changed too (expected after a
+reinstall, verified and accepted, not a security incident). This broke
+the project's `.venv`: its python3.10 interpreter (`/usr/local/bin/python3.10`)
+no longer exists -- only python3.12 is installed system-wide now.
+
+**Fixed**: rebuilt `.venv` on python3.12. `torch==2.5.1+cu121` (the exact
+same build as before) installs and runs correctly against the new
+driver -- confirmed with a real CUDA matmul on all 4 GPUs, not just an
+import check -- because PyTorch wheels bundle their own CUDA runtime and
+don't depend on the system CUDA toolkit matching exactly; NVIDIA drivers
+are backward-compatible with older CUDA runtimes, so the newer driver
+runs the older-cu121 wheel fine. Every other pinned dependency
+(numpy/pandas/pyarrow/scipy/scikit-learn/matplotlib/h3/etc.) reinstalled
+at the exact same pinned version as before. **All 10 test files in
+`tests/` pass cleanly on the rebuilt environment** -- ran every one, not
+just a subset. `requirements.lock.txt` regenerated via `pip freeze`
+(55 packages now vs. 68 before -- the old file appears to have been
+stale/incomplete even before the upgrade, e.g. it never listed scipy or
+scikit-learn despite both being installed and used; the new one is a
+fresh, accurate `pip freeze`, not hand-edited).
+
+**What this means for prior results**: nothing already committed is
+invalidated -- Checkpoints 0 through Phase 4/5 ran under the old
+Python-3.10 stack and their numbers stand as reported. Going forward,
+everything runs under Python 3.12 with the identical pinned package
+versions otherwise, so this is a toolchain footnote, not a correctness
+concern, but worth knowing if anyone tries to reproduce an old run
+bit-for-bit on a machine still running Python 3.10.
+
+GPUs came back fully free after the reinstall (the unrelated
+`mashhadi`-owned vLLM job occupying GPU 0 before the restart is gone).
+
 ## Current state (read this first): PI reframed, Phase 4 + 5 now running
 
 The PI reviewed Checkpoint 3b and made a framing decision, superseding
