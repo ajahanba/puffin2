@@ -214,113 +214,58 @@ what was in flight.
 
 ## Running now
 
-**Erebor had a full OS/driver upgrade on 2026-10-19 evening** (see the
-infrastructure note at the top of this file) -- recovered, `.venv`
-rebuilt on python3.12, all 10 test files pass, committed (`f9c8774`).
+**Nothing.** Phase 4 (item B) and Phase 5 (item C) are both done,
+written up, committed, and pushed. Awaiting the PI's review before
+deciding next steps (the plan's later phases, or whatever the PI directs
+given Phase 4's negative result -- see below).
 
-**1. Phase 4 formulation grid: all 21 original runs + 3 utility-matching
-follow-ups DONE**, all committed. 7 formulations x 3 datasets at
-lambda4=1.0, plus `group_adversarial` re-run at lambda4=0.3 on all 3
-datasets to check whether its apparent robustness survives at matched
-utility. Analysis: `scripts/summarize_phase4.py`, `scripts/analyze_phase4_gaps.py`.
+**Phase 4 — done.** Full report: `reports/04_formulations.md`. Evaluated
+7 formulations (old PUFFIN `ed_soft` baseline, 5 new loss-based
+regularizers, a new group-aware-adversarial-training architecture) x 3
+datasets, by worst-off-decile risk under the adaptive attacker at matched
+utility. **Headline: no formulation reliably closes the naive/adaptive
+gap without either a severe utility cost or an unreplicated result.**
+`group_adversarial` looked like one exception at a single reference
+lambda (lambda4=1.0), but utility-matching follow-ups at lambda4=0.3 on
+all 3 datasets debunk it everywhere: on Foursquare/Gowalla-NYC the
+apparent robustness was a utility-collapse artifact (gap reappears once
+utility is restored to normal), and on GeoLife (where utility never
+collapsed, ~0.66-0.68 either lambda) the SAME formulation's gap flips
+from not-significant to significant just by trying a different lambda at
+matched utility -- most likely a small-sample (n=18 target-group users)
+coincidence, not a reproducible effect. Also: in all 21 (dataset,
+formulation) combinations, the decile the naive attacker calls "most
+protected" is never the decile that's actually worst-off under the
+adaptive attacker -- Checkpoint 3c's ranking-disagreement finding
+reproduces at the individual-formulation level too.
 
-**Resolved finding (this supersedes an earlier, premature "headline
-finding" in a previous version of this section -- the lambda4=0.3
-follow-ups changed the conclusion, so if anything here conflicts with an
-older note elsewhere, THIS is correct):**
+**Phase 5 — done.** In-house baselines (plain Mo-PAE lambda4=0, variance
+regularizer, group-DRO, per-user minimax) are fully covered by
+Checkpoint 3b's lambda4=0 data plus the Phase 4 grid -- no separate
+training needed. Third-party baselines (`reports/05_baselines_trajgan_gidp.md`):
+TrajGAN (LSTM-TrajGAN, Rao et al. 2021) ran essentially out of the box --
+the cleanest third-party outcome in this project so far -- after one
+trivial dependency pin (`h5py==2.10.0`). Ported into
+`puffin/baselines/trajgan.py` (PyTorch, this project's schema, synthetic
+`cell_id` via re-tessellation since the GAN only emits lat/lon, robust
+99.5th-percentile `scale_factor` because GeoLife has physically-
+impossible outlier GPS fixes). GI-DP has no canonical open-source repo
+at all -- built in-house from Andres et al. (2013)'s own Planar Laplace
+formula (`puffin/baselines/gi_dp.py`), verified against its closed-form
+mean. Both tested (`tests/test_trajgan.py`, `tests/test_gi_dp.py`) and
+validated on real GeoLife. **Not done** (explicitly out of scope so
+far): running TUL/re-id/MIA against either baseline's output -- both now
+produce real schema-valid data on GeoLife for that evaluation to target
+whenever this project gets to it. Full account: `CHANGES_FROM_ORIGINAL.md`.
 
-- At lambda4=1.0, `group_adversarial` was the only formulation whose
-  adaptive-minus-naive gap CI included zero or went negative on all 3
-  datasets -- but its utility also collapsed far below every other
-  formulation on Foursquare (0.043) and Gowalla-NYC (0.050), while
-  staying roughly matched to `ed_soft` on GeoLife (0.660 vs 0.680).
-- **Follow-up at lambda4=0.3, all 3 datasets, utility restored to the
-  normal range for that dataset:**
-  - GeoLife: utility ~0.66 either way; gap CI still includes zero at
-    lambda4=1.0 ([-0.052,+0.140]) -- `reports/figures/phase4/geolife_group_adversarial_lambda0.3/`
-    exists for direct comparison, check its own gap CI before writing
-    the final report to confirm this holds at 0.3 too, not just 1.0.
-  - Foursquare: utility only partially recovered (0.088, still below
-    the 0.1-0.2 range other formulations sit in) and the gap REAPPEARED
-    positive and significant (+0.111, CI [0.078,0.143]).
-  - Gowalla-NYC: utility FULLY recovered (0.259, squarely in the normal
-    0.156-0.288 range) and the gap REAPPEARED clearly positive and
-    significant (+0.194, CI [0.131,0.256]) -- a clean, unconfounded
-    result.
-- **Conclusion: on 2 of 3 datasets (Foursquare, Gowalla-NYC), the
-  apparent lambda4=1.0 robustness was a utility-collapse artifact, not
-  genuine fairness-specific robustness** -- once utility is restored to
-  a usable range, `group_adversarial` behaves like every other
-  formulation (a reliably positive gap). GeoLife may be a genuine
-  exception (needs the 0.3-run's own gap CI confirmed, see above) or may
-  turn out to be dataset-specific noise -- don't oversell it either way
-  without checking.
-- **Also noted**: in every (dataset, formulation) pair checked, the
-  decile the NAIVE attacker calls "most protected" is never the same
-  decile that's actually worst-off under the ADAPTIVE attacker -- the
-  same ranking-disagreement pattern Checkpoint 3c found, showing up again
-  at the individual-formulation level.
+**If resuming cold:** read `reports/04_formulations.md` and
+`reports/05_baselines_trajgan_gidp.md`. Nothing is running; the next
+move is the PI's call given Phase 4's negative result.
 
-**Next step**: read `reports/figures/phase4/geolife_group_adversarial_lambda0.3/summary.json`'s
-gap CI (should exist by now), then write `reports/04_formulations.md`
-(5-line summary at top) with the HONEST conclusion above -- the right
-headline is "no formulation tested here gives adaptive-attacker
-robustness without a real, usually severe, utility cost" or similar, not
-"group_adversarial wins." That's a legitimate, defensible Phase 4 result
-on its own, not a disappointing one.
-
-**2. Phase 5 (item C) third-party baselines: DONE**, committed and pushed
-(`ec07f4b`, `8859366`). TrajGAN (LSTM-TrajGAN) ported and validated on
-real GeoLife (`puffin/baselines/trajgan.py`). GI-DP has no canonical repo
--- built in-house from the Planar Laplace mechanism's own published
-formula, validated against its closed-form mean (`puffin/baselines/gi_dp.py`).
-Full writeup: `reports/05_baselines_trajgan_gidp.md`. Neither has been
-attacked with TUL/re-id/MIA yet -- that's this project's next step for
-them, not done here. In-house Phase 5 baselines (plain Mo-PAE, variance
-regularizer, group-DRO, per-user minimax) are already fully covered by
-Checkpoint 3b's lambda4=0 data plus the Phase 4 grid above -- no separate
-training was needed for those.
-
-**If resuming cold after the restart:** nothing is running. Start with
-the Gowalla-NYC follow-up above, then write `reports/04_formulations.md`.
-
-**2. Phase 5 (item C) third-party baselines -- DONE, both committed and
-pushed** (`ec07f4b`): TrajGAN (LSTM-TrajGAN, Rao et al. 2021) ran
-essentially out of the box -- the cleanest third-party outcome in this
-project so far, cleaner even than MainTUL -- after one trivial dependency
-pin (`h5py==2.10.0`, a Keras-2.2.4/h5py>=3.0 API mismatch in the weight
-loader, hit at generation time not training time). Ported into
-`puffin/baselines/trajgan.py`: PyTorch, this project's schema, venue
-`category` dropped (no such field here, same reasoning as MainTUL's
-POI-category drop), synthetic `cell_id` added via re-tessellation (the
-GAN itself only emits continuous lat/lon), `max_traj_len=150` truncation
-(GeoLife trajectories run up to 92,645 points), and a robust
-99.5th-percentile `scale_factor` in place of the original's true max --
-found necessary because GeoLife's raw GPS data has physically-impossible
-outlier fixes (lat up to ~400 degrees) that would otherwise dominate
-normalization. GI-DP turned out to have **no canonical repo at all**
-(checked GeoPrivacy -- sporadic/single-point only -- and privkit -- a
-different adaptive variant -- neither fits "the classical mechanism"), so
-per the task's own license to use judgment, built in-house directly from
-Andres et al. (2013)'s own Planar Laplace formula:
-`puffin/baselines/gi_dp.py`, verified against the distribution's own
-closed-form `E[r]=2/epsilon` (matched to within 0.2% on synthetic data,
-near-exact on real GeoLife). Both tested (`tests/test_trajgan.py`,
-`tests/test_gi_dp.py`, all checks pass) and validated on real GeoLife
-(`scripts/smoke_test_phase5_{trajgan,gidp}.py`) -- TrajGAN: 30 epochs,
-19m14s CPU wall time, G loss 24,875->678, lat/lon reconstruction error
-148.6/144.8->9.7/16.5 degrees (epoch 2 -> epoch 30); GI-DP: ran across
-eps in {0.001,0.01,0.1} in ~110s each, mean perturbation distance
-matched theory almost exactly at every epsilon. Full account:
-`CHANGES_FROM_ORIGINAL.md`; checkpoint report:
-`reports/05_baselines_trajgan_gidp.md`. **Not done** (explicitly out of
-this task's scope, left for a later phase): running TUL/re-id/MIA
-against either mechanism's output -- both now produce real schema-valid
-synthetic/perturbed data on GeoLife for that evaluation to target.
-
-**If resuming cold:** read this section, then check
-`logs/phase4/orchestrator.log` and whether `reports/04_formulations.md`
-or `reports/05_baselines_trajgan_gidp.md` exist yet.
+Old single-seed gating check (`geolife_lambda4_0`,
+`reports/figures/phase3_adaptive/geolife_lambda4_0/`) is superseded by
+the grid's `geolife_lambda4_0.0` run; kept on disk for reference, not
+deleted.
 
 Old single-seed gating check (`geolife_lambda4_0`,
 `reports/figures/phase3_adaptive/geolife_lambda4_0/`) is superseded by
