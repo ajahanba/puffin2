@@ -217,15 +217,39 @@ risk under the adaptive attacker (not the naive one), using the same
   lambda sweep later), then write `reports/04_formulations.md` (5-line
   summary at top, like every other report here).
 
-**2. Phase 5 (item C) third-party baselines**: a background
-general-purpose agent is investigating TrajGAN and GI-DP (each
-time-boxed to roughly half a day of effort), following this project's
-established POIPrivacy/MainTUL pattern -- port if it runs after
-reasonable fixes, build an in-house equivalent and document why if it
-doesn't. It was given full project context and told to commit/push its
-own work and add its own note here when done; if its own addition to
-this section isn't here yet, it's still running -- do not duplicate its
-work by starting a separate TrajGAN/GI-DP investigation.
+**2. Phase 5 (item C) third-party baselines -- DONE, both committed and
+pushed** (`ec07f4b`): TrajGAN (LSTM-TrajGAN, Rao et al. 2021) ran
+essentially out of the box -- the cleanest third-party outcome in this
+project so far, cleaner even than MainTUL -- after one trivial dependency
+pin (`h5py==2.10.0`, a Keras-2.2.4/h5py>=3.0 API mismatch in the weight
+loader, hit at generation time not training time). Ported into
+`puffin/baselines/trajgan.py`: PyTorch, this project's schema, venue
+`category` dropped (no such field here, same reasoning as MainTUL's
+POI-category drop), synthetic `cell_id` added via re-tessellation (the
+GAN itself only emits continuous lat/lon), `max_traj_len=150` truncation
+(GeoLife trajectories run up to 92,645 points), and a robust
+99.5th-percentile `scale_factor` in place of the original's true max --
+found necessary because GeoLife's raw GPS data has physically-impossible
+outlier fixes (lat up to ~400 degrees) that would otherwise dominate
+normalization. GI-DP turned out to have **no canonical repo at all**
+(checked GeoPrivacy -- sporadic/single-point only -- and privkit -- a
+different adaptive variant -- neither fits "the classical mechanism"), so
+per the task's own license to use judgment, built in-house directly from
+Andres et al. (2013)'s own Planar Laplace formula:
+`puffin/baselines/gi_dp.py`, verified against the distribution's own
+closed-form `E[r]=2/epsilon` (matched to within 0.2% on synthetic data,
+near-exact on real GeoLife). Both tested (`tests/test_trajgan.py`,
+`tests/test_gi_dp.py`, all checks pass) and validated on real GeoLife
+(`scripts/smoke_test_phase5_{trajgan,gidp}.py`) -- TrajGAN: 30 epochs,
+19m14s CPU wall time, G loss 24,875->678, lat/lon reconstruction error
+148.6/144.8->9.7/16.5 degrees (epoch 2 -> epoch 30); GI-DP: ran across
+eps in {0.001,0.01,0.1} in ~110s each, mean perturbation distance
+matched theory almost exactly at every epsilon. Full account:
+`CHANGES_FROM_ORIGINAL.md`; checkpoint report:
+`reports/05_baselines_trajgan_gidp.md`. **Not done** (explicitly out of
+this task's scope, left for a later phase): running TUL/re-id/MIA
+against either mechanism's output -- both now produce real schema-valid
+synthetic/perturbed data on GeoLife for that evaluation to target.
 
 **If resuming cold:** read this section, then check
 `logs/phase4/orchestrator.log` and whether `reports/04_formulations.md`
