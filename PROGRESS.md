@@ -1,6 +1,38 @@
 # PUFFIN v2 — Progress
 
-## Erebor infrastructure note (2026-10-20): the "restart" was a full OS/driver upgrade
+## Current state (read this first): stopped per the PI's explicit instruction
+
+The PI read `reports/03b_adaptive_robustness.md`/`03c_uneven_gap.md`/
+`puffin/attacks/adaptive.py` directly and identified a real methodological
+problem BEFORE any Phase 4/paper work could build on it further: the
+specialized/reweighted attacker used since Checkpoint 3 trains and tests
+within each user's TRUE entropy decile (a ~10x smaller candidate pool)
+and assumes ORACLE knowledge of that decile -- neither of which a real
+adversary has. The PI asked for a full decomposition
+(`reports/03d_gap_decomposition.md`, done, see below), a correction to
+03c's claim, a per-user minimum filter, and said explicitly: **"Don't
+start paper drafting until item 1 is reported. Stop and report after
+item 1 regardless of the result."**
+
+**Item 1 is done. Stopping here, as instructed.** Headline finding: once
+the candidate-pool-restriction and oracle-knowledge effects are factored
+out, a REALISTIC adaptive attacker (same specialized heads, but routed
+at test time by the actual decile classifier's prediction, not the
+oracle label) UNDERPERFORMS the plain naive attacker in 27 of 30
+(dataset, decile) combinations tested, CI excluding zero in most. The
+"adaptive adversary recovers more risk" claim anchoring Checkpoints 3,
+3b, 3c, and all of Phase 4's evaluation standard does not survive this
+decomposition as stated. Full details, all three datasets, every
+decile, in `reports/03d_gap_decomposition.md`.
+
+**Not proceeding to Phase 4 (item 4 of the PI's instruction) or paper
+drafting** without the PI's review of this correction. The completed
+Phase 4 tuning-equalization grid (33 runs) and Phase 5b positive-control
+grid (GI-DP/TrajGAN, partially complete, see "Running now" below) are
+committed as raw data but NOT analyzed/interpreted further -- that
+would be "more Phase 4 work" the PI's instruction paused.
+
+## Superseded: Erebor infrastructure note (2026-10-20): the "restart" was a full OS/driver upgrade
 
 What was announced as a restart turned out to be a full reinstall: erebor
 is now Rocky Linux 10.2 (was an older release) with a new NVIDIA driver
@@ -214,49 +246,40 @@ what was in flight.
 
 ## Running now
 
-**Nothing.** Phase 4 (item B) and Phase 5 (item C) are both done,
-written up, committed, and pushed. Awaiting the PI's review before
-deciding next steps (the plan's later phases, or whatever the PI directs
-given Phase 4's negative result -- see below).
+**Checkpoint 3d (gap decomposition) is done and committed** -- see the
+top of this file. **Stopped there per the PI's explicit instruction.**
+Nothing is running that needs attention for item 1-3. One background
+job is still alive but low-priority:
 
-**Phase 4 — done.** Full report: `reports/04_formulations.md`. Evaluated
-7 formulations (old PUFFIN `ed_soft` baseline, 5 new loss-based
-regularizers, a new group-aware-adversarial-training architecture) x 3
-datasets, by worst-off-decile risk under the adaptive attacker at matched
-utility. **Headline: no formulation reliably closes the naive/adaptive
-gap without either a severe utility cost or an unreplicated result.**
-`group_adversarial` looked like one exception at a single reference
-lambda (lambda4=1.0), but utility-matching follow-ups at lambda4=0.3 on
-all 3 datasets debunk it everywhere: on Foursquare/Gowalla-NYC the
-apparent robustness was a utility-collapse artifact (gap reappears once
-utility is restored to normal), and on GeoLife (where utility never
-collapsed, ~0.66-0.68 either lambda) the SAME formulation's gap flips
-from not-significant to significant just by trying a different lambda at
-matched utility -- most likely a small-sample (n=18 target-group users)
-coincidence, not a reproducible effect. Also: in all 21 (dataset,
-formulation) combinations, the decile the naive attacker calls "most
-protected" is never the decile that's actually worst-off under the
-adaptive attacker -- Checkpoint 3c's ranking-disagreement finding
-reproduces at the individual-formulation level too.
+**Phase 5b positive control (GI-DP/TrajGAN gap), from the PI's PREVIOUS
+instruction (not the stop-after-item-1 one) -- stuck, low priority.**
+`scripts/launch_phase5b_grid.sh`, launched on CPU ~10:22 AM 2026-10-20,
+still on batch 1 of 3 as of this writing (~2+ hours later, 0/12 done) --
+severely slowed by CPU oversubscription (4 processes each grabbing ~10
+OpenMP/MKL threads on a 40-core box, load average hit ~79). Not worth
+killing and losing progress, but also not worth actively waiting on
+right now given item 1's finding calls the WHOLE adaptive-attacker
+premise behind this positive control into question too (it reuses
+`per_group_specialized_attack_multiseed`/`group_reweighted_attack_multiseed`,
+the same oracle-routed, small-candidate-pool functions 3d just showed
+are the whole effect). **If resuming cold and this is still running,
+either let it finish (harmless, just slow) or kill it
+(`pkill -f run_phase5b_gap_mechanism.py`) -- its result will need
+re-interpretation through the 3d lens regardless once the PI responds.**
 
-**Phase 5 — done.** In-house baselines (plain Mo-PAE lambda4=0, variance
-regularizer, group-DRO, per-user minimax) are fully covered by
-Checkpoint 3b's lambda4=0 data plus the Phase 4 grid -- no separate
-training needed. Third-party baselines (`reports/05_baselines_trajgan_gidp.md`):
-TrajGAN (LSTM-TrajGAN, Rao et al. 2021) ran essentially out of the box --
-the cleanest third-party outcome in this project so far -- after one
-trivial dependency pin (`h5py==2.10.0`). Ported into
-`puffin/baselines/trajgan.py` (PyTorch, this project's schema, synthetic
-`cell_id` via re-tessellation since the GAN only emits lat/lon, robust
-99.5th-percentile `scale_factor` because GeoLife has physically-
-impossible outlier GPS fixes). GI-DP has no canonical open-source repo
-at all -- built in-house from Andres et al. (2013)'s own Planar Laplace
-formula (`puffin/baselines/gi_dp.py`), verified against its closed-form
-mean. Both tested (`tests/test_trajgan.py`, `tests/test_gi_dp.py`) and
-validated on real GeoLife. **Not done** (explicitly out of scope so
-far): running TUL/re-id/MIA against either baseline's output -- both now
-produce real schema-valid data on GeoLife for that evaluation to target
-whenever this project gets to it. Full account: `CHANGES_FROM_ORIGINAL.md`.
+**Phase 4's tuning-equalization grid (33 runs) and the original 21-run
+grid are committed as raw data** (`reports/figures/phase4/`,
+`reports/figures/phase4/tuning_audit.json`) but Phase 4's own conclusion
+(`reports/04_formulations.md`, "no formulation closes the gap") used the
+SAME oracle-routed adaptive-attack functions 3d just showed are mostly a
+candidate-pool/oracle artifact -- so that conclusion is now suspect too,
+not just the original Checkpoint 3 claim. Re-evaluating Phase 4 through
+the `realistic` (e) metric instead is exactly the PI's item 4, paused
+until item 1 is reviewed.
+
+**If resuming cold:** read `reports/03d_gap_decomposition.md` first.
+Do not start Phase 4 item-4 work or paper drafting without the PI's
+explicit go-ahead -- that was the instruction this session stopped on.
 
 **If resuming cold:** read `reports/04_formulations.md` and
 `reports/05_baselines_trajgan_gidp.md`. Nothing is running; the next
