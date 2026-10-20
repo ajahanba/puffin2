@@ -178,44 +178,76 @@ what was in flight.
 
 ## Running now
 
-**1. Phase 4 formulation grid** (item B): `scripts/launch_phase4_grid.sh`,
-launched detached (`nohup ... & disown`) on erebor at 16:56 PDT
-2026-10-19. 21 runs: 7 formulations (`ed_soft`, `lipschitz`, `floor`,
-`variance`, `group_dro`, `per_user_minimax`, `group_adversarial`) x 3
-datasets (geolife, foursquare, gowalla_nyc), all at lambda4=1.0 (matching
-Checkpoint 3b's reference point), 5 seeds on the attacker side, batched
-3-at-a-time on GPUs 1/2/3 (GPU 0 is occupied by an unrelated
-`mashhadi`-owned vLLM process -- confirmed via `ps -p <pid> -o user,cmd`
-it's not this project's; do not touch it, just avoid GPU 0 when launching
-anything here). Resumable: relaunching `bash scripts/launch_phase4_grid.sh`
-skips any `(dataset, formulation)` whose `summary.json` already exists.
+**Erebor is about to be restarted (PI-initiated, 2026-10-19 evening) --
+everything below is committed and pushed (`9140e09`), nothing was at risk.**
 
-Driver: `scripts/run_phase4_formulations.py`. Each run trains the
-mechanism, evaluates utility (next-location top-1 on held-out test --
-needed because the PI wants formulations compared "at matched utility",
-not matched lambda) and the primary metric: the WORST-OFF decile's mean
-risk under the adaptive attacker (not the naive one), using the same
-5-seed/bootstrap-CI adaptive-attack pipeline as Checkpoint 3b.
+**1. Phase 4 formulation grid: all 21 runs DONE**, committed in `9140e09`.
+7 formulations (`ed_soft`, `lipschitz`, `floor`, `variance`, `group_dro`,
+`per_user_minimax`, `group_adversarial`) x 3 datasets, lambda4=1.0.
+Analysis so far (`scripts/summarize_phase4.py`, `scripts/analyze_phase4_gaps.py`,
+output in `reports/figures/phase4/{combined_summary,gap_ci_summary}.json`):
 
-- Logs: `logs/phase4/<dataset>_<formulation>.log`, orchestrator log
-  `logs/phase4/orchestrator.log`.
-- Output: `reports/figures/phase4/<dataset>_<formulation>/{summary.json,per_user_phase4.csv}`.
-- **If resuming cold:** check `tail logs/phase4/orchestrator.log`, and
-  whether `reports/04_formulations.md` already exists (if so, read that
-  instead of re-running anything). If the orchestrator is gone but not
-  all 21 `summary.json` files exist, relaunch
-  `nohup bash scripts/launch_phase4_grid.sh > logs/phase4/orchestrator_stdout.log 2>&1 < /dev/null & disown`
-  -- it skips completed runs. Check `nvidia-smi` before relaunching in
-  case GPU 0 has freed up or a different GPU is now occupied, and adjust
-  the `GPUS=(1 2 3)` line in `scripts/launch_phase4_grid.sh` if so.
-- **Next step once all 21 finish:** compare each formulation's worst-off-
-  decile adaptive risk at roughly matched utility across the 3 datasets
-  (utility is reported per-run, not pre-calibrated -- this grid uses one
-  lambda4 value per formulation, so "matched utility" comparison happens
-  at analysis time, not via an automated search; note this scope choice
-  explicitly in `reports/04_formulations.md` in case the PI wants a finer
-  lambda sweep later), then write `reports/04_formulations.md` (5-line
-  summary at top, like every other report here).
+- **Headline finding**: `group_adversarial` is the ONLY formulation whose
+  adaptive-minus-naive gap bootstrap CI includes zero or goes negative,
+  on all 3 datasets. Every other formulation, including the old PUFFIN
+  `ed_soft` baseline, shows a reliably POSITIVE gap (CI excludes zero)
+  on all 3 datasets -- i.e. changing the loss function alone never closes
+  the gap; only changing what the in-model adversary IS during training
+  does.
+- **But this is utility-confounded on 2 of 3 datasets.** On GeoLife,
+  `group_adversarial`'s utility (0.660) is close to `ed_soft`'s (0.680)
+  -- a genuine, roughly matched-utility comparison. On Foursquare and
+  Gowalla-NYC, `group_adversarial`'s utility at lambda4=1.0 collapses
+  (0.043, 0.050) far below every other formulation (0.055-0.288) --
+  so its near-zero/negative gap there might just be "a badly broken
+  encoder is hard for any attacker," not genuine fairness-specific
+  robustness.
+- **Followed up with group_adversarial at lambda4=0.3 on Foursquare**
+  (`reports/figures/phase4/foursquare_group_adversarial_lambda0.3/`,
+  committed): utility only partially recovered (0.088, still well below
+  other formulations) and the gap REAPPEARED clearly positive (+0.111,
+  CI [0.078,0.143]) -- consistent with the utility-collapse-artifact
+  explanation, not genuine robustness, on Foursquare specifically.
+- **The equivalent Gowalla-NYC follow-up (lambda4=0.3) never actually
+  launched** -- queued in the same multi-line ssh command as the
+  Foursquare one, which is error-prone in this environment (apostrophe/
+  quoting issues have bitten this project before); no log file was ever
+  created, no process ran. Not critical (GeoLife's clean result and
+  Foursquare's debunked one already tell most of the story), but worth
+  doing before finalizing `reports/04_formulations.md`: rerun as its OWN
+  single ssh command, not bundled with another launch:
+  ```
+  ssh mashhadi@erebor.uwb.edu "cd /data/mashhadi/puffin2 && source .venv/bin/activate && CUDA_VISIBLE_DEVICES=2 nohup python scripts/run_phase4_formulations.py --dataset gowalla_nyc --parquet data/processed/gowalla_nyc/unified.parquet --out-dir reports/figures/phase4/gowalla_nyc_group_adversarial_lambda0.3 --formulation group_adversarial --no-respect-traj-boundary --sl 10 --max-windows-per-user 200 --mopae-epochs 20 --lambda-priv 0.3 --lambda4 0.3 --attack-epochs 25 --global-seeds 0,1,2,3,4 --adaptive-seeds 0,1,2,3,4 --reweight-factor 10.0 --device cuda > logs/phase4/gowalla_nyc_group_adversarial_lambda0.3.log 2>&1 < /dev/null & disown"
+  ```
+  (check `nvidia-smi` first for a free GPU -- GPU 0 was occupied by an
+  unrelated `mashhadi`-owned vLLM job before the restart; may or may not
+  still be, check fresh).
+- **Also noted**: in every (dataset, formulation) pair checked, the
+  decile the NAIVE attacker calls "most protected" is never the same
+  decile that's actually worst-off under the ADAPTIVE attacker -- the
+  same ranking-disagreement pattern Checkpoint 3c found, showing up again
+  at the individual-formulation level.
+
+**Next step**: get the Gowalla-NYC lambda4=0.3 follow-up (above), then
+write `reports/04_formulations.md` (5-line summary at top) covering all
+of the above honestly, including the utility-confound caveat -- do not
+oversell `group_adversarial` as a clean win without that caveat front
+and center.
+
+**2. Phase 5 (item C) third-party baselines: DONE**, committed and pushed
+(`ec07f4b`, `8859366`). TrajGAN (LSTM-TrajGAN) ported and validated on
+real GeoLife (`puffin/baselines/trajgan.py`). GI-DP has no canonical repo
+-- built in-house from the Planar Laplace mechanism's own published
+formula, validated against its closed-form mean (`puffin/baselines/gi_dp.py`).
+Full writeup: `reports/05_baselines_trajgan_gidp.md`. Neither has been
+attacked with TUL/re-id/MIA yet -- that's this project's next step for
+them, not done here. In-house Phase 5 baselines (plain Mo-PAE, variance
+regularizer, group-DRO, per-user minimax) are already fully covered by
+Checkpoint 3b's lambda4=0 data plus the Phase 4 grid above -- no separate
+training was needed for those.
+
+**If resuming cold after the restart:** nothing is running. Start with
+the Gowalla-NYC follow-up above, then write `reports/04_formulations.md`.
 
 **2. Phase 5 (item C) third-party baselines -- DONE, both committed and
 pushed** (`ec07f4b`): TrajGAN (LSTM-TrajGAN, Rao et al. 2021) ran
