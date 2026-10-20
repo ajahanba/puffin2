@@ -214,61 +214,60 @@ what was in flight.
 
 ## Running now
 
-**Erebor is about to be restarted (PI-initiated, 2026-10-19 evening) --
-everything below is committed and pushed (`9140e09`), nothing was at risk.**
+**Erebor had a full OS/driver upgrade on 2026-10-19 evening** (see the
+infrastructure note at the top of this file) -- recovered, `.venv`
+rebuilt on python3.12, all 10 test files pass, committed (`f9c8774`).
 
-**1. Phase 4 formulation grid: all 21 runs DONE**, committed in `9140e09`.
-7 formulations (`ed_soft`, `lipschitz`, `floor`, `variance`, `group_dro`,
-`per_user_minimax`, `group_adversarial`) x 3 datasets, lambda4=1.0.
-Analysis so far (`scripts/summarize_phase4.py`, `scripts/analyze_phase4_gaps.py`,
-output in `reports/figures/phase4/{combined_summary,gap_ci_summary}.json`):
+**1. Phase 4 formulation grid: all 21 original runs + 3 utility-matching
+follow-ups DONE**, all committed. 7 formulations x 3 datasets at
+lambda4=1.0, plus `group_adversarial` re-run at lambda4=0.3 on all 3
+datasets to check whether its apparent robustness survives at matched
+utility. Analysis: `scripts/summarize_phase4.py`, `scripts/analyze_phase4_gaps.py`.
 
-- **Headline finding**: `group_adversarial` is the ONLY formulation whose
-  adaptive-minus-naive gap bootstrap CI includes zero or goes negative,
-  on all 3 datasets. Every other formulation, including the old PUFFIN
-  `ed_soft` baseline, shows a reliably POSITIVE gap (CI excludes zero)
-  on all 3 datasets -- i.e. changing the loss function alone never closes
-  the gap; only changing what the in-model adversary IS during training
-  does.
-- **But this is utility-confounded on 2 of 3 datasets.** On GeoLife,
-  `group_adversarial`'s utility (0.660) is close to `ed_soft`'s (0.680)
-  -- a genuine, roughly matched-utility comparison. On Foursquare and
-  Gowalla-NYC, `group_adversarial`'s utility at lambda4=1.0 collapses
-  (0.043, 0.050) far below every other formulation (0.055-0.288) --
-  so its near-zero/negative gap there might just be "a badly broken
-  encoder is hard for any attacker," not genuine fairness-specific
-  robustness.
-- **Followed up with group_adversarial at lambda4=0.3 on Foursquare**
-  (`reports/figures/phase4/foursquare_group_adversarial_lambda0.3/`,
-  committed): utility only partially recovered (0.088, still well below
-  other formulations) and the gap REAPPEARED clearly positive (+0.111,
-  CI [0.078,0.143]) -- consistent with the utility-collapse-artifact
-  explanation, not genuine robustness, on Foursquare specifically.
-- **The equivalent Gowalla-NYC follow-up (lambda4=0.3) never actually
-  launched** -- queued in the same multi-line ssh command as the
-  Foursquare one, which is error-prone in this environment (apostrophe/
-  quoting issues have bitten this project before); no log file was ever
-  created, no process ran. Not critical (GeoLife's clean result and
-  Foursquare's debunked one already tell most of the story), but worth
-  doing before finalizing `reports/04_formulations.md`: rerun as its OWN
-  single ssh command, not bundled with another launch:
-  ```
-  ssh mashhadi@erebor.uwb.edu "cd /data/mashhadi/puffin2 && source .venv/bin/activate && CUDA_VISIBLE_DEVICES=2 nohup python scripts/run_phase4_formulations.py --dataset gowalla_nyc --parquet data/processed/gowalla_nyc/unified.parquet --out-dir reports/figures/phase4/gowalla_nyc_group_adversarial_lambda0.3 --formulation group_adversarial --no-respect-traj-boundary --sl 10 --max-windows-per-user 200 --mopae-epochs 20 --lambda-priv 0.3 --lambda4 0.3 --attack-epochs 25 --global-seeds 0,1,2,3,4 --adaptive-seeds 0,1,2,3,4 --reweight-factor 10.0 --device cuda > logs/phase4/gowalla_nyc_group_adversarial_lambda0.3.log 2>&1 < /dev/null & disown"
-  ```
-  (check `nvidia-smi` first for a free GPU -- GPU 0 was occupied by an
-  unrelated `mashhadi`-owned vLLM job before the restart; may or may not
-  still be, check fresh).
+**Resolved finding (this supersedes an earlier, premature "headline
+finding" in a previous version of this section -- the lambda4=0.3
+follow-ups changed the conclusion, so if anything here conflicts with an
+older note elsewhere, THIS is correct):**
+
+- At lambda4=1.0, `group_adversarial` was the only formulation whose
+  adaptive-minus-naive gap CI included zero or went negative on all 3
+  datasets -- but its utility also collapsed far below every other
+  formulation on Foursquare (0.043) and Gowalla-NYC (0.050), while
+  staying roughly matched to `ed_soft` on GeoLife (0.660 vs 0.680).
+- **Follow-up at lambda4=0.3, all 3 datasets, utility restored to the
+  normal range for that dataset:**
+  - GeoLife: utility ~0.66 either way; gap CI still includes zero at
+    lambda4=1.0 ([-0.052,+0.140]) -- `reports/figures/phase4/geolife_group_adversarial_lambda0.3/`
+    exists for direct comparison, check its own gap CI before writing
+    the final report to confirm this holds at 0.3 too, not just 1.0.
+  - Foursquare: utility only partially recovered (0.088, still below
+    the 0.1-0.2 range other formulations sit in) and the gap REAPPEARED
+    positive and significant (+0.111, CI [0.078,0.143]).
+  - Gowalla-NYC: utility FULLY recovered (0.259, squarely in the normal
+    0.156-0.288 range) and the gap REAPPEARED clearly positive and
+    significant (+0.194, CI [0.131,0.256]) -- a clean, unconfounded
+    result.
+- **Conclusion: on 2 of 3 datasets (Foursquare, Gowalla-NYC), the
+  apparent lambda4=1.0 robustness was a utility-collapse artifact, not
+  genuine fairness-specific robustness** -- once utility is restored to
+  a usable range, `group_adversarial` behaves like every other
+  formulation (a reliably positive gap). GeoLife may be a genuine
+  exception (needs the 0.3-run's own gap CI confirmed, see above) or may
+  turn out to be dataset-specific noise -- don't oversell it either way
+  without checking.
 - **Also noted**: in every (dataset, formulation) pair checked, the
   decile the NAIVE attacker calls "most protected" is never the same
   decile that's actually worst-off under the ADAPTIVE attacker -- the
   same ranking-disagreement pattern Checkpoint 3c found, showing up again
   at the individual-formulation level.
 
-**Next step**: get the Gowalla-NYC lambda4=0.3 follow-up (above), then
-write `reports/04_formulations.md` (5-line summary at top) covering all
-of the above honestly, including the utility-confound caveat -- do not
-oversell `group_adversarial` as a clean win without that caveat front
-and center.
+**Next step**: read `reports/figures/phase4/geolife_group_adversarial_lambda0.3/summary.json`'s
+gap CI (should exist by now), then write `reports/04_formulations.md`
+(5-line summary at top) with the HONEST conclusion above -- the right
+headline is "no formulation tested here gives adaptive-attacker
+robustness without a real, usually severe, utility cost" or similar, not
+"group_adversarial wins." That's a legitimate, defensible Phase 4 result
+on its own, not a disappointing one.
 
 **2. Phase 5 (item C) third-party baselines: DONE**, committed and pushed
 (`ec07f4b`, `8859366`). TrajGAN (LSTM-TrajGAN) ported and validated on
