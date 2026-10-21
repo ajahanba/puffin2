@@ -57,16 +57,34 @@ def test_floor_loss_zero_below_floor_positive_above():
     n_users = 4
     users = torch.tensor([0, 1, 2, 3])
     entropy_table = torch.linspace(0, 10, n_users)
-    # uniform logits -> confidence = 1/4 = 0.25 for every TRUE class, below floor=0.3
+    # chance-relative floor = 1.0 * (1/4) = 0.25 for n_users=4
+    # uniform logits -> confidence = 1/4 = 0.25 for every TRUE class, exactly at floor (relu=0)
     low_logits = torch.zeros(4, 4)
-    loss_low = floor_loss(low_logits, users, entropy_table, floor=0.3)
+    loss_low = floor_loss(low_logits, users, entropy_table, floor_multiplier=1.0)
     assert loss_low.item() < 1e-6
 
-    # true class strongly favored -> confidence near 1, above floor=0.3
+    # true class strongly favored -> confidence near 1, well above floor=0.25
     high_logits = torch.eye(4) * 10.0
-    loss_high = floor_loss(high_logits, users, entropy_table, floor=0.3)
+    loss_high = floor_loss(high_logits, users, entropy_table, floor_multiplier=1.0)
     assert loss_high.item() > 0
-    print(f"OK: floor_loss zero below floor ({loss_low.item():.2e}), positive above ({loss_high.item():.3f})")
+    print(f"OK: floor_loss zero at/below chance-relative floor ({loss_low.item():.2e}), "
+          f"positive above ({loss_high.item():.3f})")
+
+
+def test_floor_loss_uses_chance_relative_threshold_not_fixed():
+    """The whole point of the fix: a floor_multiplier=1.0 floor should
+    scale with entropy_table's length (total_users), not stay fixed --
+    confirms the GeoLife inertness bug (floor=0.3 unreachable when
+    total_users=180, chance=0.0056) can't recur."""
+    n_users = 1000
+    users = torch.tensor([0])
+    entropy_table = torch.linspace(0, 10, n_users)
+    # confidence = exp(5)/(exp(5)+999) ~ a small value, well above 1/1000=0.001 chance
+    logits = torch.zeros(1, n_users)
+    logits[0, 0] = 5.0
+    loss = floor_loss(logits, users, entropy_table, floor_multiplier=1.0)
+    assert loss.item() > 0, "a chance-relative floor must be reachable even with 1000 classes"
+    print(f"OK: with total_users=1000, floor_multiplier=1.0 floor is still reachable (loss={loss.item():.4f})")
 
 
 def test_variance_of_risk_matches_manual_variance():
@@ -165,6 +183,7 @@ if __name__ == "__main__":
     test_lipschitz_soft_zero_when_confidence_uniform()
     test_lipschitz_soft_penalizes_similar_entropy_mismatch_more_than_dissimilar()
     test_floor_loss_zero_below_floor_positive_above()
+    test_floor_loss_uses_chance_relative_threshold_not_fixed()
     test_variance_of_risk_matches_manual_variance()
     test_group_dro_loss_equals_max_group_mean()
     test_per_user_minimax_k1_equals_max_confidence()

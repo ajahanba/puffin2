@@ -682,3 +682,52 @@ output's own re-tessellated vocabulary grows with noise, as expected:
 points across a much larger area than the real trajectories ever
 covered) vs. 86,109 -- close to the original 85,074 -- at eps=0.1's
 ~20m average perturbation.
+
+## Phase 4's `floor_loss`: fixed-threshold inertness on GeoLife
+
+**Finding (PI-directed check, post-Checkpoint-04c):** GeoLife's
+`floor_loss` outputs were bit-identical across lambda4 in {0.3, 1.0,
+3.0} in the Phase 4 grid -- a signature of the same inertness this
+project already found once before in PUFFIN v1's original `ed` loss
+(Checkpoint 0). Diagnosed directly rather than assumed: added
+per-step gradient-norm logging (`scripts/diagnose_floor_loss.py`) and
+confirmed `floor_loss`'s in-model adversary confidence never exceeds
+~0.008 on GeoLife (chance is 1/180=0.0056) across 5 full epochs,
+because the encoder's own adversarial training successfully suppresses
+it near chance by design -- the same min-max dynamic this project has
+relied on throughout. The original fixed `floor=0.3` default was
+~54x higher than that achievable range, so `relu(confidence - 0.3)`
+was exactly zero for every sample, every batch, every lambda4 value --
+not a broken gradient computation (verified: `torch.autograd.grad`
+on a deliberately lowered test floor DOES return a nonzero gradient),
+just an unreachable threshold.
+
+**Fix**: `floor_loss`'s `floor` parameter is now `floor_multiplier`
+(default 1.0), with the actual floor computed as
+`floor_multiplier / total_users` (total_users inferred from
+`entropy_table`'s length) instead of a fixed absolute value -- so the
+threshold scales with each dataset's own chance level rather than an
+arbitrary constant. Confirmed via the same gradient-norm diagnostic:
+at `floor_multiplier=1.0` (exactly chance level), roughly half of each
+batch's samples exceed the floor, giving a genuinely nonzero gradient
+throughout training (previously exactly zero). Honest caveat, stated
+rather than oversold: the natural gradient scale at this threshold is
+still small (~1e-7 per step) relative to the other loss terms even
+once active, which may limit floor_loss's practical effect regardless
+of lambda4 -- this is a property of how little headroom the in-model
+adversary's confidence has above chance in this training setup, not
+something the threshold choice alone can fully overcome.
+
+**Tested**: `tests/test_phase4_losses.py` gained
+`test_floor_loss_uses_chance_relative_threshold_not_fixed` (confirms
+the floor scales with `total_users`, so a 180-class and a 1000-class
+problem both get a reachable threshold) alongside the existing
+`test_floor_loss_zero_below_floor_positive_above` (updated for the
+renamed parameter). All pass.
+
+**Rerun**: GeoLife's floor_loss points (lambda4 in {0.3, 1.0, 3.0})
+were retrained with the fix as part of the PI-approved batch covering
+the 6 metric-correction/utility-logging runs, the no-privacy
+reference, and the >=3-encoder-seed upgrade -- see
+`reports/04c_formulations_naive_standard.md`'s rebuild for the
+corrected numbers.

@@ -128,12 +128,29 @@ def lipschitz_soft(id_logits: torch.Tensor, z_user_idx: torch.Tensor, entropy_ta
 
 
 def floor_loss(id_logits: torch.Tensor, z_user_idx: torch.Tensor, entropy_table: torch.Tensor,
-               floor: float = 0.3) -> torch.Tensor:
+               floor_multiplier: float = 1.0) -> torch.Tensor:
     """L_floor: a one-sided hinge, zero cost for any sample whose re-id
-    confidence is already below `floor`. Unlike a two-sided penalty, this
+    confidence is already below the floor. Unlike a two-sided penalty, this
     cannot "level down" an already-well-protected user -- it only pushes on
     the worst-off tail, directly targeting the primary Phase 4 metric
-    (worst-off-decile risk)."""
+    (worst-off-decile risk).
+
+    The floor is `floor_multiplier / total_users` (total_users inferred
+    from entropy_table's length), NOT a fixed absolute value -- an
+    earlier fixed floor=0.3 default was found to be completely inert on
+    GeoLife (identical outputs at lambda4 in {0.3,1.0,3.0}; confirmed via
+    gradient-norm logging, scripts/diagnose_floor_loss.py, see
+    CHANGES_FROM_ORIGINAL.md): the in-model adversary's confidence never
+    exceeds ~0.008 there (chance is 1/180=0.0056) because the encoder's
+    own adversarial training already suppresses it near chance by
+    design, so relu(confidence - 0.3) was exactly zero for every sample
+    throughout training. A chance-relative floor (default 1x chance
+    level) gives a genuinely nonzero gradient (confirmed: roughly half
+    of samples exceed it per batch) -- though its natural gradient scale
+    stays small relative to the other loss terms even once active, which
+    the report should state plainly rather than oversell."""
+    total_users = entropy_table.shape[0]
+    floor = floor_multiplier / total_users
     confidence = _per_sample_confidence(id_logits, z_user_idx)
     return F.relu(confidence - floor).pow(2).mean()
 
