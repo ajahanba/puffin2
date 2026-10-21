@@ -28,6 +28,7 @@ import argparse
 import json
 import pathlib
 import sys
+import time
 
 import numpy as np
 import pandas as pd
@@ -39,12 +40,64 @@ from puffin.features.mobility import compute_mobility_features
 from puffin.attacks.windowing import build_sl_windows
 from puffin.attacks.reid import train_raw_attacker_strongest_per_user, train_attacker_on_frozen_encoder_strongest_per_user
 from puffin.attacks.analysis import bootstrap_decile_ci
-from puffin.fairness.losses import ed_soft, floor_loss, build_entropy_table
+from puffin.fairness.losses import ed_soft, floor_loss, group_dro_loss, build_entropy_table
+from puffin.fairness.attacker_in_the_loop import refit_fresh_attacker_head, attacker_in_the_loop_train_step
 from puffin.models.mopae_torch import build_bundle, fixed_train_step
 
 
+def train_attacker_in_the_loop_mechanism(windows, total_locations, total_users, entropy_table, lambda4,
+                                          loss_variant, refit_every_k_epochs, device, epochs,
+                                          lambda_priv=0.3, batch_size=512, lr=3e-4, seed=0,
+                                          head_refit_epochs=10, head_refit_lr=1e-3):
+    """mechanism="attacker_in_the_loop": every `refit_every_k_epochs`, a
+    FRESH attacker head is refit to convergence on the momentarily-
+    frozen encoder, then used (frozen) as the fairness term's signal
+    source for the next k epochs. loss_variant in {"floor", "group_dro"}."""
+    torch.manual_seed(seed)
+    sl = windows["train"]["cell"].shape[1]
+    bundle = build_bundle("fixed", sl, total_locations, total_users)
+    for m in (bundle.encoder, bundle.decoder, bundle.id_recognizer, bundle.next_predictor):
+        m.to(device)
+    opts = dict(
+        enc=torch.optim.Adam(bundle.encoder.parameters(), lr=lr),
+        dec=torch.optim.Adam(bundle.decoder.parameters(), lr=lr),
+        id=torch.optim.Adam(bundle.id_recognizer.parameters(), lr=lr),
+        next=torch.optim.Adam(bundle.next_predictor.parameters(), lr=lr),
+    )
+    lambdas = dict(l_recon=0.1, l_util=0.8, l_priv=lambda_priv)
+    loss_fn = floor_loss if loss_variant == "floor" else group_dro_loss
+
+    tr = windows["train"]
+    cell = torch.tensor(tr["cell"], dtype=torch.long, device=device)
+    wd = torch.tensor(tr["weekday"], dtype=torch.long, device=device)
+    hr = torch.tensor(tr["hour"], dtype=torch.long, device=device)
+    user_idx = torch.tensor(tr["user"], dtype=torch.long, device=device)
+    y_next_idx = torch.tensor(tr["next_cell"], dtype=torch.long, device=device)
+    coord_target = torch.zeros((len(cell), sl, 2), dtype=torch.float32, device=device)
+    n = len(cell)
+    fresh_head = None
+    for epoch in range(epochs):
+        if epoch % refit_every_k_epochs == 0:
+            fresh_head = refit_fresh_attacker_head(bundle.encoder, cell, wd, hr, user_idx, total_users,
+                                                     device, epochs=head_refit_epochs, lr=head_refit_lr)
+        perm = torch.randperm(n, device=device)
+        for start in range(0, n, batch_size):
+            idx = perm[start:start + batch_size]
+            attacker_in_the_loop_train_step(bundle, opts, fresh_head, cell[idx], wd[idx], hr[idx],
+                                             y_next_idx[idx], user_idx[idx], coord_target[idx],
+                                             loss_fn, entropy_table, lambda4, lambdas)
+    return bundle
+
+
 def train_mechanism(windows, total_locations, total_users, entropy_table, mechanism, lambda4, device,
-                     epochs, lambda_priv=0.3, batch_size=512, lr=3e-4, seed=0):
+                     epochs, lambda_priv=0.3, batch_size=512, lr=3e-4, seed=0,
+                     loss_variant=None, refit_every_k_epochs=None):
+    if mechanism == "attacker_in_the_loop":
+        return train_attacker_in_the_loop_mechanism(
+            windows, total_locations, total_users, entropy_table, lambda4, loss_variant,
+            refit_every_k_epochs, device, epochs, lambda_priv=lambda_priv, batch_size=batch_size,
+            lr=lr, seed=seed)
+
     torch.manual_seed(seed)
     sl = windows["train"]["cell"].shape[1]
     bundle = build_bundle("fixed", sl, total_locations, total_users)
@@ -143,7 +196,11 @@ def main():
     ap.add_argument("--dataset", required=True)
     ap.add_argument("--parquet", required=True)
     ap.add_argument("--out-dir", required=True)
-    ap.add_argument("--mechanism", required=True, choices=["plain", "ed_soft", "no_privacy", "floor"])
+    ap.add_argument("--mechanism", required=True,
+                     choices=["plain", "ed_soft", "no_privacy", "floor", "attacker_in_the_loop"])
+    ap.add_argument("--loss-variant", choices=["floor", "group_dro"], default=None,
+                     help="attacker_in_the_loop only")
+    ap.add_argument("--refit-every-k-epochs", type=int, default=None, help="attacker_in_the_loop only")
     ap.add_argument("--sl", type=int, default=10)
     ap.add_argument("--respect-traj-boundary", action="store_true", default=True)
     ap.add_argument("--no-respect-traj-boundary", dest="respect_traj_boundary", action="store_false")
@@ -180,11 +237,15 @@ def main():
     per_encoder_seed = []
     per_encoder_seed_inmodel = []
     utilities = []
+    train_wall_times = []
     for enc_seed in encoder_seeds:
         print(f"[{tag}] encoder seed {enc_seed}: training mechanism...", flush=True)
+        _t0 = time.time()
         bundle = train_mechanism(windows, total_locations, total_users, entropy_table, args.mechanism,
                                   args.lambda4, device, epochs=args.mopae_epochs, lambda_priv=args.lambda_priv,
-                                  seed=enc_seed)
+                                  seed=enc_seed, loss_variant=args.loss_variant,
+                                  refit_every_k_epochs=args.refit_every_k_epochs)
+        train_wall_times.append(time.time() - _t0)
         utility = eval_utility(bundle, windows, device)
         utilities.append(utility)
         print(f"[{tag}] encoder seed {enc_seed}: utility={utility:.4f}, "
@@ -222,9 +283,12 @@ def main():
 
     result = dict(
         dataset=args.dataset, mechanism=args.mechanism, lambda4=args.lambda4,
+        loss_variant=args.loss_variant, refit_every_k_epochs=args.refit_every_k_epochs,
         encoder_seeds=list(encoder_seeds), attacker_seeds=list(attacker_seeds),
         utility_mean=float(np.mean(utilities)), utility_std=float(np.std(utilities)),
         utility_per_encoder_seed=utilities,
+        train_wall_time_seconds_per_encoder_seed=train_wall_times,
+        train_wall_time_seconds_mean=float(np.mean(train_wall_times)),
         n_users_before_filter=len(merged), n_users_after_filter=len(filtered), n_excluded=n_excluded,
         chance_level=chance_level,
         raw_decile_ci=raw_ci, post_decile_ci=post_ci, inmodel_confidence_decile_ci=inmodel_ci,
