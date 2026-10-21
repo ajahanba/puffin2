@@ -1,36 +1,52 @@
 # PUFFIN v2 — Progress
 
-## Current state (read this first): stopped per the PI's explicit instruction
+## Current state (read this first): new evaluation standard, stopped after step 2
 
-The PI read `reports/03b_adaptive_robustness.md`/`03c_uneven_gap.md`/
-`puffin/attacks/adaptive.py` directly and identified a real methodological
-problem BEFORE any Phase 4/paper work could build on it further: the
-specialized/reweighted attacker used since Checkpoint 3 trains and tests
-within each user's TRUE entropy decile (a ~10x smaller candidate pool)
-and assumes ORACLE knowledge of that decile -- neither of which a real
-adversary has. The PI asked for a full decomposition
-(`reports/03d_gap_decomposition.md`, done, see below), a correction to
-03c's claim, a per-user minimum filter, and said explicitly: **"Don't
-start paper drafting until item 1 is reported. Stop and report after
-item 1 regardless of the result."**
+The PI reviewed Checkpoint 3d and made the evaluation standard permanent:
+**the primary attacker from here on is the hardened external attacker
+(strongest per user across MLP, GRU, GBT) -- the adaptive attacker is
+RETIRED as a primary standard.** 3d's decomposition is kept as a
+robustness appendix: (b)-(a) relabeled "external side information about
+regularity class," (e) showing group-aware attacks from released
+features add no risk.
 
-**Item 1 is done. Stopping here, as instructed.** Headline finding: once
-the candidate-pool-restriction and oracle-knowledge effects are factored
-out, a REALISTIC adaptive attacker (same specialized heads, but routed
-at test time by the actual decile classifier's prediction, not the
-oracle label) UNDERPERFORMS the plain naive attacker in 27 of 30
-(dataset, decile) combinations tested, CI excluding zero in most. The
-"adaptive adversary recovers more risk" claim anchoring Checkpoints 3,
-3b, 3c, and all of Phase 4's evaluation standard does not survive this
-decomposition as stated. Full details, all three datasets, every
-decile, in `reports/03d_gap_decomposition.md`.
+Next steps, in order, with an explicit "stop and report after step 2":
+1. **Gowalla coverage fix** (`reports/02d_gowalla_filtered.md`) -- IN
+   PROGRESS, see "Running now" below for status and how to resume.
+2. **Phase 4 re-analysis on existing runs, no retraining**
+   (`reports/04c_formulations_naive_standard.md`) -- DONE, see below.
+3. New training where step 2 shows gaps -- **NOT launched**, per "stop
+   after step 2." Step 2 found exactly one real gap (named below);
+   awaiting the PI's go-ahead before running it.
+4. Correct earlier reports in place (dated "Superseded by 3d" notes on
+   03/03b/03c/04) -- **NOT done yet**, also held pending the PI's
+   go-ahead, out of caution about the literal "stop after step 2"
+   instruction (this one is low-risk/already-decided bookkeeping, not
+   new compute, so worth flagging explicitly in case the PI wants it
+   done now regardless).
 
-**Not proceeding to Phase 4 (item 4 of the PI's instruction) or paper
-drafting** without the PI's review of this correction. The completed
-Phase 4 tuning-equalization grid (33 runs) and Phase 5b positive-control
-grid (GI-DP/TrajGAN, partially complete, see "Running now" below) are
-committed as raw data but NOT analyzed/interpreted further -- that
-would be "more Phase 4 work" the PI's instruction paused.
+**Headline findings so far:**
+- Gowalla-NYC's coverage problem is NOT fixed by shortening SL (SL=5
+  gives only 27.9% of users >=10 test windows, still well under the
+  PI's ~50% bar) -- per the PI's own fallback, added gowalla_la/
+  gowalla_chicago/gowalla_sf_bay as separate datasets instead of
+  relaxing the filter. All four are training now (see "Running now");
+  `reports/02d_gowalla_filtered.md` will be written once they finish.
+- Phase 4's re-analysis hit a real blocking gap: **plain Mo-PAE's
+  utility was never recorded in any existing run** (not Checkpoint 3b's
+  driver, not any lambda4=0 Phase 4 run -- none exists). This blocks the
+  leveling-down check completely (0 comparisons possible) and excludes
+  `ed_soft` from the Pareto analysis entirely. Exactly 6 new training
+  runs would close it (named in the report) -- not run, pending sign-off.
+- Cross-formulation (not vs. plain Mo-PAE, which the gap above blocks):
+  on Foursquare, `group_dro`/`per_user_minimax` Pareto-dominate
+  `floor`/`variance`/`group_adversarial` at comparable utility.
+  GeoLife's `group_adversarial` at lambda4=0.3 has the best utility AND
+  a low max-min risk in that whole grid -- notable, but unconfirmed
+  against the missing plain-Mo-PAE reference.
+
+**Stopping and reporting here, per "stop and report after step 2. No
+paper drafting yet."**
 
 ## Superseded: Erebor infrastructure note (2026-10-20): the "restart" was a full OS/driver upgrade
 
@@ -246,44 +262,48 @@ what was in flight.
 
 ## Running now
 
-**Checkpoint 3d (gap decomposition) is done and committed** -- see the
-top of this file. **Stopped there per the PI's explicit instruction.**
-Nothing is running that needs attention for item 1-3. One background
-job is still alive but low-priority:
+**Gowalla coverage-fix grid (step 1), in progress.**
+`scripts/run_phase2d_gowalla_filtered.py`, launched detached, one per
+GPU, ~18:00-18:06 PDT 2026-10-20: `gowalla_nyc` (GPU 0), `gowalla_la`
+(GPU 1), `gowalla_chicago` (GPU 2), `gowalla_sf_bay` (GPU 3), all at
+SL=5, 5 seeds, using the NEW standard
+(`train_raw_attacker_strongest_per_user` /
+`train_attacker_on_frozen_encoder_strongest_per_user` -- MLP+GRU+GBT,
+per-user max). GBT training via sklearn is CPU-bound and these are
+taking a while (still on the "raw attacker" step after ~2 hours for the
+largest ones).
 
-**Phase 5b positive control (GI-DP/TrajGAN gap), from the PI's PREVIOUS
-instruction (not the stop-after-item-1 one) -- stuck, low priority.**
-`scripts/launch_phase5b_grid.sh`, launched on CPU ~10:22 AM 2026-10-20,
-still on batch 1 of 3 as of this writing (~2+ hours later, 0/12 done) --
-severely slowed by CPU oversubscription (4 processes each grabbing ~10
-OpenMP/MKL threads on a 40-core box, load average hit ~79). Not worth
-killing and losing progress, but also not worth actively waiting on
-right now given item 1's finding calls the WHOLE adaptive-attacker
-premise behind this positive control into question too (it reuses
-`per_group_specialized_attack_multiseed`/`group_reweighted_attack_multiseed`,
-the same oracle-routed, small-candidate-pool functions 3d just showed
-are the whole effect). **If resuming cold and this is still running,
-either let it finish (harmless, just slow) or kill it
-(`pkill -f run_phase5b_gap_mechanism.py`) -- its result will need
-re-interpretation through the 3d lens regardless once the PI responds.**
+- Logs: `logs/phase2d/<dataset>.log`. Output:
+  `reports/figures/phase2d/<dataset>/{summary.json,per_user_filtered.csv,excluded_users.csv}`.
+- **If resuming cold:** check `ls reports/figures/phase2d/*/summary.json`
+  -- if all 4 exist, write `reports/02d_gowalla_filtered.md` (coverage
+  table: SL=10 vs SL=5 pass rates per subset; disparate-risk-by-decile
+  results for all 4 Gowalla metro subsets) and this item is done. If
+  some are missing and no process is running
+  (`ps aux | grep run_phase2d_gowalla`), relaunch just the missing ones
+  with the same command pattern (one dataset per GPU, each its own ssh
+  call -- bundling two `nohup ... & disown` launches in one ssh command
+  has silently dropped the second one multiple times this session; always
+  launch each as its own separate command).
 
-**Phase 4's tuning-equalization grid (33 runs) and the original 21-run
-grid are committed as raw data** (`reports/figures/phase4/`,
-`reports/figures/phase4/tuning_audit.json`) but Phase 4's own conclusion
-(`reports/04_formulations.md`, "no formulation closes the gap") used the
-SAME oracle-routed adaptive-attack functions 3d just showed are mostly a
-candidate-pool/oracle artifact -- so that conclusion is now suspect too,
-not just the original Checkpoint 3 claim. Re-evaluating Phase 4 through
-the `realistic` (e) metric instead is exactly the PI's item 4, paused
-until item 1 is reviewed.
+**Step 2 is done**: `reports/04c_formulations_naive_standard.md`.
+Headline: plain Mo-PAE's utility was never recorded anywhere, blocking
+the leveling-down check entirely and excluding `ed_soft`. Named the 6
+new runs that would fix it; not launched.
 
-**If resuming cold:** read `reports/03d_gap_decomposition.md` first.
-Do not start Phase 4 item-4 work or paper drafting without the PI's
-explicit go-ahead -- that was the instruction this session stopped on.
+**Per "stop and report after step 2": once step 1's 4 runs finish and
+`reports/02d_gowalla_filtered.md` is written, stop there.** Do not
+launch step 3 (new training for the 6 named gap-closing runs) or step 4
+(dated "Superseded by 3d" notes on reports/03, 03b, 03c, 04) without the
+PI's explicit go-ahead, and do not start paper drafting.
 
-**If resuming cold:** read `reports/04_formulations.md` and
-`reports/05_baselines_trajgan_gidp.md`. Nothing is running; the next
-move is the PI's call given Phase 4's negative result.
+**Also still alive, low priority, unrelated to the stop condition above:**
+Phase 5b's GI-DP/TrajGAN positive-control grid
+(`scripts/launch_phase5b_grid.sh`, launched ~10:22 AM this same day) was
+last seen stuck on batch 1 of 3 (CPU oversubscription, load avg ~79 on
+40 cores). Harmless if left running; its result will need
+re-interpretation through the 3d/naive-standard lens regardless once the
+PI reviews this report, so there's no urgency either way.
 
 Old single-seed gating check (`geolife_lambda4_0`,
 `reports/figures/phase3_adaptive/geolife_lambda4_0/`) is superseded by
