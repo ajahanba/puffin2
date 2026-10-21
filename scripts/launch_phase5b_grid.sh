@@ -1,9 +1,13 @@
 #!/bin/bash
 # Checkpoint 5b positive control: naive-vs-adaptive gap for GI-DP (epsilon
 # grid) and TrajGAN, alongside plain Mo-PAE (already covered by
-# Checkpoint 3b's lambda4=0.0 data, no new run needed). Runs on CPU,
-# deliberately, so it doesn't compete with the Phase 4 equalization grid
-# using all 4 GPUs right now. Resumable via skip-if-done.
+# Checkpoint 3b's lambda4=0.0 data, no new run needed). Runs on CPU.
+# Restarted at LOW PRIORITY per the PI (needed for the paper's baselines,
+# but must not compete with the higher-priority 04d GPU batch): nice -n 19,
+# OMP/MKL threads capped low, batch_size reduced from 4 to 2 -- the
+# original 4-at-a-time run on uncapped threads previously drove load
+# average to ~79-110 on a 40-core box and made zero progress in 14+
+# hours before being killed. Resumable via skip-if-done.
 set -e
 cd /data/mashhadi/puffin2
 source .venv/bin/activate
@@ -29,7 +33,7 @@ for ds in "${DATASETS[@]}"; do
   JOBS+=("${ds}:trajgan:0")
 done
 
-batch_size=4
+batch_size=2
 n=${#JOBS[@]}
 echo "$(date) phase5b orchestrator starting, $n jobs total, batches of $batch_size, CPU" | tee -a logs/phase5b/orchestrator.log
 for ((i=0; i<n; i+=batch_size)); do
@@ -50,7 +54,7 @@ for ((i=0; i<n; i+=batch_size)); do
       continue
     fi
     echo "$(date) launching $ds $mech $eps -> $log" | tee -a logs/phase5b/orchestrator.log
-    python scripts/run_phase5b_gap_mechanism.py \
+    OMP_NUM_THREADS=6 MKL_NUM_THREADS=6 nice -n 19 python scripts/run_phase5b_gap_mechanism.py \
       --dataset "$ds" --parquet "${PARQUET[$ds]}" --out-dir "$out" --mechanism "$mech" $extra \
       ${TRAJ_FLAG[$ds]} --sl 10 --max-windows-per-user 200 --attack-epochs 25 \
       --global-seeds 0,1,2,3,4 --adaptive-seeds 0,1,2,3,4 --reweight-factor 10.0 \
