@@ -78,6 +78,16 @@ def main():
     tag = f"{args.dataset} SL={args.sl}"
 
     df = pd.read_parquet(args.parquet)
+    # Gowalla's user_id space is sparse (gowalla_nyc's max id is 7202 for
+    # only 1517 actual users) -- total_users=max(id) blew up GBT's
+    # multiclass fit to a ~7202-way problem instead of the real ~1517-way
+    # one, making HistGradientBoostingClassifier pathologically slow (one
+    # seed's fit ran 14+ hours without finishing). Remap to a dense
+    # 1..n_unique range before anything downstream touches user_id.
+    unique_ids = np.sort(df["user_id"].unique())
+    remap = {old: new for new, old in enumerate(unique_ids, start=1)}
+    df = df.copy()
+    df["user_id"] = df["user_id"].map(remap)
     total_locations = int(df["cell_id"].max())
     total_users = int(df["user_id"].max())
     feats = compute_mobility_features(df)
