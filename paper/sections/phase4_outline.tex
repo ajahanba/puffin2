@@ -1,0 +1,33 @@
+\section{Formulations Under the Naive-Attacker Standard}
+\label{sec:phase4}
+
+\draftnote{OUTLINE ONLY, per the PI's explicit instruction: leave this
+section as an outline until the Checkpoint 04d runs finish. Do not
+write results prose here yet.}
+
+This section will compare seven fairness-loss formulations (the
+original pairwise-threshold baseline, a soft-weighted Lipschitz
+individual-fairness penalty, a floor loss, a variance-of-risk
+regularizer, group-DRO, per-user minimax, and a new group-aware
+adversarial-training architecture) against plain Mo-PAE and a
+no-privacy utility-ceiling reference, under the naive-attacker standard
+of Section~\ref{sec:threat-model-naive}, once the approved Checkpoint
+04d batch finishes.
+
+\draftnote{Planned structure once data lands:}
+\begin{itemize}
+\item \draftnote{Pareto fronts (utility vs.\ worst-off-decile risk) per
+  dataset, with plain Mo-PAE and the no-privacy reference overlaid as
+  the two end-points of the achievable utility range.}
+\item \draftnote{A leveling-down check (fraction of users helped,
+  harmed, or unchanged relative to plain Mo-PAE at matched utility,
+  $\pm 0.02$ top-1) -- not computable in the previous round
+  (Checkpoint 04c) because no existing run had logged plain Mo-PAE's
+  utility; this is exactly what the approved batch fixes.}
+\item \draftnote{Any Pareto-dominance claim will require both axes'
+  CIs to be checked before being stated as dominance, not merely a
+  point-estimate comparison -- see the correction already applied to
+  Checkpoint 04c's draft claims.}
+\item \draftnote{Report $\geq 3$ encoder seeds' worth of variance for
+  every point in this section, per Section~\ref{sec:seeding}.}
+\end{itemize}

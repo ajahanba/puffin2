@@ -1,0 +1,24 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+\draftnote{DRAFT placeholder. Expand once Sections~\ref{sec:residual-risk}
+and~\ref{sec:phase4} are filled in -- the current text only restates
+the introduction's two findings and should not be treated as final.}
+
+Naive, group-agnostic evaluation of a learned mobility-privacy
+mechanism's fairness is unreliable in (at least) two distinct ways we
+have shown to be real and measurable, not merely plausible concerns:
+the mechanism itself protects users unevenly, worst for the
+lowest-entropy, most-identifiable decile (Section~\ref{sec:disparate-risk});
+and a previously reported adaptive-adversary result that appeared to
+show naive evaluation \emph{additionally} understates risk
+asymmetrically does not survive decomposition into its actual causes
+(Appendix~\ref{sec:adaptive-appendix}). Together these point toward a
+single, narrower, and more defensible claim than ``this mechanism is
+unfair'' or ``naive evaluation is meaningless'': individual-fairness
+claims about a learned mobility-privacy mechanism must be measured at
+the level of who is actually protected, not an aggregate or a naive
+per-group average, and the adversary used to measure that protection
+must itself be checked for confounds -- a smaller candidate pool or
+side information an adversary would not realistically have -- before
+its result is attributed to genuine sophistication.

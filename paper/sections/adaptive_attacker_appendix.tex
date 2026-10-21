@@ -1,0 +1,46 @@
+\section{Appendix: Adaptive-Attacker Robustness}
+\label{sec:adaptive-appendix}
+
+\draftnote{DRAFT. Underlying data and decomposition are final
+(Checkpoint 3d, \texttt{reports/03d\_gap\_decomposition.md}); this
+section restates it under the PI's relabeling, not as a new analysis.}
+
+An earlier phase of this project asked whether a fairness-aware
+adaptive adversary -- one trained and evaluated within a user's true
+behavioral decile, with oracle knowledge of that decile -- recovers
+substantially more risk than the naive attacker of
+Section~\ref{sec:threat-model-naive}. We decompose that adversary's
+apparent advantage into three components, computed per user and
+bootstrapped over users: (a) naive, the plain attacker;
+(b) \emph{external side information about regularity class} -- the
+\emph{same} trained naive model, with its output logits masked to only
+the user's true decile's candidate users before taking top-1 (no
+retraining); (c) specialized, a model trained and tested only on the
+true decile's users; (e) realistic, the specialized model from (c) but
+routed at test time by a classifier's \emph{predicted} decile (trained
+on released features alone) rather than the oracle label.
+
+Table~\ref{tab:gap-decomposition} reports, per dataset, the mean across
+all ten deciles of each gap component -- side information $(b-a)$,
+specialization $(c-b)$, and the realistic gap $(e-a)$ -- together with
+how many of the ten (dataset, decile) cells have a bootstrap CI
+excluding zero. Side information alone (b$-$a) is positive and
+significant in every single cell across all three datasets: nearly all
+of the originally reported ``adaptive adversary'' advantage is
+explained by restricting the naive model's candidate pool to the
+user's true decile, which requires no attacker sophistication at all.
+Specialization (c$-$b) -- actually training a dedicated model once the
+candidate pool is already restricted -- is at or below zero in the
+large majority of cells, and never reliably positive. Most
+importantly, the group-aware attack from released features alone adds
+\emph{no risk}: the realistic gap $(e-a)$ is negative in the large
+majority of cells across all three datasets, meaning a realistic
+adaptive adversary -- one without oracle access to a user's true
+behavioral group -- performs no better, and typically worse, than the
+naive attacker it was meant to improve on.
+
+\input{tables/gap_decomposition}
+
+This finding does not undermine Section~\ref{sec:disparate-risk}'s
+disparate-risk result, which depends only on the naive attacker and is
+unaffected by any property of the adaptive adversary studied here.

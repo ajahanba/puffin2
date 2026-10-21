@@ -1,0 +1,37 @@
+\section{Disparate Risk}
+\label{sec:disparate-risk}
+
+\draftnote{DRAFT. GeoLife/Foursquare prose recalls earlier checkpoints'
+findings qualitatively; a script-generated table matching
+Table~\ref{tab:gowalla-disparate-risk}'s format for GeoLife/Foursquare
+under the corrected metrics is a TODO (those checkpoints' per-user data
+predates the decile-reduction-metric correction and should be
+recomputed, not re-described from memory, before this section is
+final).}
+
+Across every dataset we study, raw (pre-mechanism) re-identification
+risk falls monotonically, or close to it, from the lowest- to the
+highest-entropy decile: the least routine users are, unsurprisingly,
+the hardest to re-identify to begin with. The question this section
+asks is whether plain Mo-PAE's privacy mechanism \emph{equalizes} that
+disparity, leaves it unchanged, or widens it.
+
+On GeoLife and Foursquare-NYC, plain Mo-PAE reliably reduces risk for
+users in the middle of the entropy distribution, but gives the
+lowest- and highest-entropy deciles no statistically detectable
+benefit beyond what a regression on entropy, radius of gyration, and
+window count alone would predict -- entropy survives these controls
+as a significant negative predictor of post-mechanism risk in every
+dataset we study (all $p < 10^{-6}$).
+
+Table~\ref{tab:gowalla-disparate-risk} reports the corrected
+decile-level metrics (Section~\ref{sec:decile-reduction-metrics}) on
+all four Gowalla metro subsets. In every one, the relative risk
+reduction at the lowest-entropy decile is smaller than at the
+highest -- in Gowalla-Chicago's smallest-sample case, the point
+estimate is slightly negative, though its CI includes zero -- and the
+residual-risk disparity between the two deciles is large and
+statistically significant in all four metros (2.2--5.9$\times$, every
+CI excluding $1\times$, i.e.\ no disparity).
+
+\input{tables/gowalla_disparate_risk}

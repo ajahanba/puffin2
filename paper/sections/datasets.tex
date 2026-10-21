@@ -1,0 +1,47 @@
+\section{Datasets}
+\label{sec:datasets}
+
+\draftnote{DRAFT. Numbers below are final/stable (reports/02d, Phase 1
+data-layer notes); prose needs polishing and a proper table generated
+by script once finalized.}
+
+We use three real mobility datasets, one of which we split into four
+independent metropolitan subsets after finding that a single combined
+sample does not provide adequate per-user coverage for our evaluation
+protocol (Section~\ref{sec:evaluation-protocol}).
+
+\textbf{GeoLife.} The Microsoft Research GeoLife GPS trajectory
+dataset, 181 users, 24.9 million GPS records. Windows are built
+respecting trajectory boundaries (a trajectory is a genuine, separate
+trip), since GeoLife's \texttt{traj\_id} reflects real trip structure.
+
+\textbf{Foursquare-NYC.} 1,083 users. Unlike GeoLife, check-in data has
+no native trajectory identifier; an earlier version of this pipeline
+synthesized one from same-calendar-day grouping, which left only 71 of
+1,083 users with even one length-10 window. We instead build windows
+over each user's full chronological check-in sequence within a split,
+ignoring the day boundary.
+
+\textbf{Gowalla (four metro subsets).} Gowalla check-ins subset by
+metro area: \texttt{gowalla\_nyc} (1,517 users), \texttt{gowalla\_la}
+(1,871), \texttt{gowalla\_chicago} (675), and \texttt{gowalla\_sf\_bay}
+(2,797). We treat these as four separate datasets rather than one
+pooled Gowalla sample: Gowalla-NYC's per-user window coverage, even
+after shortening the window length from 10 to 5 steps, left only 27.9\%
+of users with the minimum number of test windows our protocol requires
+(Section~\ref{sec:evaluation-protocol}), short of a 50\% target; the
+other three metros independently fall in the same 24--37\% range.
+Treating all four as separate datasets gives 2,235 usable users across
+the four metros combined, where pooling into one relaxed-filter sample
+would not have.
+
+\textbf{A note on user-ID sparsity.} Gowalla's \texttt{user\_id} values
+are sparse within each metro subset (e.g.\ Gowalla-NYC's maximum id is
+7,202 for only 1,517 users with any data, a $4$--$5\times$ inflation).
+Naively using the maximum id as the number of classes for a
+multiclass classifier -- as our gradient-boosted-tree attacker
+architecture does -- made that component of our evaluation
+pathologically slow (one fit ran over 14 hours without completing on a
+7,202-way problem that is really a 1,517-way one). We remap user ids to
+a dense range before any downstream processing; GeoLife and Foursquare
+already have dense id spaces and are unaffected.

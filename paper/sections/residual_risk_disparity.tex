@@ -1,0 +1,26 @@
+\section{Mo-PAE Residual-Risk Disparity}
+\label{sec:residual-risk}
+
+\draftnote{DRAFT -- BLOCKED on the approved Checkpoint 04d batch (plain
+Mo-PAE with utility logged, $\geq 3$ encoder seeds, the new
+strongest-per-user attacker standard, decile\_reduction\_ci applied to
+the result). Do not fill this section in from Section~\ref{sec:disparate-risk}'s
+numbers -- those use a single encoder seed and, for GeoLife/Foursquare,
+predate the decile-level metric correction. This section specifically
+needs: (1) plain Mo-PAE's utility, so risk can be reported at a stated
+operating point rather than an unstated one; (2) $\geq 3$ encoder seeds,
+so the disparity claim is not confounded with encoder-initialization
+variance; (3) the no-privacy reference (part of the approved batch,
+Section~\ref{sec:phase4}) as the utility ceiling this section's risk
+numbers should be read against.}
+
+\draftnote{Once \texttt{reports/figures/phase4d/*\_plain\_*} and
+\texttt{*\_no\_privacy\_*} land: (a) apply
+\texttt{puffin.metrics.decile\_reduction} to each dataset's plain-Mo-PAE
+per-user output; (b) report utility (mean $\pm$ std over encoder seeds)
+alongside the no-privacy reference's utility as the ceiling; (c)
+restate Section~\ref{sec:disparate-risk}'s qualitative finding
+quantitatively, at a stated utility operating point, with encoder-seed
+variance reported alongside attacker-seed variance; (d) regenerate
+this section's table via \texttt{paper/scripts/generate\_figures.py}
+once that data exists -- do not hand-write numbers here.}
