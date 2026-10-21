@@ -1,6 +1,6 @@
 # PUFFIN v2 — Progress
 
-## Current state (read this first): new evaluation standard, stopped after step 2
+## Current state (read this first): new evaluation standard adopted, stopped after step 2 as instructed
 
 The PI reviewed Checkpoint 3d and made the evaluation standard permanent:
 **the primary attacker from here on is the hardened external attacker
@@ -11,10 +11,9 @@ regularity class," (e) showing group-aware attacks from released
 features add no risk.
 
 Next steps, in order, with an explicit "stop and report after step 2":
-1. **Gowalla coverage fix** (`reports/02d_gowalla_filtered.md`) -- IN
-   PROGRESS, see "Running now" below for status and how to resume.
+1. **Gowalla coverage fix** (`reports/02d_gowalla_filtered.md`) -- **DONE.**
 2. **Phase 4 re-analysis on existing runs, no retraining**
-   (`reports/04c_formulations_naive_standard.md`) -- DONE, see below.
+   (`reports/04c_formulations_naive_standard.md`) -- **DONE.**
 3. New training where step 2 shows gaps -- **NOT launched**, per "stop
    after step 2." Step 2 found exactly one real gap (named below);
    awaiting the PI's go-ahead before running it.
@@ -25,19 +24,36 @@ Next steps, in order, with an explicit "stop and report after step 2":
    new compute, so worth flagging explicitly in case the PI wants it
    done now regardless).
 
-**Headline findings so far:**
+**Both required steps are complete. Stopping here, as instructed. No
+paper drafting.**
+
+**Headline findings:**
 - Gowalla-NYC's coverage problem is NOT fixed by shortening SL (SL=5
   gives only 27.9% of users >=10 test windows, still well under the
   PI's ~50% bar) -- per the PI's own fallback, added gowalla_la/
   gowalla_chicago/gowalla_sf_bay as separate datasets instead of
-  relaxing the filter. All four are training now (see "Running now");
-  `reports/02d_gowalla_filtered.md` will be written once they finish.
+  relaxing the filter. All four are now in the 24-37% pass-rate range
+  (2235 filter-passing users combined) with real disparate-risk results:
+  entropy survives the same regression controls in all four
+  (p<1.8e-12 in the weakest case), same pattern as every earlier
+  checkpoint. One real bug found and fixed along the way: Gowalla's
+  user_id space is 4-5x sparser than its actual user count, which made
+  the new standard's GBT component hang for 14+ hours (confirmed via
+  py-spy it was genuinely executing, not deadlocked, just
+  pathologically slow fitting a needlessly huge multiclass problem) --
+  fixed by remapping to dense IDs before anything touches them.
 - Phase 4's re-analysis hit a real blocking gap: **plain Mo-PAE's
   utility was never recorded in any existing run** (not Checkpoint 3b's
   driver, not any lambda4=0 Phase 4 run -- none exists). This blocks the
   leveling-down check completely (0 comparisons possible) and excludes
   `ed_soft` from the Pareto analysis entirely. Exactly 6 new training
   runs would close it (named in the report) -- not run, pending sign-off.
+- Cross-formulation Pareto comparisons that don't need the missing
+  plain-Mo-PAE reference: on Foursquare, `group_dro`/`per_user_minimax`
+  dominate `floor`/`variance`/`group_adversarial` at comparable utility.
+  GeoLife's `group_adversarial` at lambda4=0.3 has the best utility and
+  a low max-min risk in that whole grid -- notable but unconfirmed
+  against the still-missing plain-Mo-PAE reference.
 - Cross-formulation (not vs. plain Mo-PAE, which the gap above blocks):
   on Foursquare, `group_dro`/`per_user_minimax` Pareto-dominate
   `floor`/`variance`/`group_adversarial` at comparable utility.
@@ -262,48 +278,37 @@ what was in flight.
 
 ## Running now
 
-**Gowalla coverage-fix grid (step 1), in progress.**
-`scripts/run_phase2d_gowalla_filtered.py`, launched detached, one per
-GPU, ~18:00-18:06 PDT 2026-10-20: `gowalla_nyc` (GPU 0), `gowalla_la`
-(GPU 1), `gowalla_chicago` (GPU 2), `gowalla_sf_bay` (GPU 3), all at
-SL=5, 5 seeds, using the NEW standard
-(`train_raw_attacker_strongest_per_user` /
-`train_attacker_on_frozen_encoder_strongest_per_user` -- MLP+GRU+GBT,
-per-user max). GBT training via sklearn is CPU-bound and these are
-taking a while (still on the "raw attacker" step after ~2 hours for the
-largest ones).
+**Nothing.** Both required steps are done and committed:
+- Step 1: `reports/02d_gowalla_filtered.md` (all 4 Gowalla metro subsets,
+  `reports/figures/phase2d/`).
+- Step 2: `reports/04c_formulations_naive_standard.md`
+  (`reports/figures/phase4c/`).
 
-- Logs: `logs/phase2d/<dataset>.log`. Output:
-  `reports/figures/phase2d/<dataset>/{summary.json,per_user_filtered.csv,excluded_users.csv}`.
-- **If resuming cold:** check `ls reports/figures/phase2d/*/summary.json`
-  -- if all 4 exist, write `reports/02d_gowalla_filtered.md` (coverage
-  table: SL=10 vs SL=5 pass rates per subset; disparate-risk-by-decile
-  results for all 4 Gowalla metro subsets) and this item is done. If
-  some are missing and no process is running
-  (`ps aux | grep run_phase2d_gowalla`), relaunch just the missing ones
-  with the same command pattern (one dataset per GPU, each its own ssh
-  call -- bundling two `nohup ... & disown` launches in one ssh command
-  has silently dropped the second one multiple times this session; always
-  launch each as its own separate command).
+**Phase 5b's GI-DP/TrajGAN positive-control grid was killed** (not left
+running) -- it was contending for CPU with the higher-priority Gowalla
+jobs above and had made zero progress in 14+ hours (0/12 done, stuck on
+batch 1). Was already noted as low-priority/not blocking; killing it was
+the right call once it was actively slowing down the PI's actual
+request. If this line of work matters later, it needs relaunching from
+scratch (`scripts/launch_phase5b_grid.sh`) -- nothing from the old run
+is salvageable, and the methodology will need re-interpretation through
+the 3d/naive-standard lens anyway, so relaunching as-is probably isn't
+the right move without revisiting the design first.
 
-**Step 2 is done**: `reports/04c_formulations_naive_standard.md`.
-Headline: plain Mo-PAE's utility was never recorded anywhere, blocking
-the leveling-down check entirely and excluding `ed_soft`. Named the 6
-new runs that would fix it; not launched.
+**Known infrastructure quirk this session**: erebor went fully
+unreachable (SSH connection timeout, not just slow) twice, both times
+coinciding with heavy combined GPU+CPU load (4 concurrent GBT-training
+jobs plus Phase 5b's 4 CPU-oversubscribed jobs). Both times it came back
+on its own after the load passed, with the SAME boot time (no reboot) --
+so it's a load/responsiveness issue, not a crash. Worth keeping total
+concurrent job count modest (the PI asked to cap GPU usage at 2 for this
+reason) if erebor becomes unreachable again under heavy multi-job load.
 
-**Per "stop and report after step 2": once step 1's 4 runs finish and
-`reports/02d_gowalla_filtered.md` is written, stop there.** Do not
-launch step 3 (new training for the 6 named gap-closing runs) or step 4
-(dated "Superseded by 3d" notes on reports/03, 03b, 03c, 04) without the
-PI's explicit go-ahead, and do not start paper drafting.
-
-**Also still alive, low priority, unrelated to the stop condition above:**
-Phase 5b's GI-DP/TrajGAN positive-control grid
-(`scripts/launch_phase5b_grid.sh`, launched ~10:22 AM this same day) was
-last seen stuck on batch 1 of 3 (CPU oversubscription, load avg ~79 on
-40 cores). Harmless if left running; its result will need
-re-interpretation through the 3d/naive-standard lens regardless once the
-PI reviews this report, so there's no urgency either way.
+**Per "stop and report after step 2": stopping here, as instructed.**
+Do not launch step 3 (new training for the 6 gap-closing runs
+`reports/04c_formulations_naive_standard.md` names) or step 4 (dated
+"Superseded by 3d" notes on reports/03, 03b, 03c, 04) without the PI's
+explicit go-ahead, and do not start paper drafting.
 
 Old single-seed gating check (`geolife_lambda4_0`,
 `reports/figures/phase3_adaptive/geolife_lambda4_0/`) is superseded by
