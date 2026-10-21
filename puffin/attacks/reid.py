@@ -432,7 +432,7 @@ def _train_gbt_on_frozen_features(train_feat: np.ndarray, train_y: np.ndarray,
     proba = clf.predict_proba(test_feat)
     logits_full = np.zeros((len(test_feat), total_users))
     logits_full[:, clf.classes_.astype(int)] = proba
-    test_logits = torch.tensor(logits_full, dtype=torch.float32)
+    test_logits = torch.tensor(logits_full, dtype=torch.float32, device=test_y.device)
     return _per_user_topk(test_logits, test_y)
 
 
