@@ -1,6 +1,62 @@
 # PUFFIN v2 — Progress
 
-## Current state (read this first): new evaluation standard adopted, stopped after step 2 as instructed
+## Current state (read this first): approved follow-up batch running, paper draft started
+
+The PI reviewed `02d`/`04c` directly and approved the 6-run gap-closing
+batch plus the dated "superseded" notes, with several corrections to
+apply first (all done, see below), then said to rebuild 04c's fronts
+with plain Mo-PAE and the no-privacy point overlaid, run the
+leveling-down check, and stop and report -- **that final step is
+blocked on the approved batch finishing (see "Running now"), not done
+yet.** In parallel, the PI asked for a paper draft of the
+sections whose results are final -- done, see below.
+
+**Corrections applied (all done, committed):**
+1. **Decile-level reduction metrics** (`puffin/metrics/decile_reduction.py`,
+   4 tests pass) replace the per-user-ratio `privacy_gain` in 02d
+   onward: absolute reduction, relative reduction, and a new
+   residual-risk-disparity metric (decile0/decile9 ratio), all
+   decile-mean-based with bootstrap CIs, old per-user ratio moved to
+   an appendix labeled unstable. `reports/02d_gowalla_filtered.md`
+   rewritten with the corrected tables; its "gain lowest, sometimes
+   negative, at decile 0" sentence corrected (relative reduction is
+   consistently lowest at decile 0 in all 4 Gowalla subsets, not
+   "sometimes negative" -- only Chicago's decile 0 CI touches zero).
+2. **`floor_loss` inertness on GeoLife, diagnosed and fixed.**
+   Confirmed via gradient-norm logging (`scripts/diagnose_floor_loss.py`)
+   that the in-model adversary's confidence never exceeds ~0.008 there
+   (chance 1/180=0.0056) because the encoder's own adversarial
+   training suppresses it near chance by design -- the fixed
+   `floor=0.3` default was ~54x unreachable, giving exactly zero
+   gradient every step. Fixed: floor is now
+   `floor_multiplier/total_users` (default 1x chance level), confirmed
+   to give a genuinely nonzero gradient. Logged in
+   `CHANGES_FROM_ORIGINAL.md`. GeoLife's floor_loss points are being
+   rerun with the fix as part of the approved batch (see below).
+3. **04c's "dominates" claims relabeled as trade-offs** (GeoLife and
+   Foursquare) -- the PI's dominance definition (utility >= and risk <
+   beyond both points' CIs) was never checked against those claims.
+4. **04c now states explicitly** that every existing Phase 4 point
+   used exactly 1 encoder-training seed (the 5-seed treatment is
+   attacker-side only) -- ahead of the approved batch using >=3.
+
+**Paper draft started** (`paper/`, PoPETs/acmart, double-blind
+review+anonymous mode, Mo-PAE cited in third person throughout):
+Threat Model, Datasets, Evaluation Protocol, Disparate Risk (part 1),
+and the Adaptive-Attacker Robustness appendix (03d) are drafted with
+real, script-generated tables (`paper/scripts/generate_figures.py` --
+regenerate, never hand-edit, when source data changes). "Mo-PAE
+Residual-Risk Disparity" (part 2) is explicitly left blocked/outlined,
+not filled in, pending the approved batch (needs plain Mo-PAE's
+utility + >=3 encoder seeds + the corrected metrics applied to it,
+none of which existed before this round). The Phase 4 formulations
+section is an outline only, per the PI's explicit instruction, not
+results prose. Test-compiled locally (pdflatex + acmart, clean, 2
+passes, only cosmetic overfull-hbox warnings) before committing --
+the PDF itself isn't checked in (build artifact, regenerate from
+source).
+
+## Superseded: new evaluation standard adopted, stopped after step 2 as instructed
 
 The PI reviewed Checkpoint 3d and made the evaluation standard permanent:
 **the primary attacker from here on is the hardened external attacker
@@ -278,37 +334,63 @@ what was in flight.
 
 ## Running now
 
-**Nothing.** Both required steps are done and committed:
-- Step 1: `reports/02d_gowalla_filtered.md` (all 4 Gowalla metro subsets,
-  `reports/figures/phase2d/`).
-- Step 2: `reports/04c_formulations_naive_standard.md`
-  (`reports/figures/phase4c/`).
+**Checkpoint 04d approved batch, in progress (the blocking dependency
+for the final rebuild-and-stop step).**
+`scripts/launch_phase4d_approved.sh`, launched detached ~11:12 AM PDT
+2026-10-21, capped at 2 concurrent GPUs (0, 1 -- GPUs 2/3 left free per
+the PI), `nice -n 10`, `OMP_NUM_THREADS`/`MKL_NUM_THREADS` capped at 16.
+21 runs: `plain` + `no_privacy` + `ed_soft` (lambda4 in {0,0.3,1.0,3.0})
+per dataset (3 datasets), plus GeoLife's fixed `floor` rerun (lambda4
+in {0.3,1.0,3.0}). Each run uses >=3 encoder-training seeds x 5 attacker
+seeds, the new strongest-per-user (MLP+GRU+GBT) standard -- substantially
+heavier than any earlier grid (3x the encoder training, plus GBT fit on
+every one of up to 3 encoder seeds' frozen output), so expect this to
+take considerably longer than previous grids (hours, not tens of
+minutes) -- check actual progress before assuming it's stuck.
 
-**Phase 5b's GI-DP/TrajGAN positive-control grid was killed** (not left
-running) -- it was contending for CPU with the higher-priority Gowalla
-jobs above and had made zero progress in 14+ hours (0/12 done, stuck on
-batch 1). Was already noted as low-priority/not blocking; killing it was
-the right call once it was actively slowing down the PI's actual
-request. If this line of work matters later, it needs relaunching from
-scratch (`scripts/launch_phase5b_grid.sh`) -- nothing from the old run
-is salvageable, and the methodology will need re-interpretation through
-the 3d/naive-standard lens anyway, so relaunching as-is probably isn't
-the right move without revisiting the design first.
+- Logs: `logs/phase4d/<dataset>_<mechanism>_lambda<l4>.log`, orchestrator
+  `logs/phase4d/orchestrator.log`.
+- Output: `reports/figures/phase4d/<dataset>_<mechanism>_lambda<l4>/{summary.json,per_user_04d.csv}`.
+- **If resuming cold:** check `tail logs/phase4d/orchestrator.log` and
+  `ls reports/figures/phase4d/*/summary.json | wc -l` (target: 21). If
+  the orchestrator is gone but not all 21 exist, relaunch
+  `nohup bash scripts/launch_phase4d_approved.sh > logs/phase4d/orchestrator_stdout2.log 2>&1 < /dev/null & disown`
+  -- skips completed runs. Re-check `nvidia-smi` for a free GPU pair
+  first.
+- **Once all 21 finish, the remaining work (not started yet):**
+  1. Apply `puffin.metrics.decile_reduction` to each `plain`/`no_privacy`
+     run's per-user output -- 04d's own driver only computed the OLD
+     `bootstrap_decile_ci`, not the new decile-mean reduction metrics,
+     so this is a separate quick analysis pass, not already done.
+  2. Rebuild `reports/04c_formulations_naive_standard.md`'s Pareto
+     fronts with plain Mo-PAE and the no-privacy reference overlaid as
+     the utility axis's two reference points (now that both have a
+     logged utility).
+  3. Run the leveling-down check (blocked before on missing plain-Mo-PAE
+     utility; should now be computable).
+  4. Fill in `paper/sections/residual_risk_disparity.tex` (part 2) using
+     the result of step 1, and `paper/sections/phase4_outline.tex`'s
+     real content using steps 2-3 -- regenerate tables via
+     `paper/scripts/generate_figures.py`, do not hand-write.
+  5. **Stop and report, per the PI's instruction** -- do not proceed to
+     step 4's "correct earlier reports in place" (dated superseded
+     notes on reports/03, 03b, 03c, 04) or further paper sections
+     without checking in first, since that was scoped as a separate,
+     later ask.
+
+**Phase 5b restarted at low priority** (`scripts/launch_phase5b_grid.sh`,
+~11:15 AM PDT 2026-10-21): `nice -n 19`, threads capped to 6,
+batch_size reduced from 4 to 2 -- the original uncapped 4-at-a-time run
+drove load average to ~79-110 and made zero progress in 14+ hours
+before being killed in a previous session. Needed for the paper's
+baselines per the PI; genuinely low priority, no urgency either way.
 
 **Known infrastructure quirk this session**: erebor went fully
-unreachable (SSH connection timeout, not just slow) twice, both times
-coinciding with heavy combined GPU+CPU load (4 concurrent GBT-training
-jobs plus Phase 5b's 4 CPU-oversubscribed jobs). Both times it came back
-on its own after the load passed, with the SAME boot time (no reboot) --
-so it's a load/responsiveness issue, not a crash. Worth keeping total
-concurrent job count modest (the PI asked to cap GPU usage at 2 for this
-reason) if erebor becomes unreachable again under heavy multi-job load.
-
-**Per "stop and report after step 2": stopping here, as instructed.**
-Do not launch step 3 (new training for the 6 gap-closing runs
-`reports/04c_formulations_naive_standard.md` names) or step 4 (dated
-"Superseded by 3d" notes on reports/03, 03b, 03c, 04) without the PI's
-explicit go-ahead, and do not start paper drafting.
+unreachable (SSH connection timeout, not a crash -- same boot time
+both times) twice under heavy combined GPU+CPU load. Recovered on its
+own both times once load dropped. Keeping concurrent job count modest
+(2 GPUs, capped threads, `nice`) going forward for this reason, per the
+PI's own instruction.
 
 Old single-seed gating check (`geolife_lambda4_0`,
 `reports/figures/phase3_adaptive/geolife_lambda4_0/`) is superseded by
