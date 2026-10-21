@@ -89,6 +89,38 @@ def train_mechanism(windows, total_locations, total_users, entropy_table, mechan
     return bundle
 
 
+def eval_in_model_confidence(bundle, windows, device):
+    """The CO-TRAINED (in-model) adversary's own per-user confidence on
+    test windows -- the quantity any floor/group-DRO-style fairness loss
+    actually optimizes against, as distinct from a fresh EXTERNAL
+    attacker's accuracy on the same frozen features. Reported by decile
+    so it can sit next to the external attacker's top-1 in the report:
+    per the PI, this is the mechanistic explanation for why loss-based
+    fairness formulations can't target real risk -- the in-model
+    adversary the encoder actually trains against stays near chance
+    throughout training (confirmed via scripts/diagnose_floor_loss.py),
+    while a real external attacker on the same features does far
+    better."""
+    te = windows["test"]
+    cell = torch.tensor(te["cell"], dtype=torch.long, device=device)
+    wd = torch.tensor(te["weekday"], dtype=torch.long, device=device)
+    hr = torch.tensor(te["hour"], dtype=torch.long, device=device)
+    user_idx = torch.tensor(te["user"], dtype=torch.long, device=device)
+    bundle.encoder.eval()
+    bundle.id_recognizer.eval()
+    with torch.no_grad():
+        enc = bundle.encoder(cell, wd, hr)
+        id_logits = bundle.id_recognizer(enc)
+        probs = torch.softmax(id_logits, dim=-1)
+        true_onehot = torch.nn.functional.one_hot(user_idx, num_classes=id_logits.shape[-1]).float()
+        confidence = (true_onehot * probs).sum(-1).cpu().numpy()
+    bundle.encoder.train()
+    bundle.id_recognizer.train()
+    user_1idx = te["user"] + 1
+    return pd.DataFrame(dict(user_id=user_1idx, confidence=confidence)).groupby(
+        "user_id")["confidence"].mean().reset_index()
+
+
 def eval_utility(bundle, windows, device):
     te = windows["test"]
     cell = torch.tensor(te["cell"], dtype=torch.long, device=device)
@@ -146,6 +178,7 @@ def main():
                                                        patience=6)
 
     per_encoder_seed = []
+    per_encoder_seed_inmodel = []
     utilities = []
     for enc_seed in encoder_seeds:
         print(f"[{tag}] encoder seed {enc_seed}: training mechanism...", flush=True)
@@ -162,12 +195,20 @@ def main():
         post_df = post_df.rename(columns={"post_top1": f"post_top1_encseed{enc_seed}"})
         per_encoder_seed.append(post_df[["user_id", f"post_top1_encseed{enc_seed}"]])
 
+        inmodel_df = eval_in_model_confidence(bundle, windows, device)
+        inmodel_df = inmodel_df.rename(columns={"confidence": f"inmodel_confidence_encseed{enc_seed}"})
+        per_encoder_seed_inmodel.append(inmodel_df[["user_id", f"inmodel_confidence_encseed{enc_seed}"]])
+
     merged = feats.merge(raw_df[["user_id", "n_windows", "raw_top1"]], on="user_id", how="inner")
     for df_ in per_encoder_seed:
         merged = merged.merge(df_, on="user_id", how="inner")
+    for df_ in per_encoder_seed_inmodel:
+        merged = merged.merge(df_, on="user_id", how="left")
     enc_cols = [c for c in merged.columns if c.startswith("post_top1_encseed")]
+    inmodel_cols = [c for c in merged.columns if c.startswith("inmodel_confidence_encseed")]
     merged["post_top1"] = merged[enc_cols].mean(axis=1)
     merged["post_top1_std_over_encoder_seeds"] = merged[enc_cols].std(axis=1)
+    merged["inmodel_confidence"] = merged[inmodel_cols].mean(axis=1)
     merged["entropy_decile"] = pd.qcut(merged["s_unc"], 10, labels=False, duplicates="drop")
 
     filtered = merged[merged["n_windows"] >= 10].copy()
@@ -176,6 +217,8 @@ def main():
     deciles = filtered["entropy_decile"].to_numpy()
     raw_ci = bootstrap_decile_ci(filtered["raw_top1"].to_numpy(), deciles)
     post_ci = bootstrap_decile_ci(filtered["post_top1"].to_numpy(), deciles)
+    inmodel_ci = bootstrap_decile_ci(filtered["inmodel_confidence"].to_numpy(), deciles)
+    chance_level = 1.0 / total_users
 
     result = dict(
         dataset=args.dataset, mechanism=args.mechanism, lambda4=args.lambda4,
@@ -183,14 +226,16 @@ def main():
         utility_mean=float(np.mean(utilities)), utility_std=float(np.std(utilities)),
         utility_per_encoder_seed=utilities,
         n_users_before_filter=len(merged), n_users_after_filter=len(filtered), n_excluded=n_excluded,
-        raw_decile_ci=raw_ci, post_decile_ci=post_ci,
+        chance_level=chance_level,
+        raw_decile_ci=raw_ci, post_decile_ci=post_ci, inmodel_confidence_decile_ci=inmodel_ci,
     )
 
     out_dir = pathlib.Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     filtered.to_csv(out_dir / "per_user_04d.csv", index=False)
     (out_dir / "summary.json").write_text(json.dumps(result, indent=2))
-    print(json.dumps({k: v for k, v in result.items() if k not in ("raw_decile_ci", "post_decile_ci")}, indent=2))
+    print(json.dumps({k: v for k, v in result.items()
+                       if k not in ("raw_decile_ci", "post_decile_ci", "inmodel_confidence_decile_ci")}, indent=2))
 
 
 if __name__ == "__main__":
