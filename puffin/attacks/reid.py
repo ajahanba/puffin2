@@ -415,3 +415,125 @@ def train_raw_attacker_strongest_per_user(windows: dict, total_locations: int, t
     out["raw_top1_std"] = out[top1_cols].std(axis=1)
     out["raw_top5"] = out[top5_cols].mean(axis=1)
     return out.fillna(0.0), arch_win_log
+
+
+def _train_gbt_on_frozen_features(train_feat: np.ndarray, train_y: np.ndarray,
+                                   test_feat: np.ndarray, test_y: torch.Tensor, total_users: int,
+                                   seed: int, max_iter: int = 150, validation_fraction: float = 0.1):
+    """GBT variant of `_train_gbt_attacker`, operating on a frozen encoder's
+    pooled feature vector instead of the raw flattened window -- the
+    frozen-encoder sibling needed so the PI's new primary standard
+    ("strongest per user across MLP, GRU and GBT") applies to attacking a
+    MECHANISM's output, not just raw/no-mechanism risk."""
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    clf = HistGradientBoostingClassifier(max_iter=max_iter, early_stopping=True,
+                                          validation_fraction=validation_fraction, random_state=seed)
+    clf.fit(train_feat, train_y)
+    proba = clf.predict_proba(test_feat)
+    logits_full = np.zeros((len(test_feat), total_users))
+    logits_full[:, clf.classes_.astype(int)] = proba
+    test_logits = torch.tensor(logits_full, dtype=torch.float32)
+    return _per_user_topk(test_logits, test_y)
+
+
+def train_attacker_on_frozen_encoder_strongest_per_user(encoder: nn.Module, windows: dict, total_users: int,
+                                                         device, seeds=(0, 1, 2, 3, 4), max_epochs: int = 100,
+                                                         patience: int = 8, val_frac: float = 0.1,
+                                                         batch_size: int = 512, lr: float = 1e-3,
+                                                         chronological_val: bool = True,
+                                                         include_gbt: bool = True) -> pd.DataFrame:
+    """Frozen-encoder sibling of `train_raw_attacker_strongest_per_user`:
+    per-user MAX top-1/top-5 across {MLP head, GBT} on the encoder's own
+    pooled feature vector (no GRU -- no sequence left to feed it, same
+    reasoning as `train_attacker_on_frozen_encoder_hardened`), averaged
+    across seeds. This is the frozen-encoder half of the PI's new primary
+    evaluation standard. Returns per_user_df[user_id, post_top1 (mean),
+    post_top1_std, top1_seed{s}, winner_seed{s}]."""
+    import pandas as pd
+    for p in encoder.parameters():
+        p.requires_grad_(False)
+    encoder.eval()
+
+    def to_t(arr, dtype=torch.long):
+        return torch.tensor(arr, dtype=dtype, device=device)
+
+    tr, te = windows["train"], windows["test"]
+    cell, wd, hr, y = to_t(tr["cell"]), to_t(tr["weekday"]), to_t(tr["hour"]), to_t(tr["user"])
+    te_cell, te_wd, te_hr, te_y = to_t(te["cell"]), to_t(te["weekday"]), to_t(te["hour"]), to_t(te["user"])
+    with torch.no_grad():
+        all_feat = _batched_forward(lambda c, w, h: encoder(c, w, h), cell, wd, hr)
+        te_feat = _batched_forward(lambda c, w, h: encoder(c, w, h), te_cell, te_wd, te_hr)
+
+    arch_names = ["mlp"] + (["gbt"] if include_gbt else [])
+    per_seed_frames = []
+    arch_win_log = []
+    n = len(all_feat)
+    for seed in seeds:
+        torch.manual_seed(seed)
+        rng = np.random.default_rng(seed)
+        if chronological_val and "ts" in tr and len(tr["ts"]) == n:
+            val_idx_np, fit_idx_np = _chronological_val_split(tr["ts"], tr["user"], val_frac, rng)
+        else:
+            perm = rng.permutation(n)
+            n_val = max(1, int(val_frac * n))
+            val_idx_np, fit_idx_np = perm[:n_val], perm[n_val:]
+        val_idx, fit_idx = torch.tensor(val_idx_np, device=device), torch.tensor(fit_idx_np, device=device)
+
+        head = MLPHead(total_users).to(device)
+        opt = torch.optim.Adam(head.parameters(), lr=lr)
+        best_val_acc, best_state, bad_epochs = -1.0, None, 0
+        n_fit = len(fit_idx)
+        for epoch in range(max_epochs):
+            head.train()
+            batch_perm = fit_idx[torch.randperm(n_fit, device=device)]
+            for start in range(0, n_fit, batch_size):
+                idx = batch_perm[start:start + batch_size]
+                opt.zero_grad()
+                loss = F.cross_entropy(head(all_feat[idx]), y[idx])
+                loss.backward()
+                opt.step()
+            head.eval()
+            with torch.no_grad():
+                val_acc = _overall_acc(head(all_feat[val_idx]), y[val_idx])
+            if val_acc > best_val_acc:
+                best_val_acc, best_state, bad_epochs = val_acc, copy.deepcopy(head.state_dict()), 0
+            else:
+                bad_epochs += 1
+                if bad_epochs >= patience:
+                    break
+        head.load_state_dict(best_state)
+        head.eval()
+        with torch.no_grad():
+            mlp_logits = _batched_forward(lambda f: head(f), te_feat)
+        mlp_per_user = pd.DataFrame(_per_user_topk(mlp_logits, te_y))[["user_id", "n_windows", "top1", "top5"]]
+        per_arch_df = {"mlp": mlp_per_user}
+
+        if include_gbt:
+            gbt_per_user = _train_gbt_on_frozen_features(
+                all_feat.cpu().numpy().astype(np.float64), tr["user"],
+                te_feat.cpu().numpy().astype(np.float64), te_y, total_users, seed)
+            per_arch_df["gbt"] = pd.DataFrame(gbt_per_user)[["user_id", "n_windows", "top1", "top5"]]
+
+        merged = per_arch_df[arch_names[0]][["user_id", "n_windows"]].copy()
+        top1_mat = np.column_stack([per_arch_df[a].sort_values("user_id")["top1"].to_numpy() for a in arch_names])
+        top5_mat = np.column_stack([per_arch_df[a].sort_values("user_id")["top5"].to_numpy() for a in arch_names])
+        merged = merged.sort_values("user_id").reset_index(drop=True)
+        winner_idx = top1_mat.argmax(axis=1)
+        merged[f"top1_seed{seed}"] = top1_mat.max(axis=1)
+        merged[f"top5_seed{seed}"] = top5_mat[np.arange(len(merged)), winner_idx]
+        merged[f"winner_seed{seed}"] = [arch_names[i] for i in winner_idx]
+        per_seed_frames.append(merged)
+        win_fracs = {a: float((merged[f"winner_seed{seed}"] == a).mean()) for a in arch_names}
+        arch_win_log.append(dict(seed=seed, win_fractions=win_fracs))
+
+    out = per_seed_frames[0][["user_id", "n_windows"]].copy()
+    for frame in per_seed_frames:
+        s = [c for c in frame.columns if c.startswith("winner_seed") or c.startswith("top1_seed")
+             or c.startswith("top5_seed")]
+        out = out.merge(frame[["user_id"] + s], on="user_id", how="outer")
+    top1_cols = [c for c in out.columns if c.startswith("top1_seed")]
+    top5_cols = [c for c in out.columns if c.startswith("top5_seed")]
+    out["post_top1"] = out[top1_cols].mean(axis=1)
+    out["post_top1_std"] = out[top1_cols].std(axis=1)
+    out["post_top5"] = out[top5_cols].mean(axis=1)
+    return out.fillna(0.0), arch_win_log
