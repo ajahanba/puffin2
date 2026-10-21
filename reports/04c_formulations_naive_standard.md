@@ -87,13 +87,14 @@ max-min risk (held-out-measured), n users (post-filter).
 | per_user_minimax | u=0.626 r=0.384 mm=0.406 | u=0.505 r=0.351 mm=0.316 | u=0.412 r=0.333 mm=0.305 |
 | group_adversarial | u=0.681 r=0.333 mm=0.286 | u=0.660 r=0.333 mm=0.288 | u=0.145 r=0.118 mm=0.139 |
 
-`group_adversarial` at λ4=0.3 is the clearest standout here: the
-*highest* utility (0.681) of any point in the whole grid, paired with
-one of the *lowest* max-min risks (0.286) — if this holds up against a
-plain-Mo-PAE reference (which, per the gap above, cannot yet be
-confirmed), it would Pareto-dominate every other formulation's GeoLife
-point. λ4=3.0 collapses utility to near-useless (0.145) for a modest
-further risk reduction — not a sensible operating point.
+`group_adversarial` at λ4=0.3 has the *highest* utility (0.681) of any
+point in the whole grid, paired with one of the *lowest* max-min risks
+(0.286) — a favorable **trade-off** point, not a confirmed dominance
+claim (per the PI's definition — utility ≥ and risk < another point,
+beyond both points' CIs — which hasn't been checked here and, per the
+gap above, can't yet be checked against a plain-Mo-PAE reference
+either). λ4=3.0 collapses utility to near-useless (0.145) for a modest
+further risk reduction — not a sensible operating point regardless.
 
 **Foursquare** (1083/1083 users after filter)
 
@@ -106,11 +107,15 @@ further risk reduction — not a sensible operating point.
 | per_user_minimax | u=0.081 r=0.274 mm=0.278 | u=0.055 r=0.113 mm=0.118 | u=0.050 r=0.043 mm=0.056 |
 | group_adversarial | u=0.088 r=0.521 mm=0.531 | u=0.043 r=0.354 mm=0.353 | u=0.036 r=0.033 mm=0.021 |
 
-At comparable utility (~0.08-0.11), `group_dro` (r=0.306-0.312 at
-λ4∈{0.3,3.0}) and `per_user_minimax` (r=0.274 at λ4=0.3) both
-**Pareto-dominate** `floor`/`variance`/`group_adversarial`'s points in
-the same utility range (r=0.4-0.52) — a real, cross-formulation
-difference visible without needing the plain-Mo-PAE reference at all.
+**Corrected per the PI (dominance requires utility ≥ and risk < beyond
+both points' CIs, which this comparison does not check): re-labeled as
+a trade-off, not a dominance claim.** At comparable utility (~0.08-0.11),
+`group_dro` (r=0.306-0.312 at λ4∈{0.3,3.0}) and `per_user_minimax`
+(r=0.274 at λ4=0.3) sit at lower point-estimate risk than
+`floor`/`variance`/`group_adversarial`'s points in the same utility
+range (r=0.4-0.52) — a real, cross-formulation difference in the point
+estimates, visible without needing the plain-Mo-PAE reference, but not
+a verified dominance relationship without CIs on both axes.
 
 **Gowalla-NYC** (272/587 users after filter — Checkpoint 3d's severe
 exclusion applies here too)
@@ -137,6 +142,23 @@ within ±0.02 utility failed because plain Mo-PAE has no recorded utility
 value to match against (see the gap above). `reports/figures/phase4c/leveling_down.json`
 is an empty list. This is a direct, unavoidable consequence of the same
 gap, not a separate issue.
+
+## Encoder-training seeds (per the PI's request to state this explicitly)
+
+**Every point in the 54-point grid above (and the whole Phase 4 grid it
+was built from) used exactly ONE encoder-training seed (seed=0) per
+(dataset, formulation, λ4).** The 5-seed treatment throughout this
+project's "attacker seeds" columns is multi-seed only on the ATTACKER
+side (naive/adaptive attacker re-trained 5 times against the SAME
+single frozen encoder) — the mechanism itself (the encoder, decoder,
+id_recognizer, next_predictor) was trained once per operating point.
+This means every number above carries encoder-initialization variance
+that has never been measured. The PI's approved batch (plain Mo-PAE,
+ed_soft, and the no-privacy reference) uses ≥3 encoder seeds each,
+reporting means and CIs over encoder seeds as well as attacker seeds —
+see the rebuilt fronts below. The other 54 points' 1-seed limitation is
+noted here, not retroactively fixed (that would be a much larger rerun
+than this round's scope).
 
 ## Per-user minimum filter
 
