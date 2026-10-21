@@ -1,0 +1,17 @@
+[
+  "geolife: plain Mo-PAE reference has no recorded utility (phase3b never computed it) -- Pareto fronts below use formulations' own utility axis only; plain Mo-PAE is plotted as a horizontal reference line on the risk axis, not matched on utility.",
+  "geolife/ed_soft/lambda4=0.3: no utility recorded (ed_soft/phase3b source) -- excluded from Pareto front, would need retraining with utility logging to include.",
+  "geolife/ed_soft/lambda4=1.0: no utility recorded (ed_soft/phase3b source) -- excluded from Pareto front, would need retraining with utility logging to include.",
+  "geolife/ed_soft/lambda4=3.0: no utility recorded (ed_soft/phase3b source) -- excluded from Pareto front, would need retraining with utility logging to include.",
+  "geolife/ed_soft: NO usable points at all for the Pareto front",
+  "foursquare: plain Mo-PAE reference has no recorded utility (phase3b never computed it) -- Pareto fronts below use formulations' own utility axis only; plain Mo-PAE is plotted as a horizontal reference line on the risk axis, not matched on utility.",
+  "foursquare/ed_soft/lambda4=0.3: no utility recorded (ed_soft/phase3b source) -- excluded from Pareto front, would need retraining with utility logging to include.",
+  "foursquare/ed_soft/lambda4=1.0: no utility recorded (ed_soft/phase3b source) -- excluded from Pareto front, would need retraining with utility logging to include.",
+  "foursquare/ed_soft/lambda4=3.0: no utility recorded (ed_soft/phase3b source) -- excluded from Pareto front, would need retraining with utility logging to include.",
+  "foursquare/ed_soft: NO usable points at all for the Pareto front",
+  "gowalla_nyc: plain Mo-PAE reference has no recorded utility (phase3b never computed it) -- Pareto fronts below use formulations' own utility axis only; plain Mo-PAE is plotted as a horizontal reference line on the risk axis, not matched on utility.",
+  "gowalla_nyc/ed_soft/lambda4=0.3: no utility recorded (ed_soft/phase3b source) -- excluded from Pareto front, would need retraining with utility logging to include.",
+  "gowalla_nyc/ed_soft/lambda4=1.0: no utility recorded (ed_soft/phase3b source) -- excluded from Pareto front, would need retraining with utility logging to include.",
+  "gowalla_nyc/ed_soft/lambda4=3.0: no utility recorded (ed_soft/phase3b source) -- excluded from Pareto front, would need retraining with utility logging to include.",
+  "gowalla_nyc/ed_soft: NO usable points at all for the Pareto front"
+]

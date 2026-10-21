@@ -1,0 +1,476 @@
+{
+  "geolife": {
+    "lipschitz": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.4884989857673645,
+        "risk_decile0": 0.36120618452550846,
+        "worst_decile": 0,
+        "risk_maxmin": 0.32294643463683315,
+        "n_users": 178
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.5313979387283325,
+        "risk_decile0": 0.3310420025489293,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3279887866228819,
+        "n_users": 178
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.4593168795108795,
+        "risk_decile0": 0.3374222134705632,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3226206211838871,
+        "n_users": 178
+      }
+    ],
+    "floor": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.4733351469039917,
+        "risk_decile0": 0.37601754220668226,
+        "worst_decile": 0,
+        "risk_maxmin": 0.35713802539976314,
+        "n_users": 178
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.4733351469039917,
+        "risk_decile0": 0.37601754220668226,
+        "worst_decile": 0,
+        "risk_maxmin": 0.35713802539976314,
+        "n_users": 178
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.4733351469039917,
+        "risk_decile0": 0.37601754220668226,
+        "worst_decile": 0,
+        "risk_maxmin": 0.35713802539976314,
+        "n_users": 178
+      }
+    ],
+    "variance": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.5322721600532532,
+        "risk_decile0": 0.34394466851372274,
+        "worst_decile": 0,
+        "risk_maxmin": 0.35024473452358507,
+        "n_users": 178
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.48397696018218994,
+        "risk_decile0": 0.3750067982822657,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3524578014621511,
+        "n_users": 178
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.5464712977409363,
+        "risk_decile0": 0.3408284059376456,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3498958076525014,
+        "n_users": 178
+      }
+    ],
+    "group_dro": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.5263935327529907,
+        "risk_decile0": 0.3635104525368661,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3671592801110819,
+        "n_users": 178
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.5593138933181763,
+        "risk_decile0": 0.3466033413540571,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3458251113188453,
+        "n_users": 178
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.5359199643135071,
+        "risk_decile0": 0.3081680395058356,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3040031310520135,
+        "n_users": 178
+      }
+    ],
+    "per_user_minimax": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.6262096762657166,
+        "risk_decile0": 0.38357438938692207,
+        "worst_decile": 0,
+        "risk_maxmin": 0.4058429172146134,
+        "n_users": 178
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.5053510665893555,
+        "risk_decile0": 0.3509137441404163,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3164076094981283,
+        "n_users": 178
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.41225770115852356,
+        "risk_decile0": 0.3334721345105208,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3054771524912212,
+        "n_users": 178
+      }
+    ],
+    "group_adversarial": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.6805341839790344,
+        "risk_decile0": 0.33300872283289207,
+        "worst_decile": 0,
+        "risk_maxmin": 0.28614431715686806,
+        "n_users": 178
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.6603358387947083,
+        "risk_decile0": 0.33347435579635204,
+        "worst_decile": 0,
+        "risk_maxmin": 0.28837208801996894,
+        "n_users": 178
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.14542824029922485,
+        "risk_decile0": 0.11839304438326508,
+        "worst_decile": 0,
+        "risk_maxmin": 0.13908766792155802,
+        "n_users": 178
+      }
+    ]
+  },
+  "foursquare": {
+    "lipschitz": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.07454364001750946,
+        "risk_decile0": 0.40140972879433306,
+        "worst_decile": 0,
+        "risk_maxmin": 0.405919177449146,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.1061219722032547,
+        "risk_decile0": 0.40009678606319865,
+        "worst_decile": 0,
+        "risk_maxmin": 0.393502790720091,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.0921817198395729,
+        "risk_decile0": 0.48109318444488247,
+        "worst_decile": 0,
+        "risk_maxmin": 0.4773388291888554,
+        "n_users": 1083
+      }
+    ],
+    "floor": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.10189587622880936,
+        "risk_decile0": 0.4071638073925988,
+        "worst_decile": 0,
+        "risk_maxmin": 0.4135980824299088,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.10811762511730194,
+        "risk_decile0": 0.4399589557747502,
+        "worst_decile": 0,
+        "risk_maxmin": 0.43786946790925135,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.10066325962543488,
+        "risk_decile0": 0.35898083687648863,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3621513769372341,
+        "n_users": 1083
+      }
+    ],
+    "variance": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.10019369423389435,
+        "risk_decile0": 0.4547287928436054,
+        "worst_decile": 0,
+        "risk_maxmin": 0.4525105471919299,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.10882197320461273,
+        "risk_decile0": 0.41330304174863414,
+        "worst_decile": 0,
+        "risk_maxmin": 0.4029504450020987,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.09978282451629639,
+        "risk_decile0": 0.42161241523203774,
+        "worst_decile": 0,
+        "risk_maxmin": 0.41357279688530013,
+        "n_users": 1083
+      }
+    ],
+    "group_dro": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.0871925801038742,
+        "risk_decile0": 0.31179428487811073,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3045401870691722,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.0861654058098793,
+        "risk_decile0": 0.4220644042220547,
+        "worst_decile": 0,
+        "risk_maxmin": 0.42391514726871743,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.07920995354652405,
+        "risk_decile0": 0.3057533346150719,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3032296635039629,
+        "n_users": 1083
+      }
+    ],
+    "per_user_minimax": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.0805012583732605,
+        "risk_decile0": 0.27418504023770673,
+        "worst_decile": 0,
+        "risk_maxmin": 0.27761952961803577,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.05482185631990433,
+        "risk_decile0": 0.1129331258937306,
+        "worst_decile": 0,
+        "risk_maxmin": 0.11825738767794239,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.04989141225814819,
+        "risk_decile0": 0.04304469630908253,
+        "worst_decile": 0,
+        "risk_maxmin": 0.056203911926836596,
+        "n_users": 1083
+      }
+    ],
+    "group_adversarial": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.08830779790878296,
+        "risk_decile0": 0.5209873475031842,
+        "worst_decile": 0,
+        "risk_maxmin": 0.5308118400360466,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.04267183318734169,
+        "risk_decile0": 0.3542692738217771,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3532713473509621,
+        "n_users": 1083
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.0355989895761013,
+        "risk_decile0": 0.03290372925443113,
+        "worst_decile": 0,
+        "risk_maxmin": 0.021015723137646367,
+        "n_users": 1083
+      }
+    ]
+  },
+  "gowalla_nyc": {
+    "lipschitz": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.2676847279071808,
+        "risk_decile0": 0.46520381175419867,
+        "worst_decile": 0,
+        "risk_maxmin": 0.45936985883642645,
+        "n_users": 272
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.2876952886581421,
+        "risk_decile0": 0.5388627368408967,
+        "worst_decile": 0,
+        "risk_maxmin": 0.4966975114417865,
+        "n_users": 272
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.29041600227355957,
+        "risk_decile0": 0.5374998123768497,
+        "worst_decile": 0,
+        "risk_maxmin": 0.5308030265219071,
+        "n_users": 272
+      }
+    ],
+    "floor": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.2408284991979599,
+        "risk_decile0": 0.4985255836673519,
+        "worst_decile": 0,
+        "risk_maxmin": 0.47914012346197576,
+        "n_users": 272
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.23556257784366608,
+        "risk_decile0": 0.5112794440020534,
+        "worst_decile": 0,
+        "risk_maxmin": 0.5171636728679433,
+        "n_users": 272
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.23231525719165802,
+        "risk_decile0": 0.4882531118743559,
+        "worst_decile": 0,
+        "risk_maxmin": 0.4829242547207019,
+        "n_users": 272
+      }
+    ],
+    "variance": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.3050728440284729,
+        "risk_decile0": 0.5041408992427237,
+        "worst_decile": 0,
+        "risk_maxmin": 0.48145919008290067,
+        "n_users": 272
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.25855714082717896,
+        "risk_decile0": 0.5444311559748123,
+        "worst_decile": 0,
+        "risk_maxmin": 0.5348410361227306,
+        "n_users": 272
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.26584166288375854,
+        "risk_decile0": 0.49930474907159805,
+        "worst_decile": 0,
+        "risk_maxmin": 0.5058472270474714,
+        "n_users": 272
+      }
+    ],
+    "group_dro": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.2947165071964264,
+        "risk_decile0": 0.5142199119224268,
+        "worst_decile": 0,
+        "risk_maxmin": 0.4988627903820837,
+        "n_users": 272
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.22494295239448547,
+        "risk_decile0": 0.5080358224099173,
+        "worst_decile": 0,
+        "risk_maxmin": 0.5003347094992504,
+        "n_users": 272
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.24811303615570068,
+        "risk_decile0": 0.533209029212594,
+        "worst_decile": 0,
+        "risk_maxmin": 0.5061548952670658,
+        "n_users": 272
+      }
+    ],
+    "per_user_minimax": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.2135334312915802,
+        "risk_decile0": 0.49934168019715486,
+        "worst_decile": 0,
+        "risk_maxmin": 0.5054686187821276,
+        "n_users": 272
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.15622256696224213,
+        "risk_decile0": 0.466061976946452,
+        "worst_decile": 0,
+        "risk_maxmin": 0.42845524716026645,
+        "n_users": 272
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.09127610921859741,
+        "risk_decile0": 0.40834002179258005,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3927658239708227,
+        "n_users": 272
+      }
+    ],
+    "group_adversarial": [
+      {
+        "lambda4": 0.3,
+        "utility": 0.2594347894191742,
+        "risk_decile0": 0.5563437396989149,
+        "worst_decile": 0,
+        "risk_maxmin": 0.5464401405085536,
+        "n_users": 272
+      },
+      {
+        "lambda4": 1.0,
+        "utility": 0.049938563257455826,
+        "risk_decile0": 0.3289513352600967,
+        "worst_decile": 0,
+        "risk_maxmin": 0.3175356583121945,
+        "n_users": 272
+      },
+      {
+        "lambda4": 3.0,
+        "utility": 0.042478498071432114,
+        "risk_decile0": 0.2627486213165171,
+        "worst_decile": 0,
+        "risk_maxmin": 0.2678788863122463,
+        "n_users": 272
+      }
+    ]
+  }
+}
