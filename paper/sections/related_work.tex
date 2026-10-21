@@ -1,0 +1,79 @@
+\section{Related Work}
+\label{sec:related-work}
+
+\draftnote{DRAFT. Carried over from an earlier draft on this topic and
+rewritten in neutral third person; citations verified or sourced per
+main.bib's own annotations (VERIFIED vs.\ SOURCED). Needs integration
+with the overlearning/adversarial-leakage citations already used in
+the adaptive-attacker appendix (Elazar \& Goldberg, Song \& Shmatikov)
+-- those belong here too, not only in the appendix.}
+
+\textbf{Fairness in machine learning.} Fairness-aware learning spans
+pre-processing, in-processing, and post-processing
+approaches~\cite{hardt2016equality}, and is commonly split into
+\emph{group} fairness, which targets parity across demographic
+groups, and \emph{individual} fairness, which requires similar
+individuals to receive similar
+treatment~\cite{dwork2012fairness,verma2018fairness}. Demographic
+attributes are typically absent from anonymized trajectory datasets,
+making individual fairness the natural fit for this setting: here, it
+requires that users with similar mobility behavior experience
+comparable privacy protection after anonymization, not that any
+demographic group be treated comparably to another. Certifying and
+correcting disparate impact once introduced is itself an active area
+of study~\cite{feldman2015certifying,barocas2016big,mehrabi2021survey}.
+
+\textbf{Privacy-preserving spatial-temporal models.} Classical
+location-privacy mechanisms such as $k$-anonymity~\cite{sweeney2002k}
+and geo-indistinguishability~\cite{andres2013geo} reduce identifiability
+by perturbing or generalizing released locations directly, independent
+of any learned model. More recent privacy-utility trade-off (PUT)
+models instead learn a representation of mobility data that preserves
+downstream utility while suppressing identifying information.
+TrajGAN~\cite{rao2020lstm} trains a generative model to produce
+synthetic trajectories that retain the spatial, temporal, and semantic
+structure of real mobility traces while protecting the identity of the
+individuals they are drawn from; this paper's baseline comparison
+(Appendix~\ref{sec:adaptive-appendix}'s companion positive-control
+analysis) ports and validates this same architecture. Mo-PAE instead
+learns an encoder via adversarial multi-task training, trained to
+retain information relevant to next-location prediction while
+suppressing information relevant to re-identifying the
+individual~\cite{zhan2023mopae}. A direct empirical audit of models in
+this family found that they can pass group-fairness checks while
+violating individual fairness, producing disparate privacy and utility
+outcomes for users with otherwise similar mobility behavior, when
+evaluated with the in-model adversary's own naive, pairwise,
+threshold-based metric~\cite{zhan2023analysing}. This paper
+investigates that same question with a hardened, external evaluation
+protocol (Section~\ref{sec:evaluation-protocol}) rather than the
+in-model metric the original audit relied on, and finds the picture is
+more specific, and in one respect different, than that audit's
+own measurement could show (Section~\ref{sec:methods-changed}).
+
+\textbf{Fairness in mobility and transportation.} Equity analysis in
+transportation research has traditionally relied on coarser,
+region- or group-level disparity measures, such as a region-based
+fairness gap in ride-sharing
+demand~\cite{yan2020fairness,yan2019fairst} or a systematic framework
+for benchmarking fairness in generative crowd-flow
+models~\cite{he2025framework}. These measures are well suited to
+aggregate planning questions but not to an individual-level claim
+about who, specifically, is protected by a given privacy mechanism --
+the question this paper asks directly.
+
+\textbf{Representation leakage beyond the intended adversary.} Separately
+from the mobility-privacy literature, work studying adversarially
+trained representations in other domains has repeatedly found that an
+in-training adversary's apparent success is not evidence that the
+information it was trained against is actually absent from the
+representation: a differently targeted, post-hoc classifier can
+recover demographic attributes an adversarial removal method was
+designed to suppress~\cite{elazar2018adversarial}, and models trained
+on one narrow objective can be shown to ``overlearn'' and encode
+substantially more than that objective required, including attributes
+never labeled during
+training~\cite{song2020overlearning}. This paper's own in-model-vs.-external
+attacker comparison (Section~\ref{sec:residual-risk}) and gap
+decomposition (Appendix~\ref{sec:adaptive-appendix}) are a mobility-privacy
+instance of the same underlying phenomenon.

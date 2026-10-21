@@ -1,0 +1,73 @@
+\section{Individual Fairness Formulation}
+\label{sec:individual-fairness}
+
+\draftnote{DRAFT. Carried over from an earlier draft's Problem
+Formulation section, restated as a proper (differentiable, directly
+minimizable) loss rather than an indicator-weighted constraint, per
+editorial instruction. No numbers from that earlier draft's own
+experiments are carried over here or anywhere else in this paper.}
+
+Let $u_i$ and $u_j$ denote two users with original mobility
+trajectories $\tau_i$ and $\tau_j$, and let $\mathrm{sim}(\tau_i,
+\tau_j)$ be a similarity function over trajectories, where higher
+values indicate more similar mobility behavior. Let $P(\tau)$ denote a
+privacy-gain measure associated with a trajectory $\tau$ -- in this
+paper, $P$ is instantiated with the decile-level reduction statistics
+of Section~\ref{sec:decile-reduction-metrics}, not the per-user ratio
+an earlier formulation of this idea used (Section~\ref{sec:methods-changed}).
+Individual fairness, following the general principle that similar
+individuals should receive similar
+treatment~\cite{dwork2012fairness}, requires that users with similar
+trajectories receive comparable privacy gain. An earlier formulation
+of this requirement stated it as a constraint, enforced only above a
+similarity threshold $\delta$ and tolerating a fixed disparity budget
+$\epsilon$:
+\begin{equation}
+\sum_{i,j} \mathbb{I}\big(\mathrm{sim}(\tau_i,\tau_j) \ge \delta\big)\,
+\big|P(\tau_i) - P(\tau_j)\big| \le \epsilon.
+\label{eq:IF-constraint}
+\end{equation}
+Equation~\ref{eq:IF-constraint} is not itself a loss that a gradient-based
+optimizer can minimize: it is a single global inequality, not a
+per-sample or per-pair quantity with a gradient, and the indicator
+$\mathbb{I}(\cdot)$ has zero gradient everywhere it is differentiable
+at all. Restating it as a proper loss means turning the constraint
+into a weighted sum that is directly minimizable and whose minimum
+(zero) exactly recovers the constraint being satisfied with equality
+at $\epsilon=0$:
+\begin{equation}
+\mathcal{L}_{\mathrm{IF}} = \sum_{(i,j)} w_{ij}\,\big|P(\tau_i) - P(\tau_j)\big|,
+\qquad
+w_{ij} = \mathbb{I}\big(\mathrm{sim}(\tau_i,\tau_j) \ge \delta\big),
+\label{eq:IF-loss}
+\end{equation}
+which is well-defined, differentiable in $P$ wherever $P$ itself is,
+and minimized (at zero) exactly when every similar pair has identical
+privacy gain. The similarity threshold $\delta$ and tolerance
+$\epsilon$ move from being load-bearing parts of the training
+objective to being evaluation-time choices: $\delta$ selects which
+pairs $w_{ij}$ weights into the loss, and $\epsilon$ becomes a
+reporting threshold for \emph{how fair is fair enough}, not a term the
+optimizer itself needs. A hard threshold weight $w_{ij}\in\{0,1\}$ can
+equivalently be replaced by a smooth kernel in $\mathrm{sim}(\tau_i,\tau_j)$
+-- the Lipschitz-soft formulation evaluated in
+Section~\ref{sec:phase4} does exactly this.
+
+\subsection{Entropy as a similarity measure}
+To instantiate $\mathrm{sim}(\tau_i,\tau_j)$, this paper (following the
+same choice in the formulation it builds on) uses Shannon entropy
+$H(\mathcal{T}_u)$ of a user's visitation distribution over a
+discretized spatial grid as a proxy for mobility regularity: lower
+entropy indicates a more routine, more predictable trace, which is
+empirically also the easier trace to re-identify
+(Section~\ref{sec:disparate-risk}). Entropy is attractive as a
+similarity basis for exactly this reason -- it is computed from
+exactly the same quantity individual fairness is meant to equalize
+protection over -- and is computationally lightweight (a single-pass
+grid-based statistic) and robust to small spatial or temporal
+perturbations. This paper groups users into entropy \emph{deciles}
+(Section~\ref{sec:evaluation-protocol}) rather than computing
+$\mathrm{sim}(\tau_i,\tau_j)$ pairwise for every pair, which is what the
+decile-level reduction and residual-risk-disparity statistics of
+Section~\ref{sec:decile-reduction-metrics} report in place of a raw
+pairwise fairness loss value.

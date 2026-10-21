@@ -1,7 +1,10 @@
 % DRAFT bibliography. Entries marked VERIFIED were checked directly
-% against the published source (title, venue, year, DOI/arXiv id) --
-% see reports/related_work_adversarial_leakage.md. Entries marked TODO
-% still need that same direct verification before this paper cites them.
+% against the published source (title, venue, year, DOI/arXiv id) by a
+% live search this session. Entries marked SOURCED were extracted
+% as-is from the original PUFFIN draft's own bibliography
+% (Puffin_FairMopae-2, main.bib/ref.bib/ref2.bib/births.bib) -- plausible
+% and internally consistent, but not independently re-verified in this
+% session; do a lighter-touch spot-check pass before camera-ready.
 
 % VERIFIED (reports/related_work_adversarial_leakage.md)
 @inproceedings{elazar2018adversarial,
@@ -23,20 +26,278 @@
   note      = {arXiv:1905.11742},
 }
 
-% TODO: verify directly against the published PoPETs 2023 record before
-% citing -- venue/volume/issue/DOI not yet confirmed in this session.
-@article{mopae2023,
-  author = {TODO},
-  title  = {TODO -- Mo-PAE / PUFFIN, PoPETs 2023},
-  year   = {2023},
-  note   = {DRAFT placeholder -- needs direct verification before citing},
+% VERIFIED this session (live search): the original draft's own
+% "zhan2022privacy" key pointed to an early arXiv preprint
+% (2201.07519); this is the final PUBLISHED PoPETs 2023 version this
+% project actually audited and reimplemented -- cite THIS one, not the
+% preprint, as "Mo-PAE" throughout.
+@article{zhan2023mopae,
+  author  = {Zhan, Yuting and Haddadi, Hamed and Mashhadi, Afra},
+  title   = {Privacy-Aware Adversarial Network in Human Mobility Prediction},
+  journal = {Proceedings on Privacy Enhancing Technologies},
+  volume  = {2023},
+  number  = {1},
+  pages   = {556--570},
+  year    = {2023},
+  doi     = {10.56553/popets-2023-0032},
 }
 
-% TODO: cite the original Dwork et al. individual-fairness formulation
-% this paper's Lipschitz-soft formulation is modeled on, once verified.
+% VERIFIED this session (live search): matches the original draft's
+% births.bib entry exactly (title, authors, venue, pages).
+@inproceedings{zhan2023analysing,
+  author    = {Zhan, Yuting and Haddadi, Hamed and Mashhadi, Afra},
+  title     = {Analysing Fairness of Privacy-Utility Mobility Models},
+  booktitle = {Adjunct Proceedings of the 2023 ACM International Joint Conference on Pervasive and Ubiquitous Computing \& the 2023 ACM International Symposium on Wearable Computers},
+  pages     = {359--365},
+  year      = {2023},
+  note      = {arXiv:2304.06469},
+}
+
+% VERIFIED this session (live search): matches the original draft's
+% entry exactly (title, authors, venue, pages, year).
 @inproceedings{dwork2012fairness,
-  author = {TODO},
-  title  = {TODO -- Fairness Through Awareness},
-  year   = {2012},
-  note   = {DRAFT placeholder -- needs direct verification before citing},
+  author    = {Dwork, Cynthia and Hardt, Moritz and Pitassi, Toniann and Reingold, Omer and Zemel, Richard},
+  title     = {Fairness Through Awareness},
+  booktitle = {Proceedings of the 3rd Innovations in Theoretical Computer Science Conference (ITCS)},
+  pages     = {214--226},
+  year      = {2012},
+  note      = {arXiv:1104.3913},
+}
+% NOTE: the original draft also cited a second key, "dwork2011fairness",
+% with an identical title/author list/booktitle/pages to the entry
+% above -- a duplicate-key artifact in that draft, not a different
+% paper. Collapsed to the one entry here.
+
+% SOURCED (original draft's main.bib) -- Geo-Indistinguishability;
+% this project has independently engaged with this mechanism's own
+% published formula directly (puffin/baselines/gi_dp.py,
+% CHANGES_FROM_ORIGINAL.md), so this citation is corroborated by that
+% engagement, not purely trusted from the draft's bib file alone.
+@inproceedings{andres2013geo,
+  author    = {Andr\'{e}s, Miguel E. and Bordenabe, Nicol\'{a}s E. and Chatzikokolakis, Konstantinos and Palamidessi, Catuscia},
+  title     = {Geo-Indistinguishability: Differential Privacy for Location-Based Systems},
+  year      = {2013},
+  publisher = {Association for Computing Machinery},
+  doi       = {10.1145/2508859.2516735},
+}
+
+% SOURCED (original draft's main.bib) -- LSTM-TrajGAN; this project has
+% independently ported and validated this architecture
+% (puffin/baselines/trajgan.py, reports/05_baselines_trajgan_gidp.md).
+@misc{rao2020lstm,
+  author = {Rao, Jinmeng and Gao, Song and Kang, Yuhao and Huang, Qunying},
+  title  = {LSTM-TrajGAN: A Deep Learning Approach to Trajectory Privacy Protection},
+  year   = {2020},
+  note   = {arXiv:2006.10521},
+}
+
+% SOURCED (original draft's births.bib)
+@article{he2025framework,
+  author  = {He, Jiaqi and Sheera, Apoorva and McFarland, Jack and Wang, Feiyang and Khullar, Manurag and Chavan, Sakshi and Herman, Bernease and Ugurel, Ekin and Mashhadi, Afra},
+  title   = {A Framework for Measuring and Benchmarking Fairness of Generative Crowd-Flow Models},
+  journal = {ACM Journal on Computing and Sustainable Societies},
+  volume  = {3},
+  number  = {2},
+  pages   = {1--27},
+  year    = {2025},
+}
+
+% SOURCED (original draft's births.bib)
+@inproceedings{yan2019fairst,
+  author    = {Yan, An and Howe, Bill},
+  title     = {FairST: Equitable Spatial and Temporal Demand Prediction for New Mobility Systems},
+  booktitle = {Proceedings of the 27th ACM SIGSPATIAL International Conference on Advances in Geographic Information Systems},
+  pages     = {552--555},
+  year      = {2019},
+}
+
+% SOURCED (original draft's ref2.bib)
+@inproceedings{yan2020fairness,
+  author    = {Yan, An and Howe, Bill},
+  title     = {Fairness-Aware Demand Prediction for New Mobility},
+  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume    = {34},
+  number    = {1},
+  pages     = {1079--1087},
+  year      = {2020},
+}
+
+% SOURCED (original draft's main.bib)
+@article{de2013unique,
+  author  = {De Montjoye, Yves-Alexandre and Hidalgo, C{\'e}sar A and Verleysen, Michel and Blondel, Vincent D},
+  title   = {Unique in the Crowd: The Privacy Bounds of Human Mobility},
+  journal = {Scientific Reports},
+  volume  = {3},
+  pages   = {1376},
+  year    = {2013},
+}
+
+% SOURCED (original draft's ref2.bib)
+@article{sweeney2002k,
+  author  = {Sweeney, Latanya},
+  title   = {k-Anonymity: A Model for Protecting Privacy},
+  journal = {International Journal of Uncertainty, Fuzziness and Knowledge-Based Systems},
+  volume  = {10},
+  number  = {5},
+  pages   = {557--570},
+  year    = {2002},
+}
+
+% SOURCED (original draft's ref2.bib)
+@article{mehrabi2021survey,
+  author  = {Mehrabi, Ninareh and Morstatter, Fred and Saxena, Nripsuta and Lerman, Kristina and Galstyan, Aram},
+  title   = {A Survey on Bias and Fairness in Machine Learning},
+  journal = {ACM Computing Surveys},
+  volume  = {54},
+  number  = {6},
+  pages   = {1--35},
+  year    = {2021},
+}
+
+% SOURCED (original draft's ref2.bib)
+@article{barocas2016big,
+  author  = {Barocas, Solon and Selbst, Andrew D},
+  title   = {Big Data's Disparate Impact},
+  journal = {California Law Review},
+  volume  = {104},
+  pages   = {671},
+  year    = {2016},
+}
+
+% SOURCED (original draft's ref2.bib)
+@inproceedings{hardt2016equality,
+  author    = {Hardt, Moritz and Price, Eric and Srebro, Nati},
+  title     = {Equality of Opportunity in Supervised Learning},
+  booktitle = {Advances in Neural Information Processing Systems},
+  pages     = {3315--3323},
+  year      = {2016},
+}
+
+% SOURCED (original draft's ref2.bib)
+@inproceedings{verma2018fairness,
+  author    = {Verma, Sahil and Rubin, Julia},
+  title     = {Fairness Definitions Explained},
+  booktitle = {IEEE/ACM International Workshop on Software Fairness (FairWare)},
+  pages     = {1--7},
+  year      = {2018},
+}
+
+% SOURCED (original draft's ref2.bib)
+@inproceedings{feldman2015certifying,
+  author    = {Feldman, Michael and Friedler, Sorelle A and Moeller, John and Scheidegger, Carlos and Venkatasubramanian, Suresh},
+  title     = {Certifying and Removing Disparate Impact},
+  booktitle = {Proceedings of the 21st ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+  pages     = {259--268},
+  year      = {2015},
+}
+
+% SOURCED (original draft's ref2.bib)
+@inproceedings{saleheen2016msieve,
+  author    = {Saleheen, Nazir and Chakraborty, Supriyo and Ali, Nasir and Rahman, Md Mahbubur and Hossain, Syed Monowar and Bari, Rummana and Buder, Eugene and Srivastava, Mani and Kumar, Santosh},
+  title     = {mSieve: Differential Behavioral Privacy in Time Series of Mobile Sensor Data},
+  booktitle = {Proceedings of the 2016 ACM International Joint Conference on Pervasive and Ubiquitous Computing},
+  pages     = {706--717},
+  year      = {2016},
+}
+
+% SOURCED (original draft's main.bib/ref2.bib)
+@article{zheng2010geolife,
+  author  = {Zheng, Yu and Xie, Xing and Ma, Wei-Ying and others},
+  title   = {GeoLife: A Collaborative Social Networking Service Among User, Location and Trajectory},
+  journal = {IEEE Data Engineering Bulletin},
+  volume  = {33},
+  number  = {2},
+  pages   = {32--39},
+  year    = {2010},
+}
+
+% SOURCED (original draft's main.bib) -- the actual GeoLife dataset
+% release this project's own data layer processes.
+@manual{zheng2011geolife,
+  author = {Zheng, Yu and Fu, Hao and Xie, Xing and Ma, Wei-Ying and Li, Quannan},
+  title  = {GeoLife GPS Trajectory Dataset -- User Guide},
+  year   = {2011},
+  month  = {July},
+}
+
+% SOURCED (original draft's births.bib/main.bib)
+@inproceedings{laurila2012mobile,
+  author    = {Laurila, Juha K and Gatica-Perez, Daniel and Aad, Imad and Bornet, Olivier and Do, Trinh-Minh-Tri and Dousse, Olivier and Eberle, Julien and Miettinen, Markus and others},
+  title     = {The Mobile Data Challenge: Big Data for Mobile Computing Research},
+  booktitle = {Pervasive Computing},
+  year      = {2012},
+}
+
+% SOURCED (original draft's ref.bib)
+@article{luca2021survey,
+  author  = {Luca, Massimiliano and Barlacchi, Gianni and Lepri, Bruno and Pappalardo, Luca},
+  title   = {A Survey on Deep Learning for Human Mobility},
+  journal = {ACM Computing Surveys},
+  volume  = {55},
+  number  = {1},
+  pages   = {1--44},
+  year    = {2021},
+}
+
+% SOURCED (original draft's ref.bib)
+@article{ghadiri2024recreational,
+  author  = {Ghadiri, Zahra and Mashhadi, Afra and Timme, Marc and Ghanbarnejad, Fakhteh},
+  title   = {Recreational Mobility Prior and During the COVID-19 Pandemic},
+  journal = {Communications Physics},
+  volume  = {7},
+  number  = {1},
+  pages   = {55},
+  year    = {2024},
+}
+
+% SOURCED (original draft's ref2.bib)
+@article{eubank2004modelling,
+  author  = {Eubank, Stephen and Guclu, Hasan and Anil Kumar, VS and Marathe, Madhav V and Srinivasan, Aravind and Toroczkai, Zoltan and Wang, Nan},
+  title   = {Modelling Disease Outbreaks in Realistic Urban Social Networks},
+  journal = {Nature},
+  volume  = {429},
+  number  = {6988},
+  pages   = {180--184},
+  year    = {2004},
+}
+
+% SOURCED (original draft's ref2.bib)
+@article{wesolowski2012quantifying,
+  author  = {Wesolowski, Amy and Eagle, Nathan and Tatem, Andrew J and Smith, David L and Noor, Abdisalan M and Snow, Robert W and Buckee, Caroline O},
+  title   = {Quantifying the Impact of Human Mobility on Malaria},
+  journal = {Science},
+  volume  = {338},
+  number  = {6104},
+  pages   = {267--270},
+  year    = {2012},
+}
+
+% SOURCED (original draft's ref2.bib)
+@article{zheng2014urban,
+  author  = {Zheng, Yu and Capra, Licia and Wolfson, Ouri and Yang, Hai},
+  title   = {Urban Computing: Concepts, Methodologies, and Applications},
+  journal = {ACM Transactions on Intelligent Systems and Technology},
+  volume  = {5},
+  number  = {3},
+  pages   = {38},
+  year    = {2014},
+}
+
+% SOURCED (original draft's ref2.bib)
+@inproceedings{jayarajah2018understanding,
+  author    = {Jayarajah, Kasthuri and Tan, Andrew and Misra, Archan},
+  title     = {Understanding the Interdependency of Land Use and Mobility for Urban Planning},
+  booktitle = {Proceedings of the 2018 ACM International Joint Conference and 2018 International Symposium on Pervasive and Ubiquitous Computing and Wearable Computers},
+  pages     = {1079--1087},
+  year      = {2018},
+}
+
+% SOURCED (original draft's main.bib)
+@article{malekzadeh2020privacy,
+  author  = {Malekzadeh, Mohammad and Clegg, Richard G and Cavallaro, Andrea and Haddadi, Hamed},
+  title   = {Privacy and Utility Preserving Sensor-Data Transformations},
+  journal = {Pervasive and Mobile Computing},
+  volume  = {63},
+  pages   = {101132},
+  year    = {2020},
 }

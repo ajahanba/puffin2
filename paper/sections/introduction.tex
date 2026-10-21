@@ -1,7 +1,37 @@
 \section{Introduction}
 \label{sec:intro}
 
-\draftnote{DRAFT. Framing only -- expand once Section~\ref{sec:residual-risk} is final.}
+\draftnote{DRAFT. Motivation paragraph below is carried over from an
+earlier draft on this topic (rewritten here in neutral third person,
+not project history, per editorial instruction) -- framing only beyond
+that, expand once Section~\ref{sec:residual-risk} is final.}
+
+The proliferation of mobile devices and location-based services has
+produced an abundance of spatial-temporal mobility data, which in turn
+enables applications in urban planning~\cite{zheng2014urban,
+jayarajah2018understanding}, transportation-equity analysis, contagious
+disease management~\cite{eubank2004modelling,
+wesolowski2012quantifying, ghadiri2024recreational}, and next-location
+prediction more broadly~\cite{luca2021survey}. These same mobility
+traces pose serious re-identification risk, since individuals are often
+identifiable from their movement patterns
+alone~\cite{de2013unique, saleheen2016msieve}. Privacy-utility trade-off
+(PUT) models learn representations that preserve downstream utility
+while suppressing re-identifiability, but prior work evaluating such
+models has found that they can satisfy \emph{group} fairness checks
+while violating \emph{individual} fairness -- treating users with
+similar mobility behavior very differently in how much privacy
+protection they actually receive~\cite{zhan2023analysing}. Equity
+analysis in transportation research has traditionally relied on
+coarser, demographic or region-level disparity
+measures~\cite{yan2020fairness, yan2019fairst, he2025framework}; this
+paper instead asks the question at the level of the individual user,
+following the individual-fairness principle that similar individuals
+should receive similar treatment~\cite{dwork2012fairness}. If this
+question is answered with an unreliable measurement protocol, a
+mechanism can appear equitable while in fact systematically
+under-protecting exactly the users most in need of protection -- the
+central concern this paper investigates empirically.
 
 A learned mobility-privacy mechanism is typically evaluated by training
 it once, attacking its output with a single, group-agnostic
@@ -12,10 +42,11 @@ mechanism's own evaluation protocol correctly report that}?
 
 We study this question on a representative learned mechanism from the
 mobility-privacy literature, referred to throughout this paper in the
-third person as Mo-PAE (an encoder/decoder/adversary architecture that
-trains a feature encoder adversarially against an in-model
-re-identification head, following the published PETS 2023 design this
-project audited and reimplemented in PyTorch). Our findings are two-fold.
+third person as Mo-PAE~\cite{zhan2023mopae} (an encoder/decoder/adversary
+architecture that trains a feature encoder adversarially against an
+in-model re-identification head, following the published PETS 2023
+design this project audited and reimplemented in PyTorch). Our
+findings are two-fold.
 
 First (Section~\ref{sec:disparate-risk}), across three real mobility
 datasets (GeoLife, Foursquare-NYC, and four Gowalla metro subsets),

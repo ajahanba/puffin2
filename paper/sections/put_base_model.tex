@@ -1,0 +1,121 @@
+\section{The PUT Base Model}
+\label{sec:put-base-model}
+
+\draftnote{DRAFT. Carried over from an earlier draft's Section IV-A
+(PUT base model description, Definitions 1-3), redefining
+re-identification risk using the external attacker throughout, per
+editorial instruction. No numbers from that earlier draft's own
+experiments are carried over.}
+
+The base privacy-utility trade-off (PUT) architecture this paper
+studies, following Mo-PAE~\cite{zhan2023mopae}, has three
+components: a Data Reconstruction Unit (DRU), a Mobility Prediction
+Unit (MPU), and a User Re-identification Unit (URU). Raw mobility data
+$\mathcal{X}$ is passed through an encoder $\mathrm{Enc}_L$ to learn a
+representation $\mathcal{F} = \mathrm{Enc}_L(\mathcal{X}; \theta_E)$.
+A decoder $\mathrm{Dec}_L$ attempts to reconstruct $\mathcal{X}$ from
+$\mathcal{F}$ (the DRU, trained as a built-in adversary minimizing
+reconstruction loss $\mathcal{L}_R$); the URU
+$P_D(\mathcal{F};\theta_P')$ outputs a probability distribution over
+user identities and is trained to minimize re-identification loss
+$\mathcal{L}_P$; the MPU $U_D(\mathcal{F};\theta_U')$ outputs a
+probability distribution over the next location and is trained to
+minimize prediction loss $\mathcal{L}_U$. The encoder is trained
+adversarially against the URU and DRU while cooperating with the MPU:
+it must retain information useful for next-location prediction
+(minimizing $\mathcal{L}_U$) while destroying information useful for
+reconstruction and re-identification (maximizing $\mathcal{L}_R$ and
+$\mathcal{L}_P$), giving the min-max training objective
+\begin{equation}
+\min\mathcal{L}_{\mathrm{sum}} = \min_{\mathcal{L}_U}\ \max_{\mathcal{L}_R,\mathcal{L}_P}
+\sum_{i} \big(\mathcal{L}_U(f_i),\ \mathcal{L}_P(f_i),\ \mathcal{L}_R(f_i)\big).
+\label{eq:sumloss}
+\end{equation}
+A fairness term $\mathcal{L}_F$ (Section~\ref{sec:individual-fairness})
+can be added to Equation~\ref{eq:sumloss} with its own weight
+$\lambda_4$, alongside the weights $\lambda_1,\lambda_2,\lambda_3$
+already governing the reconstruction/utility/privacy trade-off.
+
+\subsection{Re-identification risk, redefined}
+\label{sec:defs}
+An earlier formulation of this framework defined re-identification
+risk directly in terms of the URU -- the SAME component the encoder
+was adversarially trained against. This paper redefines all three
+quantities below in terms of a \emph{fresh, external} attacker,
+trained strictly after the encoder is frozen
+(Section~\ref{sec:threat-model-naive}), for the reason
+Section~\ref{sec:residual-risk} demonstrates directly: the in-model
+URU's own confidence stays near chance throughout training, regardless
+of entropy decile, because the encoder's adversarial training
+suppresses it by construction -- so a definition of risk anchored to
+the URU cannot distinguish a mechanism that is actually private from
+one whose own adversary is simply weak.
+
+\textbf{Definition 1 (Re-identification risk).} Let $A$ denote the
+external attacker (Section~\ref{sec:threat-model-naive}), trained
+after $\mathrm{Enc}_L$ is frozen, not the URU. The re-identification
+risk $R_{\mathrm{orig}}(u)$ for user $u$ is the probability that $A$
+correctly identifies $u$ from their original trajectory $\tau_u$:
+$R_{\mathrm{orig}}(u) = P(A(\tau_u) = u)$. The post-mechanism risk
+$R_{\mathrm{anon}}(u)$ is the same attacker's accuracy on the
+mechanism's released representation: $R_{\mathrm{anon}}(u) =
+P(A(\mathrm{Enc}_L(\tau_u)) = u)$.
+
+\textbf{Definition 2 (Privacy gain).} This paper reports two
+decile-level statistics in place of a single per-user ratio
+(Section~\ref{sec:decile-reduction-metrics}): absolute reduction,
+$\overline{R_{\mathrm{orig}}}_d - \overline{R_{\mathrm{anon}}}_d$, and
+relative reduction, $1 - \overline{R_{\mathrm{anon}}}_d \,/\,
+\overline{R_{\mathrm{orig}}}_d$, both computed from decile \emph{means}
+over users in decile $d$, with a bootstrap confidence interval. The
+original per-user formulation, $P(\tau_u) = 1 - R_{\mathrm{anon}}(u) /
+R_{\mathrm{orig}}(u)$, is retained only as an appendix statistic,
+explicitly labeled unstable, since it is unstable whenever
+$R_{\mathrm{orig}}(u) \approx 0$ for an individual user
+(Section~\ref{sec:decile-reduction-metrics} documents a concrete case).
+
+\textbf{Definition 3 (Residual-risk disparity).} In place of a
+percentage of users correctly re-identified within the top-$k$
+predictions, this paper reports the ratio of post-mechanism risk
+between the lowest- and highest-entropy deciles,
+$\overline{R_{\mathrm{anon}}}_0 \,/\, \overline{R_{\mathrm{anon}}}_9$,
+with a bootstrap confidence interval obtained by independently
+resampling each decile's users. This statistic is reported because it
+answers the paper's central question directly -- not whether the
+mechanism protects users \emph{on average}, but how much worse off the
+least-protected decile is than the best-protected one, after the
+mechanism has been applied.
+
+\subsection{What changed from the earlier formulation, and why}
+\label{sec:methods-changed}
+Three methodological changes separate this paper's measurements from
+an earlier formulation of the same underlying question:
+\begin{enumerate}
+\item \textbf{External attacker, not the in-model unit.} Every risk
+  number in this paper comes from a fresh external attacker trained
+  after the mechanism is frozen (Definition~1), never the co-trained
+  URU. Section~\ref{sec:residual-risk} shows these two give
+  substantially different answers to ``how private is this
+  mechanism,'' because the URU's own confidence stays near chance by
+  construction, independent of entropy decile, while the external
+  attacker's accuracy is both higher and clearly decile-dependent.
+\item \textbf{Decile-level reduction metrics, not \%-pairs-within-$\epsilon$.}
+  An earlier formulation reported fairness as the fraction of
+  similar-user pairs whose privacy-gain disparity fell below a fixed
+  threshold $\epsilon$. This paper reports decile-level absolute and
+  relative risk reduction and a residual-risk-disparity ratio
+  (Section~\ref{sec:decile-reduction-metrics}), each with a bootstrap
+  confidence interval, which states \emph{how large} a disparity is
+  and whether it is statistically distinguishable from none, rather
+  than only whether it crosses one fixed, somewhat arbitrary threshold.
+\item \textbf{Multiple seeds with confidence intervals.} Every
+  attacker-side number is averaged over five random seeds; results
+  that compare across mechanism configurations additionally use
+  $\geq 3$ independent encoder-training seeds, with both the mean and
+  the seed-to-seed standard deviation reported
+  (Section~\ref{sec:seeding}). An earlier formulation of this
+  evaluation reported single-seed point estimates throughout.
+\end{enumerate}
+No quantitative result from an earlier formulation of this evaluation
+is carried over into this paper's tables or figures; every number
+reported here was produced under the protocol just described.
