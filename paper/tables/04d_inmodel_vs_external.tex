@@ -1,0 +1,15 @@
+\begin{table}[t]
+\centering
+\caption{In-model adversary confidence vs.\ external attacker top-1, plain Mo-PAE, deciles 0 and 9. The in-model adversary stays far closer to chance and far flatter across deciles than the external attacker on the identical features. Generated from \texttt{reports/figures/phase4d\_analysis/inmodel\_vs\_external.json}.}
+\label{tab:inmodel-vs-external}
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Dataset & Chance & Decile 0 (ext.\ / in-model) & Decile 9 (ext.\ / in-model) \\
+\midrule
+GeoLife & 0.0055 & 0.345 / 0.0246 & 0.045 / 0.0113 \\
+Foursquare & 0.0009 & 0.487 / 0.0521 & 0.031 / 0.0020 \\
+Gowalla-NYC & 0.0001 & 0.566 / 0.0776 & 0.082 / 0.0063 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,17 +1,88 @@
 # PUFFIN v2 — Progress
 
-## Current state (read this first): approved follow-up batch running, paper draft started
+## Current state (read this first): 04d batch complete, analyzed, and written up; paper draft fully updated; attacker-in-the-loop built and queued but NOT launched
 
-The PI reviewed `02d`/`04c` directly and approved the 6-run gap-closing
-batch plus the dated "superseded" notes, with several corrections to
-apply first (all done, see below), then said to rebuild 04c's fronts
-with plain Mo-PAE and the no-privacy point overlaid, run the
-leveling-down check, and stop and report -- **that final step is
-blocked on the approved batch finishing (see "Running now"), not done
-yet.** In parallel, the PI asked for a paper draft of the
-sections whose results are final -- done, see below.
+**The approved 21-run batch (Checkpoint 04d) is complete, analyzed, and
+reported on. This closes the "stop and report" checkpoint the PI set:
+rebuild 04c's fronts with plain Mo-PAE and the no-privacy point
+overlaid, run the leveling-down check, report.** Full writeup:
+`reports/04d_approved_batch.md`. Headline finding: the no-privacy
+reference shows the privacy mechanism itself *widens* the decile0/
+decile9 residual-risk-disparity ratio on Foursquare (3.43x -> 16.02x)
+and Gowalla-NYC (4.12x -> 7.26x) relative to an undefended
+representation, flat on GeoLife (8.02x -> 8.08x, no effect either
+way); raising ed_soft's fairness weight on Foursquare makes decile 0's
+*absolute* post-mechanism risk get worse (0.487 -> 0.686) even as
+aggregate utility rises (0.111 -> 0.233) and the RRD ratio falls
+(16.02x -> 5.28x) -- a textbook leveling-down pattern, confirmed by the
+formal check. The fixed floor_loss (see below) protects GeoLife's
+already-best-protected decile 9 more as lambda4 rises, not decile 0;
+RRD gets worse (8.19x -> 9.68x), not better. ed_soft on GeoLife is the
+one case in the whole batch that genuinely dominates plain Mo-PAE
+(higher utility AND lower decile-0 risk, both CIs non-overlapping) --
+every other (dataset, formulation, lambda4) point is a trade-off, and
+several are trade-offs against the party the mechanism exists to
+protect. Analysis script (pure re-analysis, no retraining):
+`scripts/analyze_04d_approved_batch.py`, output in
+`reports/figures/phase4d_analysis/`. `reports/04c_formulations_naive_standard.md`
+has a dated 2026-10-27 superseded note pointing here.
 
-**Corrections applied (all done, committed):**
+**Paper fully updated to match**: `paper/sections/residual_risk_disparity.tex`
+and `paper/sections/phase4_outline.tex` (previously left as blocked
+outlines) now have real prose and two new script-generated tables
+(`paper/tables/04d_decile_reduction.tex`, `04d_inmodel_vs_external.tex`,
+via `paper/scripts/generate_figures.py` -- regenerate, never hand-edit).
+Test-compiled locally (pdflatex x2 + bibtex, 9 pages, zero errors, zero
+undefined references) before committing.
+
+**floor_loss's in-model-vs-external mechanistic comparison** (added to
+the 04d driver earlier, per the PI's request) is now written up in
+both the report and the paper: in every dataset and every decile, the
+in-model adversary's confidence sits far below the external attacker's
+accuracy on the identical features, and its own decile-to-decile range
+is far smaller. GeoLife is the cleanest case (in-model confidence
+1.5x-4.5x chance across all 10 deciles vs. external's 8x-63x chance) --
+the direct explanation for why floor_loss's gradient could never
+engage before the fix, and why even the fixed version still can't
+reliably single out decile 0. Foursquare and Gowalla-NYC show a
+smaller, decile-0-specific in-model signal (not perfectly flat there),
+still 7-9x weaker than the external attacker at that same decile.
+
+**Attacker-in-the-loop fairness: built, smoke-tested, queued -- NOT
+launched.** Per the PI's explicit instruction ("after the current batch
+finishes and the 04d report is written"), launching it is the next
+step, not yet taken. `puffin/fairness/attacker_in_the_loop.py`
+(`refit_fresh_attacker_head`, `attacker_in_the_loop_train_step`; 3
+tests pass), wired into `run_phase4d_approved_batch.py` via
+`--mechanism attacker_in_the_loop --loss-variant {floor,group_dro}
+--refit-every-k-epochs`, with wall-time logging. When launched: 3
+datasets (GeoLife, Foursquare, **Gowalla-SF-Bay** -- note, different
+Gowalla subset than 04d's `gowalla_nyc`, per the PI's explicit naming
+for this formulation) x k in {1,5} x lambda4 in {0.3,1.0} x
+loss_variant in {floor, group_dro} x 3 encoder seeds = 72 configs,
+evaluated identically to 04d's mechanisms (Pareto fronts vs. plain
+Mo-PAE and the no-privacy reference, residual-risk disparity,
+leveling-down check), wall-time cost logged, then stop and report.
+
+**PUFFIN-draft carryover landed in the paper** (committed, pushed,
+test-compiled clean, prior to this round). Per the PI's instruction,
+carried the earlier PUFFIN draft
+(`/Users/mashhadi/Downloads/Puffin_FairMopae/main.tex`, local to the
+PI's machine, not in this repo) into the new paper, rewritten in
+double-blind third person, no numbers from that draft's own
+experiments carried over: `sections/introduction.tex` (transportation-
+equity motivation paragraph), `sections/related_work.tex` (new),
+`sections/individual_fairness_formulation.tex` (new -- Eq. 1 restated
+as a proper minimizable loss), `sections/put_base_model.tex` (new --
+DRU/MPU/URU architecture, Definitions 1-3 redefined using the external
+attacker), `main.bib` rewritten with VERIFIED/SOURCED annotations
+(caught and fixed one real citation error: `zhan2022privacy` pointed to
+an early arXiv preprint, corrected to the published PoPETs 2023 paper,
+`zhan2023mopae`). The PI said "I'll add [the original draft's] LaTeX
+source to paper/legacy/" -- not done by me; `paper/legacy/` does not
+exist yet, left for the PI.
+
+**Corrections applied earlier this round (all done, committed):**
 1. **Decile-level reduction metrics** (`puffin/metrics/decile_reduction.py`,
    4 tests pass) replace the per-user-ratio `privacy_gain` in 02d
    onward: absolute reduction, relative reduction, and a new
@@ -40,21 +111,9 @@ sections whose results are final -- done, see below.
    used exactly 1 encoder-training seed (the 5-seed treatment is
    attacker-side only) -- ahead of the approved batch using >=3.
 
-**Paper draft started** (`paper/`, PoPETs/acmart, double-blind
-review+anonymous mode, Mo-PAE cited in third person throughout):
-Threat Model, Datasets, Evaluation Protocol, Disparate Risk (part 1),
-and the Adaptive-Attacker Robustness appendix (03d) are drafted with
-real, script-generated tables (`paper/scripts/generate_figures.py` --
-regenerate, never hand-edit, when source data changes). "Mo-PAE
-Residual-Risk Disparity" (part 2) is explicitly left blocked/outlined,
-not filled in, pending the approved batch (needs plain Mo-PAE's
-utility + >=3 encoder seeds + the corrected metrics applied to it,
-none of which existed before this round). The Phase 4 formulations
-section is an outline only, per the PI's explicit instruction, not
-results prose. Test-compiled locally (pdflatex + acmart, clean, 2
-passes, only cosmetic overfull-hbox warnings) before committing --
-the PDF itself isn't checked in (build artifact, regenerate from
-source).
+(Paper-draft status for every section, including the two filled in
+this round, is covered in the "Current state" block above -- not
+repeated here.)
 
 ## Superseded: new evaluation standard adopted, stopped after step 2 as instructed
 

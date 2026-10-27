@@ -1,0 +1,93 @@
+{
+  "mechanism": "trajgan",
+  "dataset": "foursquare",
+  "n_users": 44,
+  "most_protected_decile": [
+    0
+  ],
+  "gap_ci_by_decile": {
+    "0": {
+      "mean": 0.0,
+      "ci_lo": 0.0,
+      "ci_hi": 0.0,
+      "n_users": 5,
+      "ci_excludes_zero": false
+    },
+    "1": {
+      "mean": 0.0,
+      "ci_lo": 0.0,
+      "ci_hi": 0.0,
+      "n_users": 4,
+      "ci_excludes_zero": false
+    },
+    "2": {
+      "mean": 0.0,
+      "ci_lo": 0.0,
+      "ci_hi": 0.0,
+      "n_users": 4,
+      "ci_excludes_zero": false
+    },
+    "3": {
+      "mean": 0.0,
+      "ci_lo": 0.0,
+      "ci_hi": 0.0,
+      "n_users": 5,
+      "ci_excludes_zero": false
+    },
+    "4": {
+      "mean": 0.0,
+      "ci_lo": 0.0,
+      "ci_hi": 0.0,
+      "n_users": 4,
+      "ci_excludes_zero": false
+    },
+    "5": {
+      "mean": 0.0,
+      "ci_lo": 0.0,
+      "ci_hi": 0.0,
+      "n_users": 4,
+      "ci_excludes_zero": false
+    },
+    "6": {
+      "mean": 0.0,
+      "ci_lo": 0.0,
+      "ci_hi": 0.0,
+      "n_users": 5,
+      "ci_excludes_zero": false
+    },
+    "7": {
+      "mean": 0.0,
+      "ci_lo": 0.0,
+      "ci_hi": 0.0,
+      "n_users": 4,
+      "ci_excludes_zero": false
+    },
+    "8": {
+      "mean": 0.0,
+      "ci_lo": 0.0,
+      "ci_hi": 0.0,
+      "n_users": 4,
+      "ci_excludes_zero": false
+    },
+    "9": {
+      "mean": 0.0,
+      "ci_lo": 0.0,
+      "ci_hi": 0.0,
+      "n_users": 5,
+      "ci_excludes_zero": false
+    }
+  },
+  "decile_mean_naive": {
+    "0": 0.0,
+    "1": 0.0,
+    "2": 0.0,
+    "3": 0.0,
+    "4": 0.0,
+    "5": 0.0,
+    "6": 0.0,
+    "7": 0.0,
+    "8": 0.0,
+    "9": 0.0
+  },
+  "epsilon": null
+}

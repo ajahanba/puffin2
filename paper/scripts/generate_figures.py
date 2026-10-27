@@ -84,6 +84,79 @@ def gen_adaptive_gap_decomposition_table():
     write("gap_decomposition.tex", "\n".join(lines) + "\n")
 
 
+def gen_04d_decile_reduction_table():
+    names = {"geolife": "GeoLife", "foursquare": "Foursquare", "gowalla_nyc": "Gowalla-NYC"}
+    mech_labels = {"plain_lambda0.0": "plain Mo-PAE", "no_privacy_lambda0.0": "no-privacy ref.",
+                   "ed_soft_lambda0.3": "ed\\_soft $\\lambda_4$=0.3", "ed_soft_lambda1.0": "ed\\_soft $\\lambda_4$=1.0",
+                   "ed_soft_lambda3.0": "ed\\_soft $\\lambda_4$=3.0",
+                   "floor_lambda0.3": "floor $\\lambda_4$=0.3", "floor_lambda1.0": "floor $\\lambda_4$=1.0",
+                   "floor_lambda3.0": "floor $\\lambda_4$=3.0"}
+    order = ["plain_lambda0.0", "no_privacy_lambda0.0", "ed_soft_lambda0.3", "ed_soft_lambda1.0",
+             "ed_soft_lambda3.0", "floor_lambda0.3", "floor_lambda1.0", "floor_lambda3.0"]
+    d = json.load(open(ROOT / "reports/figures/phase4d_analysis/decile_reduction_metrics.json"))
+    lines = [
+        r"\begin{table*}[t]",
+        r"\centering",
+        r"\caption{Checkpoint 04d: utility, relative risk reduction at deciles 0 and 9, and "
+        r"residual-risk disparity (RRD, post-mechanism risk decile 0 $\div$ decile 9), every "
+        r"approved-batch run. Bootstrap 95\% CIs in brackets; $\geq 3$ encoder seeds per point. "
+        r"Generated from \texttt{reports/figures/phase4d\_analysis/decile\_reduction\_metrics.json}.}",
+        r"\label{tab:04d-decile-reduction}",
+        r"\small",
+        r"\begin{tabular}{@{}llcccc@{}}",
+        r"\toprule",
+        r"Dataset & Run & Utility & Rel.\ red., decile 0 & Rel.\ red., decile 9 & RRD (0/9) \\",
+        r"\midrule",
+    ]
+    for ds, ds_label in names.items():
+        for key in order:
+            if key not in d[ds]:
+                continue
+            v = d[ds][key]
+            red = v["reduction"]
+            rrd = v["residual_risk_disparity"]
+            r0, r9 = red["0"]["relative_reduction"], red["9"]["relative_reduction"]
+            lines.append(
+                f"{ds_label} & {mech_labels[key]} & {v['utility_mean']:.3f}$\\pm${v['utility_std']:.3f} & "
+                f"{r0['mean']:+.3f} [{r0['ci_lo']:+.3f}, {r0['ci_hi']:+.3f}] & "
+                f"{r9['mean']:+.3f} [{r9['ci_lo']:+.3f}, {r9['ci_hi']:+.3f}] & "
+                f"{rrd['mean']:.2f} [{rrd['ci_lo']:.2f}, {rrd['ci_hi']:.2f}] \\\\"
+            )
+        lines.append(r"\addlinespace")
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table*}"]
+    write("04d_decile_reduction.tex", "\n".join(lines) + "\n")
+
+
+def gen_04d_inmodel_vs_external_table():
+    names = {"geolife": "GeoLife", "foursquare": "Foursquare", "gowalla_nyc": "Gowalla-NYC"}
+    d = json.load(open(ROOT / "reports/figures/phase4d_analysis/inmodel_vs_external.json"))
+    lines = [
+        r"\begin{table}[t]",
+        r"\centering",
+        r"\caption{In-model adversary confidence vs.\ external attacker top-1, plain Mo-PAE, "
+        r"deciles 0 and 9. The in-model adversary stays far closer to chance and far flatter "
+        r"across deciles than the external attacker on the identical features. Generated from "
+        r"\texttt{reports/figures/phase4d\_analysis/inmodel\_vs\_external.json}.}",
+        r"\label{tab:inmodel-vs-external}",
+        r"\small",
+        r"\begin{tabular}{@{}lccc@{}}",
+        r"\toprule",
+        r"Dataset & Chance & Decile 0 (ext.\ / in-model) & Decile 9 (ext.\ / in-model) \\",
+        r"\midrule",
+    ]
+    for ds, label in names.items():
+        chance = d[ds]["chance_level"]
+        d0, d9 = d[ds]["by_decile"]["0"], d[ds]["by_decile"]["9"]
+        lines.append(
+            f"{label} & {chance:.4f} & {d0['external_top1']:.3f} / {d0['inmodel_confidence']:.4f} & "
+            f"{d9['external_top1']:.3f} / {d9['inmodel_confidence']:.4f} \\\\"
+        )
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    write("04d_inmodel_vs_external.tex", "\n".join(lines) + "\n")
+
+
 if __name__ == "__main__":
     gen_gowalla_disparate_risk_table()
     gen_adaptive_gap_decomposition_table()
+    gen_04d_decile_reduction_table()
+    gen_04d_inmodel_vs_external_table()

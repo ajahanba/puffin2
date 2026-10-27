@@ -1,0 +1,167 @@
+{
+  "geolife": {
+    "chance_level": 0.005494505494505495,
+    "by_decile": {
+      "0": {
+        "external_top1": 0.3448648449770796,
+        "inmodel_confidence": 0.02462325503125,
+        "n_users": 16
+      },
+      "1": {
+        "external_top1": 0.2699036538359467,
+        "inmodel_confidence": 0.019370806466666664,
+        "n_users": 18
+      },
+      "2": {
+        "external_top1": 0.1532954907527676,
+        "inmodel_confidence": 0.011895766505555556,
+        "n_users": 18
+      },
+      "3": {
+        "external_top1": 0.10422439014677093,
+        "inmodel_confidence": 0.010242826972222223,
+        "n_users": 18
+      },
+      "4": {
+        "external_top1": 0.08493855418292456,
+        "inmodel_confidence": 0.008727714683333334,
+        "n_users": 18
+      },
+      "5": {
+        "external_top1": 0.1353902670554816,
+        "inmodel_confidence": 0.009632556822222223,
+        "n_users": 18
+      },
+      "6": {
+        "external_top1": 0.07527777596756259,
+        "inmodel_confidence": 0.008455006505555555,
+        "n_users": 18
+      },
+      "7": {
+        "external_top1": 0.10364814586592488,
+        "inmodel_confidence": 0.009064023777777779,
+        "n_users": 18
+      },
+      "8": {
+        "external_top1": 0.07316666435174363,
+        "inmodel_confidence": 0.008721017955555556,
+        "n_users": 18
+      },
+      "9": {
+        "external_top1": 0.04466666564414342,
+        "inmodel_confidence": 0.011316835155555555,
+        "n_users": 18
+      }
+    }
+  },
+  "foursquare": {
+    "chance_level": 0.0009233610341643582,
+    "by_decile": {
+      "0": {
+        "external_top1": 0.4872399764619654,
+        "inmodel_confidence": 0.05212944590009174,
+        "n_users": 109
+      },
+      "1": {
+        "external_top1": 0.2661411788762995,
+        "inmodel_confidence": 0.005893430094074075,
+        "n_users": 108
+      },
+      "2": {
+        "external_top1": 0.20358797496035233,
+        "inmodel_confidence": 0.005046899614537037,
+        "n_users": 108
+      },
+      "3": {
+        "external_top1": 0.19449567305682983,
+        "inmodel_confidence": 0.0034884577475,
+        "n_users": 108
+      },
+      "4": {
+        "external_top1": 0.14471183957344072,
+        "inmodel_confidence": 0.003958511629633028,
+        "n_users": 109
+      },
+      "5": {
+        "external_top1": 0.1106633247180991,
+        "inmodel_confidence": 0.0027663531803703706,
+        "n_users": 108
+      },
+      "6": {
+        "external_top1": 0.08126531046366799,
+        "inmodel_confidence": 0.0037192766780555554,
+        "n_users": 108
+      },
+      "7": {
+        "external_top1": 0.06685240602488683,
+        "inmodel_confidence": 0.0025947940001851853,
+        "n_users": 108
+      },
+      "8": {
+        "external_top1": 0.02889279927426003,
+        "inmodel_confidence": 0.0015236847924074075,
+        "n_users": 108
+      },
+      "9": {
+        "external_top1": 0.03135236119310332,
+        "inmodel_confidence": 0.001975704773119266,
+        "n_users": 109
+      }
+    }
+  },
+  "gowalla_nyc": {
+    "chance_level": 0.00013885031935573453,
+    "by_decile": {
+      "0": {
+        "external_top1": 0.5660194452377219,
+        "inmodel_confidence": 0.07756073805294117,
+        "n_users": 17
+      },
+      "1": {
+        "external_top1": 0.3320893154479563,
+        "inmodel_confidence": 0.031231701454416668,
+        "n_users": 24
+      },
+      "2": {
+        "external_top1": 0.35779783658791275,
+        "inmodel_confidence": 0.03595868734782609,
+        "n_users": 23
+      },
+      "3": {
+        "external_top1": 0.17546832602525103,
+        "inmodel_confidence": 0.009092061907391305,
+        "n_users": 23
+      },
+      "4": {
+        "external_top1": 0.2138128220075459,
+        "inmodel_confidence": 0.010159534220454545,
+        "n_users": 22
+      },
+      "5": {
+        "external_top1": 0.13573587807782345,
+        "inmodel_confidence": 0.00856345619642857,
+        "n_users": 28
+      },
+      "6": {
+        "external_top1": 0.14535550625751845,
+        "inmodel_confidence": 0.006409729639347827,
+        "n_users": 23
+      },
+      "7": {
+        "external_top1": 0.06775964364129046,
+        "inmodel_confidence": 0.004737340509677419,
+        "n_users": 31
+      },
+      "8": {
+        "external_top1": 0.08812608516740576,
+        "inmodel_confidence": 0.005362792966666667,
+        "n_users": 36
+      },
+      "9": {
+        "external_top1": 0.08169346353384076,
+        "inmodel_confidence": 0.00627099604,
+        "n_users": 45
+      }
+    }
+  }
+}

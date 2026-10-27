@@ -1,33 +1,81 @@
 \section{Formulations Under the Naive-Attacker Standard}
 \label{sec:phase4}
 
-\draftnote{OUTLINE ONLY, per the PI's explicit instruction: leave this
-section as an outline until the Checkpoint 04d runs finish. Do not
-write results prose here yet.}
+\draftnote{DRAFT. Results below are from Checkpoint 04d (ed\_soft, with
+$\geq 3$ encoder seeds and utility logged for the first time) and
+Checkpoint 04c (the five single-encoder-seed formulations: lipschitz,
+variance, group-DRO, per-user minimax, group-adversarial, retained from
+an earlier round and not part of this round's retraining -- every
+point from that grid is flagged with its encoder-seed count where it
+appears). See \texttt{reports/04d\_approved\_batch.md} for the full
+analysis this section summarizes.}
 
-This section will compare seven fairness-loss formulations (the
-original pairwise-threshold baseline, a soft-weighted Lipschitz
-individual-fairness penalty, a floor loss, a variance-of-risk
-regularizer, group-DRO, per-user minimax, and a new group-aware
-adversarial-training architecture) against plain Mo-PAE and a
-no-privacy utility-ceiling reference, under the naive-attacker standard
-of Section~\ref{sec:threat-model-naive}, once the approved Checkpoint
-04d batch finishes.
+Every point below is evaluated under the naive/hardened external
+attacker (Section~\ref{sec:threat-model-naive}), against plain Mo-PAE
+and the no-privacy reference (Section~\ref{sec:residual-risk}) as the
+two end-points of the achievable utility range.
 
-\draftnote{Planned structure once data lands:}
-\begin{itemize}
-\item \draftnote{Pareto fronts (utility vs.\ worst-off-decile risk) per
-  dataset, with plain Mo-PAE and the no-privacy reference overlaid as
-  the two end-points of the achievable utility range.}
-\item \draftnote{A leveling-down check (fraction of users helped,
-  harmed, or unchanged relative to plain Mo-PAE at matched utility,
-  $\pm 0.02$ top-1) -- not computable in the previous round
-  (Checkpoint 04c) because no existing run had logged plain Mo-PAE's
-  utility; this is exactly what the approved batch fixes.}
-\item \draftnote{Any Pareto-dominance claim will require both axes'
-  CIs to be checked before being stated as dominance, not merely a
-  point-estimate comparison -- see the correction already applied to
-  Checkpoint 04c's draft claims.}
-\item \draftnote{Report $\geq 3$ encoder seeds' worth of variance for
-  every point in this section, per Section~\ref{sec:seeding}.}
-\end{itemize}
+\textbf{ed\_soft is the only formulation in this round's retraining
+that improves on plain Mo-PAE in the strict sense required by this
+paper's dominance bar (both utility and decile-0 risk, beyond both
+points' confidence intervals) -- and only on one of three datasets.}
+On GeoLife, ed\_soft at $\lambda_4 \in \{1.0, 3.0\}$ has both higher
+utility than plain Mo-PAE with non-overlapping confidence intervals
+($0.654\pm0.039$ and $0.631\pm0.014$ vs.\ $0.532\pm0.052$) and a
+decile-0 relative risk reduction whose CI excludes zero where plain
+Mo-PAE's does not (Table~\ref{tab:04d-decile-reduction}). This is the
+one case in the batch that survives the dominance bar; every other
+(dataset, formulation, $\lambda_4$) point in this section is reported
+as a trade-off, not a dominance claim, per the correction applied
+after this paper's own Checkpoint 04c draft stated several unverified
+dominance claims.
+
+\textbf{On Foursquare, raising ed\_soft's fairness weight makes the
+worst-off decile's actual risk \emph{worse}, not better, while utility
+rises.} Decile 0's post-mechanism risk increases monotonically with
+$\lambda_4$ (from $0.487$ under plain Mo-PAE to $0.554$, $0.684$, and
+$0.686$ at $\lambda_4 = 0.3, 1.0, 3.0$), even as the formulation's
+reported utility rises from $0.111$ to $0.233$ and its residual-risk-
+disparity ratio falls from $16.02\times$ to $5.28\times$
+(Table~\ref{tab:04d-decile-reduction}). The disparity narrows because
+decile 9 loses protection faster than decile 0 gains any, not because
+decile 0 is better protected -- the configuration this paper's
+leveling-down check (below) is designed to catch, and exactly the
+configuration in which a run's own headline utility and
+fairness-loss numbers would read as straightforward progress.
+Gowalla-NYC shows a weaker, non-monotonic version of the same
+disparity-narrows-without-decile-0-improving pattern, and a
+straightforwardly worse operating point at $\lambda_4=3.0$ (utility
+falls to $0.169$ with no corresponding privacy gain).
+
+\textbf{Leveling-down check.} Following the protocol established in
+Checkpoint 04c (matching a formulation's point to plain Mo-PAE within
+$\pm 0.02$ utility, by decile), 40 of 78 attempted comparisons in this
+round could be computed; the rest were skipped because $\lambda_4$
+moves ed\_soft's utility by more than the $0.02$ tolerance in most
+(dataset, $\lambda_4$) pairs -- a limitation of the matching protocol
+against this round's data, not a result in itself. Of the 40 computed:
+GeoLife's floor\_loss points (Section~\ref{sec:residual-risk}) flag
+5--6 of 10 deciles per $\lambda_4$ as leveling down; the single
+ed\_soft point that matched tolerance (Gowalla-NYC, $\lambda_4=0.3$)
+flags all 10 of 10 deciles as leveling down, with a mean $49.4\%$ of
+users harmed relative to plain Mo-PAE at matched utility. Every
+comparison that could be run pointed toward leveling down; none
+pointed toward lifting the worst-off decile.
+
+\textbf{The five single-encoder-seed formulations (lipschitz,
+variance, group-DRO, per-user minimax, group-adversarial) are not
+retrained this round.} They are shown alongside plain Mo-PAE and the
+no-privacy reference for the first time (Checkpoint 04c could not plot
+plain Mo-PAE's utility at all), but every point from this grid carries
+a seed-count mismatch (1 encoder seed vs.\ plain's 3) that this paper
+does not resolve -- their inclusion here is for visual context, not
+for a dominance or leveling-down claim, neither of which this paper
+makes for any of the five.
+
+\draftnote{Figures to add once plotting code exists: Pareto-front
+scatter plots (utility vs.\ decile-0 risk) per dataset, with plain
+Mo-PAE and the no-privacy reference marked as reference points --
+currently only the tables above are generated; a scatter figure is a
+later addition to \texttt{paper/scripts/generate\_figures.py}, not
+blocked on any further data.}

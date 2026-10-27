@@ -1,5 +1,17 @@
 # Checkpoint 04c — Phase 4 formulations re-analyzed under the naive/hardened standard
 
+> **SUPERSEDED (2026-10-27):** The gap this report identifies below —
+> no plain-Mo-PAE utility, no closeable leveling-down check, ed_soft
+> excluded from the Pareto analysis — is now closed. See
+> `reports/04d_approved_batch.md` for the completed analysis: plain
+> Mo-PAE, the no-privacy reference, ed_soft, and GeoLife's fixed
+> floor_loss, all with >=3 encoder seeds and real utility, the rebuilt
+> Pareto fronts, and the leveling-down check (which, where computable,
+> consistently found leveling down rather than improvement for the
+> worst-off decile). This report's own numbers below are kept for
+> their original purpose (documenting the gap) and are not updated in
+> place.
+
 **5-line summary:** Re-analyzed Phase 4's existing runs (no retraining)
 using only the naive/hardened external attacker numbers already on
 disk, per the PI's new primary evaluation standard. Built Pareto fronts
