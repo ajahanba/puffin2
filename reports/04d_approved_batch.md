@@ -1,6 +1,35 @@
 # Checkpoint 04d: approved batch -- results, decile-reduction metrics,
 # in-model-vs-external mechanistic comparison, rebuilt 04c fronts, leveling-down check
 
+> **PARTIALLY SUPERSEDED (2026-10-27).** Per the PI's review against the
+> raw JSON, three things below are withdrawn or corrected; see
+> `reports/04e_reference_curve.md` for the recalibrated versions:
+> 1. **Every leveling-down claim in this report (Sections 1 and 4) is
+>    WITHDRAWN.** The check used the per-user ratio `privacy_gain` and a
+>    fixed epsilon threshold for "harmed/helped," with no null to
+>    distinguish a real effect from encoder-training noise and
+>    regression to the mean. `puffin/metrics/leveling_down.py` has been
+>    recalibrated (absolute post-risk, seed-to-seed null, tested against
+>    that null) and rerun in 04e.
+> 2. **The Foursquare `ed_soft` "leveling down" framing (Section 1 and
+>    the paper) is WRONG, independent of item 1.** The PI's direct check:
+>    the ratio (RRD) rises 3.4->15.5 but the absolute risk DIFFERENCE
+>    (decile0 - decile9) *falls* 0.505->0.456, and decile 0's own risk
+>    *drops* 0.715->0.487. Correct framing: raising lambda4 moves the
+>    Foursquare `ed_soft` point toward the no-privacy reference point
+>    (utility and risk both rise together), not a leveling-down pattern.
+>    Restated in 04e.
+> 3. **"RRD widens/narrows disparity" claims throughout Section 1 used
+>    the ratio only.** 04e reports the absolute difference alongside
+>    every ratio -- the two can and do disagree in direction (see item
+>    2), so a disparity claim needs both to be well-posed.
+>
+> The GeoLife `ed_soft`-dominates-`plain` claim (Section 3) is also
+> being re-checked with 10 encoder seeds (up from 3) before being
+> restated as dominance in 04e. Sections 2, 5, and 6 (the mechanistic
+> in-model-vs-external comparison, encoder-seed counts, known gaps) are
+> NOT affected and stand as written below.
+
 All 21 PI-approved runs finished (plain Mo-PAE, the no-privacy
 utility-ceiling reference, ed_soft[0, 0.3, 1.0, 3.0], and GeoLife's
 fixed floor_loss[0.3, 1.0, 3.0] -- GeoLife, Foursquare, Gowalla-NYC, each

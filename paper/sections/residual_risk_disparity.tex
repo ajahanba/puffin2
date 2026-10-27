@@ -10,6 +10,23 @@ Section~\ref{sec:phase4}, not here, to keep this section focused on
 plain Mo-PAE's own disparity and the no-privacy reference's role as a
 baseline.}
 
+\draftnote{WITHDRAWN PENDING RECALIBRATION (2026-10-27), per the PI's
+review against the raw data: (1) every leveling-down claim below is
+withdrawn -- the check used an unstable per-user ratio and a fixed
+epsilon threshold with no null to separate a real effect from encoder-
+training noise and regression to the mean; recalibrated in
+\texttt{puffin/metrics/leveling\_down.py} (absolute post-risk,
+seed-to-seed null, tested against that null) and being rerun for
+\texttt{reports/04e\_reference\_curve.md}; (2) every "disparity widens/
+narrows" claim below used the RRD ratio only -- the absolute risk
+difference (decile 0 $-$ decile 9) must be reported alongside it, since
+the two can disagree in direction (a widening ratio can coincide with a
+narrowing absolute gap if both deciles' risk falls but the
+higher-entropy decile's falls faster in relative terms); 04e adds this.
+This section will be rewritten against 04e's numbers; the prose below
+is kept only so the retraction is visible in place, not deleted
+silently.}
+
 Table~\ref{tab:04d-decile-reduction}'s \emph{plain} and \emph{no-privacy}
 rows report, for each dataset, the relative reduction in
 re-identification risk (Definition~2) at the lowest- and
@@ -82,8 +99,6 @@ identifies as worst-off. This is the mechanistic account, not just the
 empirical one, of why loss-based individual-fairness terms built on an
 in-model adversary struggle to target real re-identification risk.
 
-A formal leveling-down check (Section~\ref{sec:phase4}) against these
-same floor\_loss points finds 5--6 of 10 deciles per $\lambda_4$ flagged
-as leveling down (harmed users disproportionately the ones plain
-Mo-PAE already protected well) rather than lifting the worst-off decile
--- consistent with the pattern reported here.
+\draftnote{WITHDRAWN: the leveling-down check this paragraph referred to
+used the unrecalibrated metric (see the note at the top of this
+section). Not restated until 04e's recalibrated check lands.}

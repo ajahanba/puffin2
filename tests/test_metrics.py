@@ -10,7 +10,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from puffin.metrics.privacy import privacy_gain, protection_at_k
 from puffin.metrics.fairness import similar_pairs_within_epsilon, lipschitz_violation, max_min_gain, gini, gain_percentiles
-from puffin.metrics.leveling_down import leveling_down_check
+from puffin.metrics.leveling_down import leveling_down_check, seed_to_seed_null
 from puffin.attacks.analysis import paired_bootstrap_test
 
 
@@ -64,14 +64,22 @@ def test_max_min_and_gini_and_percentiles():
 
 
 def test_leveling_down_check_detects_harm_to_well_protected():
-    # 4 users: baseline already protects users well (high gain); mechanism
-    # HARMS exactly the users baseline protected best -> leveling down.
-    idx = ["u1", "u2", "u3", "u4"]
-    baseline = pd.Series([0.9, 0.8, 0.1, 0.1], index=idx)
-    mechanism = pd.Series([0.5, 0.4, 0.15, 0.15], index=idx)  # u1,u2 harmed; u3,u4 helped slightly
-    out = leveling_down_check(mechanism, baseline)
-    assert out["frac_harmed"] == 0.5
-    assert out["leveling_down"] is True
+    # RECALIBRATED (2026-10-27): leveling_down_check now takes POST-RISK
+    # series (not gain) plus a seed-to-seed null for thresholds -- see
+    # tests/test_leveling_down.py for the thorough version. This test is
+    # kept for continuity with the original scenario, restated in risk
+    # terms: u1,u2 are well-protected under baseline (low post-risk);
+    # mechanism specifically harms (raises risk for) u1,u2 while leaving
+    # the already-poorly-protected u3,u4 essentially alone.
+    idx = ["u1", "u2", "u3", "u4", "u5", "u6"]
+    baseline = pd.Series([0.05, 0.08, 0.6, 0.65, 0.06, 0.62], index=idx)
+    mechanism = pd.Series([0.30, 0.33, 0.58, 0.67, 0.07, 0.60], index=idx)  # u1,u2 harmed; rest ~unchanged
+    rng = np.random.default_rng(0)
+    null_seeds = [baseline.to_numpy() + rng.normal(0, 0.01, size=6) for _ in range(3)]
+    null = seed_to_seed_null(null_seeds)
+    out = leveling_down_check(mechanism, baseline, null, n_boot=1000)
+    assert out["harmed_rate_exceeds_null"] is True
+    assert out["leveling_down_pattern"] is True
     print("OK: leveling_down_check correctly flags leveling-down:", out)
 
 

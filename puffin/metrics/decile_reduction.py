@@ -89,3 +89,40 @@ def residual_risk_disparity(post: np.ndarray, deciles: np.ndarray, low_decile: i
         ci_hi=float(np.quantile(ratio_boot, 1 - alpha)) if len(ratio_boot) else float("nan"),
         n_boot_valid=int(len(ratio_boot)),
     )
+
+
+def residual_risk_difference(post: np.ndarray, deciles: np.ndarray, low_decile: int = 0,
+                              high_decile: int = 9, n_boot: int = 2000, seed: int = 0,
+                              ci: float = 0.95) -> dict:
+    """Absolute difference in post-mechanism risk between the lowest- and
+    highest-entropy deciles (post_low - post_high), with an independent-
+    resampling bootstrap CI, same structure as residual_risk_disparity but
+    a difference instead of a ratio.
+
+    Reported ALONGSIDE the ratio everywhere the ratio is reported, per
+    the PI: a ratio can grow even while the underlying absolute gap
+    shrinks, whenever both groups' risk is falling but the denominator
+    (high_decile) falls faster in relative terms -- the ratio and the
+    difference can point in opposite directions, and a "widens/narrows
+    disparity" claim needs both to be well-posed."""
+    rng = np.random.default_rng(seed)
+    alpha = (1 - ci) / 2
+    low = post[deciles == low_decile]
+    high = post[deciles == high_decile]
+    if len(low) == 0 or len(high) == 0:
+        return dict(error=f"missing decile {low_decile} or {high_decile}",
+                    n_low=int(len(low)), n_high=int(len(high)))
+    diff_boot = np.empty(n_boot)
+    for i in range(n_boot):
+        lm = low[rng.integers(0, len(low), size=len(low))].mean()
+        hm = high[rng.integers(0, len(high), size=len(high))].mean()
+        diff_boot[i] = lm - hm
+    point = float(low.mean() - high.mean())
+    return dict(
+        low_decile=low_decile, high_decile=high_decile, n_low=int(len(low)), n_high=int(len(high)),
+        point_estimate=point,
+        mean=float(diff_boot.mean()),
+        ci_lo=float(np.quantile(diff_boot, alpha)),
+        ci_hi=float(np.quantile(diff_boot, 1 - alpha)),
+        ci_excludes_zero=bool(np.quantile(diff_boot, alpha) > 0 or np.quantile(diff_boot, 1 - alpha) < 0),
+    )

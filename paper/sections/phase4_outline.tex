@@ -10,6 +10,23 @@ point from that grid is flagged with its encoder-seed count where it
 appears). See \texttt{reports/04d\_approved\_batch.md} for the full
 analysis this section summarizes.}
 
+\draftnote{WITHDRAWN PENDING RECALIBRATION (2026-10-27): the "Foursquare
+leveling down" framing below (both the dedicated paragraph and the
+"Leveling-down check" subsection) is WRONG, per the PI's direct check
+of the raw numbers -- the RRD ratio rises (3.4$\times \to$15.5$\times$)
+but the absolute risk difference (decile 0 $-$ decile 9) FALLS
+(0.505$\to$0.456) and decile 0's own risk DROPS (0.715$\to$0.487).
+Correct framing: raising $\lambda_4$ moves Foursquare's ed\_soft point
+toward the no-privacy reference point (utility and risk both rise
+together), not a leveling-down pattern. The leveling-down check itself
+also used an unstable per-user ratio and a fixed threshold with no
+null to separate a real effect from encoder-training noise --
+recalibrated in \texttt{puffin/metrics/leveling\_down.py} and being
+rerun for \texttt{reports/04e\_reference\_curve.md}. The GeoLife
+dominance claim below is also being re-checked with 10 encoder seeds
+(up from 3) before being restated. This section will be rewritten
+against 04e's numbers.}
+
 Every point below is evaluated under the naive/hardened external
 attacker (Section~\ref{sec:threat-model-naive}), against plain Mo-PAE
 and the no-privacy reference (Section~\ref{sec:residual-risk}) as the
@@ -24,44 +41,35 @@ utility than plain Mo-PAE with non-overlapping confidence intervals
 ($0.654\pm0.039$ and $0.631\pm0.014$ vs.\ $0.532\pm0.052$) and a
 decile-0 relative risk reduction whose CI excludes zero where plain
 Mo-PAE's does not (Table~\ref{tab:04d-decile-reduction}). This is the
-one case in the batch that survives the dominance bar; every other
-(dataset, formulation, $\lambda_4$) point in this section is reported
-as a trade-off, not a dominance claim, per the correction applied
-after this paper's own Checkpoint 04c draft stated several unverified
-dominance claims.
+one case in the batch that survives the dominance bar at 3 encoder
+seeds; every other (dataset, formulation, $\lambda_4$) point in this
+section is reported as a trade-off, not a dominance claim, per the
+correction applied after this paper's own Checkpoint 04c draft stated
+several unverified dominance claims. \draftnote{PENDING (2026-10-27):
+the PI asked for this specific claim to be re-checked with 10 encoder
+seeds (up from 3) before being stated as dominance, given it is the
+only dominance claim in the whole batch -- rerun queued, not yet
+landed. Treat as provisional until 04e confirms or revises it.}
 
-\textbf{On Foursquare, raising ed\_soft's fairness weight makes the
-worst-off decile's actual risk \emph{worse}, not better, while utility
-rises.} Decile 0's post-mechanism risk increases monotonically with
-$\lambda_4$ (from $0.487$ under plain Mo-PAE to $0.554$, $0.684$, and
-$0.686$ at $\lambda_4 = 0.3, 1.0, 3.0$), even as the formulation's
-reported utility rises from $0.111$ to $0.233$ and its residual-risk-
-disparity ratio falls from $16.02\times$ to $5.28\times$
-(Table~\ref{tab:04d-decile-reduction}). The disparity narrows because
-decile 9 loses protection faster than decile 0 gains any, not because
-decile 0 is better protected -- the configuration this paper's
-leveling-down check (below) is designed to catch, and exactly the
-configuration in which a run's own headline utility and
-fairness-loss numbers would read as straightforward progress.
-Gowalla-NYC shows a weaker, non-monotonic version of the same
-disparity-narrows-without-decile-0-improving pattern, and a
-straightforwardly worse operating point at $\lambda_4=3.0$ (utility
-falls to $0.169$ with no corresponding privacy gain).
+\textbf{On Foursquare, raising ed\_soft's fairness weight moves the
+operating point toward the no-privacy reference, trading privacy for
+utility -- not a leveling-down pattern.} \draftnote{WITHDRAWN AND
+CORRECTED (2026-10-27): an earlier version of this paragraph
+mischaracterized this as leveling down based on the RRD ratio alone
+(which does rise, 3.4$\times\to$15.5$\times$); the PI's check of the
+absolute risk difference (which FALLS, 0.505$\to$0.456) and decile 0's
+own risk (which DROPS, 0.715$\to$0.487) shows the correct reading is
+the opposite: both the mechanism's utility and its privacy protection
+move together toward the no-privacy reference point as $\lambda_4$
+rises, the ordinary privacy-utility trade-off, not a fairness-specific
+pathology. Full restatement with both metrics pending 04e.}
 
-\textbf{Leveling-down check.} Following the protocol established in
-Checkpoint 04c (matching a formulation's point to plain Mo-PAE within
-$\pm 0.02$ utility, by decile), 40 of 78 attempted comparisons in this
-round could be computed; the rest were skipped because $\lambda_4$
-moves ed\_soft's utility by more than the $0.02$ tolerance in most
-(dataset, $\lambda_4$) pairs -- a limitation of the matching protocol
-against this round's data, not a result in itself. Of the 40 computed:
-GeoLife's floor\_loss points (Section~\ref{sec:residual-risk}) flag
-5--6 of 10 deciles per $\lambda_4$ as leveling down; the single
-ed\_soft point that matched tolerance (Gowalla-NYC, $\lambda_4=0.3$)
-flags all 10 of 10 deciles as leveling down, with a mean $49.4\%$ of
-users harmed relative to plain Mo-PAE at matched utility. Every
-comparison that could be run pointed toward leveling down; none
-pointed toward lifting the worst-off decile.
+\draftnote{Leveling-down check: WITHDRAWN (2026-10-27). The check
+reported here used the unrecalibrated \texttt{leveling\_down\_check}
+(per-user ratio, fixed epsilon threshold, no null) -- see the
+withdrawal note at the top of this section. Rerun with the recalibrated
+check (absolute post-risk, seed-to-seed null) pending for
+\texttt{reports/04e\_reference\_curve.md}.}
 
 \textbf{The five single-encoder-seed formulations (lipschitz,
 variance, group-DRO, per-user minimax, group-adversarial) are not
