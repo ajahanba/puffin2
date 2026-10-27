@@ -731,3 +731,48 @@ the 6 metric-correction/utility-logging runs, the no-privacy
 reference, and the >=3-encoder-seed upgrade -- see
 `reports/04c_formulations_naive_standard.md`'s rebuild for the
 corrected numbers.
+
+
+## Checkpoint 04e: the approved batch's 20-epoch training is undertrained for every mechanism, not just no_privacy (2026-10-27)
+
+**Found while diagnosing the PI's flagged anomaly**: on GeoLife, ed_soft's
+utility (0.654) exceeded the no-privacy reference's utility (0.623), which
+should be structurally impossible if no-privacy is a genuine ceiling. A
+training-curve diagnostic (`scripts/diagnose_no_privacy_ceiling.py`, one
+seed, 40 epochs instead of the batch's 20) found the real cause: ALL THREE
+mechanisms were still rising substantially at epoch 20, with their relative
+ORDER changing between epoch 20 and 40 --
+
+| mechanism | utility @ epoch 20 | utility @ epoch 40 |
+|---|---|---|
+| no_privacy | 0.611 | 0.735 |
+| plain | 0.473 | 0.719 |
+| ed_soft (λ4=1.0) | 0.680 | 0.740 |
+
+At epoch 20, `ed_soft > no_privacy > plain` -- the exact anomalous ordering
+the PI flagged. By epoch 40 the three are close together (0.719-0.740),
+consistent with no_privacy being a (barely) genuine ceiling once properly
+converged. `plain` also shows a long cold-start (~10 epochs stuck near
+chance before utility moves at all), visible in the same log.
+
+**This means the anomaly was not a no_privacy-specific tuning bug -- it is
+differential convergence SPEED across mechanisms at a shared, too-low fixed
+epoch count (20), with no early stopping anywhere in
+`run_phase4d_approved_batch.py` (confirmed: a fixed `for epoch in
+range(epochs)` loop, no validation-based check).** A mechanism that happens
+to warm up faster looks artificially better at epoch 20 regardless of its
+actual steady-state utility, and vice versa.
+
+**Fixed for this round's new training only**: Checkpoint 04e's reference-
+curve sweep, no_privacy refit, and GeoLife 10-encoder-seed rerun
+(`scripts/launch_phase4e_batch.sh`) all use `--mopae-epochs 40` (the point
+where the diagnostic's curves visibly flatten), not 04d's 20.
+
+**Not fixed**: the original 21-run Checkpoint 04d batch remains at 20
+epochs. Retraining all 21 at 40 epochs is a significant compute decision
+(roughly doubling that batch's cost) that is flagged here for the PI's
+sign-off rather than taken unilaterally -- see `reports/04e_reference_curve.md`.
+Every utility comparison already drawn from 04d's 20-epoch data (including
+the no-privacy-exceeded-by-ed_soft anomaly itself, and any utility-matched
+comparison in the leveling-down check) should be read with this confound in
+mind until/unless that rerun happens.

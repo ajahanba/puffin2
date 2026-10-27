@@ -1,6 +1,74 @@
 # PUFFIN v2 — Progress
 
-## Current state (read this first): 04d batch complete, analyzed, and written up; paper draft fully updated; attacker-in-the-loop built and queued but NOT launched
+## Current state (read this first): Checkpoint 04e correction round in progress -- big new training batch running, ETA several hours
+
+**The PI reviewed 04d against the raw JSON and found real problems.**
+Six corrections requested, in `reports/04e_reference_curve.md` once
+done (not yet -- blocked on training, see below). Urgent part already
+done, committed, pushed:
+- **All leveling-down claims in 04d and the paper are WITHDRAWN**
+  (per the PI: "until then, withdraw all leveling-down statements").
+  `puffin/metrics/leveling_down.py` recalibrated: absolute post-risk
+  instead of the per-user ratio, harmed/helped thresholds from a
+  seed-to-seed null (same mechanism's own encoder-seed replicates)
+  instead of a fixed epsilon, tested against that null. Rerun on 04d's
+  existing data: **0 of 40 comparisons** now show a real leveling-down
+  pattern (the earlier "5-6/10 deciles" and "10/10 deciles" findings
+  don't survive proper null-testing) -- likely underpowered at only 3
+  null seeds, not proof nothing's there; revisit once GeoLife's
+  10-seed null lands.
+- **Foursquare ed\_soft's "leveling down" framing was wrong**,
+  independent of the above: ratio rises 3.4x->15.5x but the absolute
+  difference (decile0-decile9) FALLS 0.505->0.456 and decile 0's own
+  risk DROPS 0.715->0.487 -- correct reading is the point moving
+  toward the no-privacy reference (utility and risk rise together),
+  an ordinary trade-off. `puffin/metrics/decile_reduction.py` gained
+  `residual_risk_difference` (absolute diff + CI), to be reported
+  alongside the ratio everywhere, since the two can disagree in
+  direction.
+- Both fixes committed (`011e202`) with matching withdrawal notes in
+  `paper/sections/residual_risk_disparity.tex` and `phase4_outline.tex`,
+  test-compiled clean.
+
+**Unexpected finding that expanded this round's scope**: diagnosing the
+PI's flagged no-privacy-ceiling anomaly (ed\_soft's GeoLife utility
+0.654 exceeding no\_privacy's 0.623) found it is NOT a no\_privacy-
+specific tuning bug. `scripts/diagnose_no_privacy_ceiling.py` (1 seed,
+40 epochs instead of the batch's 20) shows ALL THREE mechanisms still
+rising substantially at epoch 20, with their relative ORDER changing
+between epoch 20 and 40 (no\_privacy 0.611->0.735, plain 0.473->0.719,
+ed\_soft 0.680->0.740) -- no early stopping exists anywhere in
+`run_phase4d_approved_batch.py`. Full writeup:
+`CHANGES_FROM_ORIGINAL.md`. **This round's new training (reference
+curve, no\_privacy refit, GeoLife 10-seed) now uses 40 epochs; 04d's
+original 21 runs remain at 20 epochs and are NOT being retrained
+without the PI's sign-off** (flagged in 04e's report as a scope
+question, not resolved unilaterally).
+
+**Running now** (`scripts/launch_phase4e_batch.sh`, 22 jobs, both GPUs,
+started 2026-10-27 ~15:32 PDT, ETA several hours given 40 epochs + the
+10-seed jobs): (1) plain-Mo-PAE Pareto reference CURVE -- lambda3
+(lambda\_priv) swept across {0.02,0.1,0.2,0.5,0.8} x3 datasets x3
+encoder seeds (lambda3=0.3 reuses 04d's existing point, flagged with
+an epoch-count-mismatch note since that one is still 20 epochs); every
+formulation will be compared against this curve via interpolation at
+matched utility, not a single point. (2) no\_privacy refit at 40
+epochs x3 seeds, all 3 datasets. (3) GeoLife 10-encoder-seed rerun of
+plain + ed\_soft(0.3,1.0,3.0), before calling that result "dominance."
+Analysis scripts staged and ready to run once this lands:
+`scripts/analyze_04e_reference_curve.py`,
+`scripts/recompute_04e_leveling_and_difference.py` (already run once
+on 04d's existing data, see above; will rerun with the 10-seed null
+once available).
+
+**Not started**: writing `reports/04e_reference_curve.md` (blocked on
+the batch above), rewriting paper Sections 6-7 against it, launching
+attacker-in-the-loop (queued, evaluated against the item-1 curve once
+it exists, explicitly lower priority than this correction round).
+
+---
+
+## Superseded (2026-10-27): the material below predates the PI's 04d review and the corrections above
 
 **The approved 21-run batch (Checkpoint 04d) is complete, analyzed, and
 reported on. This closes the "stop and report" checkpoint the PI set:
