@@ -1,6 +1,26 @@
 # PUFFIN v2 — Progress
 
-## Current state (read this first): Checkpoint 04e done and reported; attacker-in-the-loop now running at low priority
+## Current state (read this first): paper revised for submission framing; attacker-in-the-loop still running at low priority
+
+**The paper has been substantially revised** (commit `def1a5d`), per a
+request to make it read as a finished submission rather than a project
+log: new title ("Who Is Actually Protected? Learned Mobility Privacy
+Leaves the Most Identifiable Users Exposed"), reframed abstract/intro/
+conclusion around the disparate-risk finding, and every checkpoint/PI/
+draft-status reference removed from the prose (Sections 8-10 now state
+findings directly). User-id sparsity and windowing implementation
+details moved to a new Implementation Notes appendix. Section 8 now
+reports GeoLife and Foursquare with the corrected decile-reduction
+metrics (`scripts/compute_section8_table.py`), not just Gowalla. Added
+Figure 1 (raw vs.\ post-Mo-PAE risk by decile) and Figure 2 (utility vs.\
+decile-0 risk fronts with the plain-Mo-PAE curve and no-privacy point),
+via `paper/scripts/generate_plots.py`. Fixed the threat-model table's
+column widths and a second table overflowing from a long caption path.
+`acmart.cls` and `ACM-Reference-Format.bst` are now committed to
+`paper/`, so the repo compiles standalone -- verified by compiling
+against only the committed files, clean, 10 pages, zero errors.
+
+---
 
 **Checkpoint 04e is complete.** Full report: `reports/04e_reference_curve.md`
 (5-line summary at top). Headline: **the GeoLife "ed\_soft dominates
