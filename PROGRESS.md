@@ -1,24 +1,89 @@
 # PUFFIN v2 — Progress
 
-## Current state (read this first): paper revised for submission framing; attacker-in-the-loop still running at low priority
+## Current state (read this first): retraining-to-convergence batch running (79 jobs); target Nov 12
 
-**The paper has been substantially revised** (commit `def1a5d`), per a
-request to make it read as a finished submission rather than a project
-log: new title ("Who Is Actually Protected? Learned Mobility Privacy
-Leaves the Most Identifiable Users Exposed"), reframed abstract/intro/
-conclusion around the disparate-risk finding, and every checkpoint/PI/
-draft-status reference removed from the prose (Sections 8-10 now state
-findings directly). User-id sparsity and windowing implementation
-details moved to a new Implementation Notes appendix. Section 8 now
-reports GeoLife and Foursquare with the corrected decile-reduction
-metrics (`scripts/compute_section8_table.py`), not just Gowalla. Added
-Figure 1 (raw vs.\ post-Mo-PAE risk by decile) and Figure 2 (utility vs.\
-decile-0 risk fronts with the plain-Mo-PAE curve and no-privacy point),
-via `paper/scripts/generate_plots.py`. Fixed the threat-model table's
-column widths and a second table overflowing from a long caption path.
-`acmart.cls` and `ACM-Reference-Format.bst` are now committed to
-`paper/`, so the repo compiles standalone -- verified by compiling
-against only the committed files, clean, 10 pages, zero errors.
+**The attacker-in-the-loop batch crashed on its first Foursquare job**
+(2026-10-30, ~11:00 AM) with a CUDA OOM, and its orchestrator's `set -e`
+killed the whole script with 16/24 jobs still unqueued. Root cause and
+fixes, full detail in `CHANGES_FROM_ORIGINAL.md`:
+- `refit_fresh_attacker_head()` ran the encoder forward pass on the
+  FULL training set in one unbatched call (fine on GeoLife's ~36k
+  windows, a 16GB single allocation on Foursquare's ~216k through an
+  LSTM). Fixed via `puffin.attacks.reid._batched_forward`, the same
+  chunking helper every other attacker in this codebase already uses.
+  Grepped for the same pattern elsewhere: found and fixed the identical
+  bug in `eval_in_model_confidence`/`eval_utility`
+  (`scripts/run_phase4d_approved_batch.py`) -- lower-risk before
+  (called once, at the end), now a real risk since early stopping (see
+  below) calls an equivalent check every epoch.
+- New regression test: `tests/test_attacker_in_the_loop.py::test_refit_fresh_attacker_head_batches_the_encoder_forward_pass`
+  (Foursquare-sized input, asserts the encoder is never called with
+  more rows than the configured batch size). Full existing test suite
+  re-run clean, no regressions.
+- **Every orchestrator is now fault-tolerant**: no `set -e`; each job's
+  exit status is checked individually, failures are logged with their
+  exit code and the queue continues, a `failed_jobs_summary.txt` is
+  written at the end. Applied to the new
+  `scripts/launch_retraining_to_convergence.sh` (built this way from
+  the start) and to `scripts/launch_attacker_in_the_loop.sh` (rewritten,
+  not relaunched yet).
+
+**Training protocol changed project-wide: early stopping on a
+chronological validation split, same patience for every mechanism.**
+`scripts/run_phase4d_approved_batch.py` is now the single, unified
+driver for every fairness formulation studied in this project -- it
+absorbed `lipschitz`, `variance`, `group_dro`, `per_user_minimax`, and
+`group_adversarial` from `run_phase4_formulations.py` (which used the
+RETIRED adaptive-attacker standard and is no longer part of the active
+pipeline). Every mechanism trains up to `--mopae-epochs` (now a
+ceiling, default 80) and early-stops (`--patience 8`, `--val-frac 0.1`)
+on each user's chronologically latest train windows, via
+`puffin.attacks.reid`'s existing `_chronological_val_split` (previously
+attacker-side only, now applied to mechanism training too). This
+replaces both the original fixed-20-epoch protocol and the ad-hoc
+"doubled to 40" fix from the previous round.
+
+**Running now** (`scripts/launch_retraining_to_convergence.sh`, 79
+jobs, both GPUs, started 2026-10-30 ~11:44 AM, target **November 12**),
+in priority order:
+1. plain (privacy weight swept -- the Pareto reference curve) +
+   no-privacy, all 3 datasets, 3 encoder seeds (21 jobs).
+2. GeoLife plain vs.\ ed\_soft, 10 encoder seeds (4 jobs).
+3. ed\_soft on Foursquare and Gowalla-SF-Bay, 3 encoder seeds (6 jobs).
+4. floor, GeoLife only, 3 encoder seeds (3 jobs).
+5. The five single-encoder-seed formulations, all 3 datasets, 1 seed
+   each, now under the same early-stopping protocol (45 jobs).
+
+**Gowalla subset changed to gowalla\_sf\_bay (2,797 users) for this and
+all future new training**, not `gowalla_nyc` (1,517, used throughout
+04d/04e) -- per the PI's explicit, repeated naming for this round and
+for attacker-in-the-loop. 04d/04e's existing gowalla\_nyc results are
+untouched.
+
+**Attacker-in-the-loop: NOT resumed.** Per instruction, it will be
+rerun once the retraining batch is done (or sooner, on any GPU that
+frees up), under the same early-stopping protocol, in the order
+GeoLife -> Gowalla-SF-Bay -> Foursquare. The 8 GeoLife runs that
+completed before the crash (fixed 40 epochs, 3 seeds) are archived at
+`reports/figures/attacker_in_the_loop_early_signal_fixed40ep/` and are
+**not used in the paper** -- early signal only:
+
+| config | utility | decile-0 risk |
+|---|---|---|
+| plain Mo-PAE reference (40ep, 10 seeds) | 0.731 | 0.359 |
+| k=1, λ4=0.3, floor | 0.702±0.018 | 0.308 |
+| k=1, λ4=0.3, group\_dro | 0.701±0.024 | 0.320 |
+| k=1, λ4=1.0, floor | 0.696±0.016 | 0.349 |
+| k=1, λ4=1.0, group\_dro | 0.696±0.002 | 0.307 |
+| k=5, λ4=0.3, floor | 0.688±0.006 | 0.346 |
+| k=5, λ4=0.3, group\_dro | 0.739±0.010 | 0.325 |
+| k=5, λ4=1.0, floor | 0.703±0.020 | 0.341 |
+| k=5, λ4=1.0, group\_dro | 0.742±0.001 | 0.309 |
+
+Every one of the 8 configs shows lower decile-0 risk than the plain
+reference (0.307-0.349 vs.\ 0.359), with comparable-to-higher utility --
+a consistent, if modest, pattern worth confirming once retrained
+properly; not a result, no CIs, 3 seeds only, fixed epoch count.
 
 ---
 

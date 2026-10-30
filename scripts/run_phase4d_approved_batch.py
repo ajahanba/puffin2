@@ -1,30 +1,58 @@
 #!/usr/bin/env python
-"""Checkpoint 04d: the PI-approved batch closing 04c's gaps.
+"""Unified Mo-PAE formulation driver: every fairness formulation studied
+in this project trains through this one script, under one shared
+protocol, so comparisons across formulations are never confounded by
+different training code paths.
 
-mechanism in {plain, ed_soft, no_privacy}:
-  plain       -- lambda4=0, any fairness_fn (inert), the missing
-                 utility-logged plain-Mo-PAE reference 04c needed.
-  ed_soft     -- the old PUFFIN L_pair_threshold baseline, re-run with
-                 utility logging (04c excluded it entirely for lacking
-                 this).
-  no_privacy  -- the new utility ceiling: lambda1=lambda3=lambda4=0
-                 (prediction loss only, no reconstruction, no privacy
-                 adversary, no fairness term) -- what utility looks like
-                 with no privacy pressure at all.
-  floor       -- GeoLife's fixed-floor_loss rerun with the chance-
-                 relative fix (puffin.fairness.losses.floor_loss).
+mechanism choices:
+  plain              -- lambda4=0, any fairness_fn (inert): the
+                         utility-logged plain-Mo-PAE reference.
+  no_privacy         -- utility ceiling: lambda1=lambda3=lambda4=0
+                         (prediction loss only, no reconstruction, no
+                         privacy adversary, no fairness term).
+  ed_soft            -- puffin.fairness.losses.ed_soft.
+  floor              -- puffin.fairness.losses.floor_loss (the fixed,
+                         chance-relative version).
+  lipschitz          -- puffin.fairness.losses.lipschitz_soft.
+  variance           -- puffin.fairness.losses.variance_of_risk.
+  group_dro          -- puffin.fairness.losses.group_dro_loss.
+  per_user_minimax   -- puffin.fairness.losses.per_user_minimax_loss.
+  group_adversarial  -- puffin.fairness.group_adversarial's own train
+                         step (no id_recognizer; a per-decile-group
+                         adversary instead). "lambda4" here OVERRIDES
+                         l_priv (the weight on -worst_group_loss),
+                         since that is the knob that plays the
+                         analogous role for this formulation -- noted
+                         explicitly in the output so it is not read as
+                         the same quantity as every other mechanism's
+                         lambda4.
+  attacker_in_the_loop -- puffin.fairness.attacker_in_the_loop: every
+                         `--refit-every-k-epochs`, a fresh attacker head
+                         is refit on the frozen encoder and used as the
+                         fairness term's signal source.
 
-Uses >=3 ENCODER-training seeds per (dataset, mechanism, lambda4), each
-attacked with the usual 5 attacker seeds -- per the PI's instruction
-that comparison runs report means/CIs over encoder seeds as well as
-attacker seeds, not just attacker seeds (every other Phase 4 point used
-exactly one encoder seed). Also switches to the PI's new primary
-standard for THIS batch: the hardened external attacker, strongest per
-user across MLP/GRU/GBT (puffin.attacks.reid's *_strongest_per_user
-functions), not the older best-of-seed-only `_hardened` functions the
-original Phase 4 grid used.
+Every mechanism (except no_privacy, which has no fairness term to
+compare) is evaluated under the hardened external attacker, strongest
+per user across MLP/GRU/GBT (puffin.attacks.reid's *_strongest_per_user
+functions), with >=3 independent ENCODER-training seeds per
+(dataset, mechanism, lambda4), each attacked with 5 attacker seeds.
+
+TRAINING PROTOCOL (early stopping, chronological validation): every
+mechanism trains up to `--mopae-epochs` (a ceiling, not a target) and
+early-stops on a per-user chronological validation split carved from
+the TRAINING windows (the LAST `--val-frac` of each user's train
+windows by time, via puffin.attacks.reid's _chronological_val_split --
+the same pattern already used for attacker-side early stopping, applied
+here to mechanism training so every mechanism is trained to a
+comparable, fairly-stopped point instead of a fixed epoch count that
+can systematically favor whichever mechanism converges fastest (see
+CHANGES_FROM_ORIGINAL.md for the diagnostic that found this mattering).
+Patience is `--patience`, identical across every mechanism. The
+held-out TEST split (windows["test"]) is never touched until final
+evaluation.
 """
 import argparse
+import copy
 import json
 import pathlib
 import sys
@@ -38,21 +66,90 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from puffin.features.mobility import compute_mobility_features
 from puffin.attacks.windowing import build_sl_windows
-from puffin.attacks.reid import train_raw_attacker_strongest_per_user, train_attacker_on_frozen_encoder_strongest_per_user
+from puffin.attacks.reid import (train_raw_attacker_strongest_per_user,
+                                  train_attacker_on_frozen_encoder_strongest_per_user,
+                                  _batched_forward, _chronological_val_split)
 from puffin.attacks.analysis import bootstrap_decile_ci
-from puffin.fairness.losses import ed_soft, floor_loss, group_dro_loss, build_entropy_table
+from puffin.fairness.losses import (ed_soft, floor_loss, lipschitz_soft, variance_of_risk, group_dro_loss,
+                                     per_user_minimax_loss, build_entropy_table)
 from puffin.fairness.attacker_in_the_loop import refit_fresh_attacker_head, attacker_in_the_loop_train_step
+from puffin.fairness.group_adversarial import GroupAdversaryHeads, group_adversarial_train_step, decile_group_idx
 from puffin.models.mopae_torch import build_bundle, fixed_train_step
+
+LOSS_FORMULATIONS = dict(ed_soft=ed_soft, floor=floor_loss, lipschitz=lipschitz_soft,
+                          variance=variance_of_risk, group_dro=group_dro_loss,
+                          per_user_minimax=per_user_minimax_loss)
+
+
+def _state_of(modules: dict) -> dict:
+    return {name: copy.deepcopy(m.state_dict()) for name, m in modules.items()}
+
+
+def _load_state(modules: dict, state: dict):
+    for name, m in modules.items():
+        m.load_state_dict(state[name])
+
+
+def _fit_val_split(tr, val_frac, seed):
+    rng = np.random.default_rng(seed)
+    n = len(tr["cell"])
+    if "ts" in tr and len(tr["ts"]) == n and val_frac > 0:
+        val_idx, fit_idx = _chronological_val_split(tr["ts"], tr["user"], val_frac, rng)
+    else:
+        perm = rng.permutation(n)
+        n_val = max(1, int(val_frac * n)) if val_frac > 0 else 0
+        val_idx, fit_idx = perm[:n_val], perm[n_val:]
+    return fit_idx, val_idx
+
+
+def _val_utility(encoder, next_predictor, cell, wd, hr, y_next_idx, val_idx_t, batch_size=4096):
+    encoder.eval()
+    next_predictor.eval()
+    with torch.no_grad():
+        logits = _batched_forward(lambda c, w, h: next_predictor(encoder(c, w, h)),
+                                   cell[val_idx_t], wd[val_idx_t], hr[val_idx_t], batch_size=batch_size)
+        acc = (logits.argmax(-1) == y_next_idx[val_idx_t]).float().mean().item()
+    encoder.train()
+    next_predictor.train()
+    return acc
+
+
+def _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size,
+                              train_one_epoch_fn, val_eval_fn, state_modules: dict):
+    """Generic early-stopping loop shared by every mechanism: calls
+    `train_one_epoch_fn(batch_idx)` once per mini-batch for one epoch
+    over a fresh permutation of `fit_idx_t`, evaluates `val_eval_fn()`
+    after each epoch, and keeps the best-validation-utility snapshot of
+    `state_modules` (name -> nn.Module), restoring it before returning.
+    Returns the number of epochs actually run."""
+    n_fit = len(fit_idx_t)
+    best_val, best_state, bad_epochs, actual_epochs = -1.0, _state_of(state_modules), 0, 0
+    for epoch in range(max_epochs):
+        perm = fit_idx_t[torch.randperm(n_fit, device=device)]
+        for start in range(0, n_fit, batch_size):
+            train_one_epoch_fn(perm[start:start + batch_size])
+        actual_epochs = epoch + 1
+        val_acc = val_eval_fn()
+        if val_acc > best_val:
+            best_val, best_state, bad_epochs = val_acc, _state_of(state_modules), 0
+        else:
+            bad_epochs += 1
+            if bad_epochs >= patience:
+                break
+    _load_state(state_modules, best_state)
+    return actual_epochs
 
 
 def train_attacker_in_the_loop_mechanism(windows, total_locations, total_users, entropy_table, lambda4,
-                                          loss_variant, refit_every_k_epochs, device, epochs,
+                                          loss_variant, refit_every_k_epochs, device, max_epochs,
                                           lambda_priv=0.3, batch_size=512, lr=3e-4, seed=0,
-                                          head_refit_epochs=10, head_refit_lr=1e-3):
-    """mechanism="attacker_in_the_loop": every `refit_every_k_epochs`, a
-    FRESH attacker head is refit to convergence on the momentarily-
-    frozen encoder, then used (frozen) as the fairness term's signal
-    source for the next k epochs. loss_variant in {"floor", "group_dro"}."""
+                                          head_refit_epochs=10, head_refit_lr=1e-3,
+                                          patience=8, val_frac=0.1):
+    """Every `refit_every_k_epochs`, a FRESH attacker head is refit to
+    convergence on the momentarily-frozen encoder (using only the FIT
+    split, never validation), then used (frozen) as the fairness term's
+    signal source for the next k epochs. loss_variant in
+    {"floor", "group_dro"}."""
     torch.manual_seed(seed)
     sl = windows["train"]["cell"].shape[1]
     bundle = build_bundle("fixed", sl, total_locations, total_users)
@@ -68,35 +165,100 @@ def train_attacker_in_the_loop_mechanism(windows, total_locations, total_users, 
     loss_fn = floor_loss if loss_variant == "floor" else group_dro_loss
 
     tr = windows["train"]
-    cell = torch.tensor(tr["cell"], dtype=torch.long, device=device)
-    wd = torch.tensor(tr["weekday"], dtype=torch.long, device=device)
-    hr = torch.tensor(tr["hour"], dtype=torch.long, device=device)
-    user_idx = torch.tensor(tr["user"], dtype=torch.long, device=device)
-    y_next_idx = torch.tensor(tr["next_cell"], dtype=torch.long, device=device)
+    fit_idx, val_idx = _fit_val_split(tr, val_frac, seed)
+
+    def to_t(arr, dtype=torch.long):
+        return torch.tensor(arr, dtype=dtype, device=device)
+
+    cell, wd, hr = to_t(tr["cell"]), to_t(tr["weekday"]), to_t(tr["hour"])
+    user_idx, y_next_idx = to_t(tr["user"]), to_t(tr["next_cell"])
     coord_target = torch.zeros((len(cell), sl, 2), dtype=torch.float32, device=device)
-    n = len(cell)
-    fresh_head = None
-    for epoch in range(epochs):
-        if epoch % refit_every_k_epochs == 0:
-            fresh_head = refit_fresh_attacker_head(bundle.encoder, cell, wd, hr, user_idx, total_users,
-                                                     device, epochs=head_refit_epochs, lr=head_refit_lr)
-        perm = torch.randperm(n, device=device)
-        for start in range(0, n, batch_size):
-            idx = perm[start:start + batch_size]
-            attacker_in_the_loop_train_step(bundle, opts, fresh_head, cell[idx], wd[idx], hr[idx],
-                                             y_next_idx[idx], user_idx[idx], coord_target[idx],
-                                             loss_fn, entropy_table, lambda4, lambdas)
-    return bundle
+    fit_idx_t, val_idx_t = to_t(fit_idx), to_t(val_idx)
+
+    state = dict(encoder=bundle.encoder, decoder=bundle.decoder, id_recognizer=bundle.id_recognizer,
+                 next_predictor=bundle.next_predictor)
+    epoch_counter = {"n": 0}
+
+    def train_batch(idx):
+        if epoch_counter["n"] % refit_every_k_epochs == 0:
+            train_batch.fresh_head = refit_fresh_attacker_head(
+                bundle.encoder, cell[fit_idx_t], wd[fit_idx_t], hr[fit_idx_t], user_idx[fit_idx_t],
+                total_users, device, epochs=head_refit_epochs, lr=head_refit_lr)
+        attacker_in_the_loop_train_step(bundle, opts, train_batch.fresh_head, cell[idx], wd[idx], hr[idx],
+                                         y_next_idx[idx], user_idx[idx], coord_target[idx],
+                                         loss_fn, entropy_table, lambda4, lambdas)
+    train_batch.fresh_head = None
+
+    def val_eval():
+        epoch_counter["n"] += 1
+        return _val_utility(bundle.encoder, bundle.next_predictor, cell, wd, hr, y_next_idx, val_idx_t)
+
+    actual_epochs = _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size,
+                                              train_batch, val_eval, state)
+    return bundle, actual_epochs
+
+
+def train_group_adversarial_mechanism(windows, total_locations, total_users, entropy_table,
+                                       lambda_priv_override, device, max_epochs, n_groups=10,
+                                       batch_size=512, lr=3e-4, seed=0, patience=8, val_frac=0.1):
+    """No id_recognizer: a per-decile-group adversary (GroupAdversaryHeads)
+    instead. lambda_priv_override plays the role every other mechanism's
+    lambda_priv plays (see module docstring)."""
+    torch.manual_seed(seed)
+    sl = windows["train"]["cell"].shape[1]
+    bundle = build_bundle("fixed", sl, total_locations, total_users)
+    for m in (bundle.encoder, bundle.decoder, bundle.next_predictor):
+        m.to(device)
+    group_heads = GroupAdversaryHeads(total_users=total_users, n_groups=n_groups).to(device)
+    opts = dict(
+        enc=torch.optim.Adam(bundle.encoder.parameters(), lr=lr),
+        dec=torch.optim.Adam(bundle.decoder.parameters(), lr=lr),
+        next=torch.optim.Adam(bundle.next_predictor.parameters(), lr=lr),
+    )
+    group_head_opt = torch.optim.Adam(group_heads.parameters(), lr=lr)
+    lambdas = dict(l_recon=0.1, l_util=0.8, l_priv=lambda_priv_override)
+
+    tr = windows["train"]
+    fit_idx, val_idx = _fit_val_split(tr, val_frac, seed)
+
+    def to_t(arr, dtype=torch.long):
+        return torch.tensor(arr, dtype=dtype, device=device)
+
+    cell, wd, hr = to_t(tr["cell"]), to_t(tr["weekday"]), to_t(tr["hour"])
+    user_idx, y_next_idx = to_t(tr["user"]), to_t(tr["next_cell"])
+    coord_target = torch.zeros((len(cell), sl, 2), dtype=torch.float32, device=device)
+    fit_idx_t, val_idx_t = to_t(fit_idx), to_t(val_idx)
+
+    state = dict(encoder=bundle.encoder, decoder=bundle.decoder, next_predictor=bundle.next_predictor,
+                 group_heads=group_heads)
+
+    def train_batch(idx):
+        group_idx = decile_group_idx(entropy_table, user_idx[idx], n_groups=n_groups)
+        group_adversarial_train_step(bundle, opts, group_heads, group_head_opt,
+                                      cell[idx], wd[idx], hr[idx], y_next_idx[idx], user_idx[idx],
+                                      coord_target[idx], group_idx, lambdas=lambdas)
+
+    def val_eval():
+        return _val_utility(bundle.encoder, bundle.next_predictor, cell, wd, hr, y_next_idx, val_idx_t)
+
+    actual_epochs = _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size,
+                                              train_batch, val_eval, state)
+    return bundle, actual_epochs
 
 
 def train_mechanism(windows, total_locations, total_users, entropy_table, mechanism, lambda4, device,
-                     epochs, lambda_priv=0.3, batch_size=512, lr=3e-4, seed=0,
-                     loss_variant=None, refit_every_k_epochs=None):
+                     max_epochs, lambda_priv=0.3, batch_size=512, lr=3e-4, seed=0,
+                     loss_variant=None, refit_every_k_epochs=None, patience=8, val_frac=0.1):
     if mechanism == "attacker_in_the_loop":
         return train_attacker_in_the_loop_mechanism(
             windows, total_locations, total_users, entropy_table, lambda4, loss_variant,
-            refit_every_k_epochs, device, epochs, lambda_priv=lambda_priv, batch_size=batch_size,
-            lr=lr, seed=seed)
+            refit_every_k_epochs, device, max_epochs, lambda_priv=lambda_priv, batch_size=batch_size,
+            lr=lr, seed=seed, patience=patience, val_frac=val_frac)
+    if mechanism == "group_adversarial":
+        # lambda4 OVERRIDES l_priv for this mechanism -- see module docstring.
+        return train_group_adversarial_mechanism(
+            windows, total_locations, total_users, entropy_table, lambda4, device, max_epochs,
+            batch_size=batch_size, lr=lr, seed=seed, patience=patience, val_frac=val_frac)
 
     torch.manual_seed(seed)
     sl = windows["train"]["cell"].shape[1]
@@ -115,45 +277,48 @@ def train_mechanism(windows, total_locations, total_users, entropy_table, mechan
     elif mechanism == "plain":
         lambdas = dict(l_recon=0.1, l_util=0.8, l_priv=lambda_priv)
         fairness_fn, l4 = None, 0.0
-    elif mechanism == "ed_soft":
+    elif mechanism in LOSS_FORMULATIONS:
         lambdas = dict(l_recon=0.1, l_util=0.8, l_priv=lambda_priv)
-        fairness_fn, l4 = ed_soft, lambda4
-    elif mechanism == "floor":
-        lambdas = dict(l_recon=0.1, l_util=0.8, l_priv=lambda_priv)
-        fairness_fn, l4 = floor_loss, lambda4
+        fairness_fn, l4 = LOSS_FORMULATIONS[mechanism], lambda4
     else:
         raise ValueError(mechanism)
 
     tr = windows["train"]
-    cell = torch.tensor(tr["cell"], dtype=torch.long, device=device)
-    wd = torch.tensor(tr["weekday"], dtype=torch.long, device=device)
-    hr = torch.tensor(tr["hour"], dtype=torch.long, device=device)
-    user_idx = torch.tensor(tr["user"], dtype=torch.long, device=device)
-    y_next_idx = torch.tensor(tr["next_cell"], dtype=torch.long, device=device)
+    fit_idx, val_idx = _fit_val_split(tr, val_frac, seed)
+
+    def to_t(arr, dtype=torch.long):
+        return torch.tensor(arr, dtype=dtype, device=device)
+
+    cell, wd, hr = to_t(tr["cell"]), to_t(tr["weekday"]), to_t(tr["hour"])
+    user_idx, y_next_idx = to_t(tr["user"]), to_t(tr["next_cell"])
     coord_target = torch.zeros((len(cell), sl, 2), dtype=torch.float32, device=device)
-    n = len(cell)
-    for _epoch in range(epochs):
-        perm = torch.randperm(n, device=device)
-        for start in range(0, n, batch_size):
-            idx = perm[start:start + batch_size]
-            fixed_train_step(bundle, opts, cell[idx], wd[idx], hr[idx], y_next_idx[idx], user_idx[idx],
-                              coord_target[idx], fairness_fn=fairness_fn, entropy_table=entropy_table,
-                              lambda4=l4, lambdas=lambdas)
-    return bundle
+    fit_idx_t, val_idx_t = to_t(fit_idx), to_t(val_idx)
+
+    state = dict(encoder=bundle.encoder, decoder=bundle.decoder, id_recognizer=bundle.id_recognizer,
+                 next_predictor=bundle.next_predictor)
+
+    def train_batch(idx):
+        fixed_train_step(bundle, opts, cell[idx], wd[idx], hr[idx], y_next_idx[idx], user_idx[idx],
+                          coord_target[idx], fairness_fn=fairness_fn, entropy_table=entropy_table,
+                          lambda4=l4, lambdas=lambdas)
+
+    def val_eval():
+        return _val_utility(bundle.encoder, bundle.next_predictor, cell, wd, hr, y_next_idx, val_idx_t)
+
+    actual_epochs = _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size,
+                                              train_batch, val_eval, state)
+    return bundle, actual_epochs
 
 
 def eval_in_model_confidence(bundle, windows, device):
     """The CO-TRAINED (in-model) adversary's own per-user confidence on
     test windows -- the quantity any floor/group-DRO-style fairness loss
     actually optimizes against, as distinct from a fresh EXTERNAL
-    attacker's accuracy on the same frozen features. Reported by decile
-    so it can sit next to the external attacker's top-1 in the report:
-    per the PI, this is the mechanistic explanation for why loss-based
-    fairness formulations can't target real risk -- the in-model
-    adversary the encoder actually trains against stays near chance
-    throughout training (confirmed via scripts/diagnose_floor_loss.py),
-    while a real external attacker on the same features does far
-    better."""
+    attacker's accuracy on the same frozen features. Not meaningful for
+    group_adversarial (no id_recognizer); callers should skip it there.
+    Encoder forward pass is chunked via _batched_forward -- an
+    unbatched full-test-set call OOM'd on Foursquare (see
+    CHANGES_FROM_ORIGINAL.md)."""
     te = windows["test"]
     cell = torch.tensor(te["cell"], dtype=torch.long, device=device)
     wd = torch.tensor(te["weekday"], dtype=torch.long, device=device)
@@ -162,8 +327,8 @@ def eval_in_model_confidence(bundle, windows, device):
     bundle.encoder.eval()
     bundle.id_recognizer.eval()
     with torch.no_grad():
-        enc = bundle.encoder(cell, wd, hr)
-        id_logits = bundle.id_recognizer(enc)
+        id_logits = _batched_forward(lambda c, w, h: bundle.id_recognizer(bundle.encoder(c, w, h)),
+                                      cell, wd, hr)
         probs = torch.softmax(id_logits, dim=-1)
         true_onehot = torch.nn.functional.one_hot(user_idx, num_classes=id_logits.shape[-1]).float()
         confidence = (true_onehot * probs).sum(-1).cpu().numpy()
@@ -175,6 +340,9 @@ def eval_in_model_confidence(bundle, windows, device):
 
 
 def eval_utility(bundle, windows, device):
+    """Batched (via _batched_forward) -- see eval_in_model_confidence's
+    docstring for why unbatched full-test-set forward passes are unsafe
+    on larger datasets."""
     te = windows["test"]
     cell = torch.tensor(te["cell"], dtype=torch.long, device=device)
     wd = torch.tensor(te["weekday"], dtype=torch.long, device=device)
@@ -183,9 +351,9 @@ def eval_utility(bundle, windows, device):
     bundle.encoder.eval()
     bundle.next_predictor.eval()
     with torch.no_grad():
-        enc = bundle.encoder(cell, wd, hr)
-        preds = bundle.next_predictor(enc).argmax(dim=-1)
-        acc = (preds == y_next_idx).float().mean().item()
+        logits = _batched_forward(lambda c, w, h: bundle.next_predictor(bundle.encoder(c, w, h)),
+                                   cell, wd, hr)
+        acc = (logits.argmax(-1) == y_next_idx).float().mean().item()
     bundle.encoder.train()
     bundle.next_predictor.train()
     return acc
@@ -197,7 +365,8 @@ def main():
     ap.add_argument("--parquet", required=True)
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--mechanism", required=True,
-                     choices=["plain", "ed_soft", "no_privacy", "floor", "attacker_in_the_loop"])
+                     choices=["plain", "no_privacy", "attacker_in_the_loop", "group_adversarial"]
+                     + list(LOSS_FORMULATIONS.keys()))
     ap.add_argument("--loss-variant", choices=["floor", "group_dro"], default=None,
                      help="attacker_in_the_loop only")
     ap.add_argument("--refit-every-k-epochs", type=int, default=None, help="attacker_in_the_loop only")
@@ -205,9 +374,20 @@ def main():
     ap.add_argument("--respect-traj-boundary", action="store_true", default=True)
     ap.add_argument("--no-respect-traj-boundary", dest="respect_traj_boundary", action="store_false")
     ap.add_argument("--max-windows-per-user", type=int, default=200)
-    ap.add_argument("--mopae-epochs", type=int, default=20)
+    ap.add_argument("--mopae-epochs", type=int, default=80,
+                     help="MAX epochs (a ceiling); early stopping on validation utility usually ends "
+                          "training sooner -- see --patience, --val-frac")
+    ap.add_argument("--patience", type=int, default=8,
+                     help="epochs without validation-utility improvement before stopping, same for "
+                          "every mechanism")
+    ap.add_argument("--val-frac", type=float, default=0.1,
+                     help="fraction of each user's TRAIN windows (chronologically latest) held out "
+                          "for early-stopping validation; 0 disables early stopping (trains exactly "
+                          "--mopae-epochs)")
     ap.add_argument("--lambda-priv", type=float, default=0.3)
-    ap.add_argument("--lambda4", type=float, default=0.0)
+    ap.add_argument("--lambda4", type=float, default=0.0,
+                     help="additive fairness weight; OVERRIDES lambda-priv for group_adversarial "
+                          "(see module docstring)")
     ap.add_argument("--attack-epochs", type=int, default=25)
     ap.add_argument("--encoder-seeds", type=str, default="0,1,2")
     ap.add_argument("--attacker-seeds", type=str, default="0,1,2,3,4")
@@ -217,6 +397,7 @@ def main():
     encoder_seeds = tuple(int(s) for s in args.encoder_seeds.split(","))
     attacker_seeds = tuple(int(s) for s in args.attacker_seeds.split(","))
     tag = f"{args.dataset} {args.mechanism} lambda4={args.lambda4}"
+    has_id_recognizer = args.mechanism != "group_adversarial"
 
     df = pd.read_parquet(args.parquet)
     total_locations = int(df["cell_id"].max())
@@ -238,17 +419,21 @@ def main():
     per_encoder_seed_inmodel = []
     utilities = []
     train_wall_times = []
+    actual_epochs_list = []
     for enc_seed in encoder_seeds:
-        print(f"[{tag}] encoder seed {enc_seed}: training mechanism...", flush=True)
+        print(f"[{tag}] encoder seed {enc_seed}: training mechanism (max {args.mopae_epochs} epochs, "
+              f"patience {args.patience})...", flush=True)
         _t0 = time.time()
-        bundle = train_mechanism(windows, total_locations, total_users, entropy_table, args.mechanism,
-                                  args.lambda4, device, epochs=args.mopae_epochs, lambda_priv=args.lambda_priv,
-                                  seed=enc_seed, loss_variant=args.loss_variant,
-                                  refit_every_k_epochs=args.refit_every_k_epochs)
+        bundle, actual_epochs = train_mechanism(
+            windows, total_locations, total_users, entropy_table, args.mechanism,
+            args.lambda4, device, max_epochs=args.mopae_epochs, lambda_priv=args.lambda_priv,
+            seed=enc_seed, loss_variant=args.loss_variant,
+            refit_every_k_epochs=args.refit_every_k_epochs, patience=args.patience, val_frac=args.val_frac)
         train_wall_times.append(time.time() - _t0)
+        actual_epochs_list.append(actual_epochs)
         utility = eval_utility(bundle, windows, device)
         utilities.append(utility)
-        print(f"[{tag}] encoder seed {enc_seed}: utility={utility:.4f}, "
+        print(f"[{tag}] encoder seed {enc_seed}: stopped after {actual_epochs} epochs, utility={utility:.4f}, "
               f"post attacker ({len(attacker_seeds)} attacker seeds)...", flush=True)
         post_df, _ = train_attacker_on_frozen_encoder_strongest_per_user(
             bundle.encoder, windows, total_users, device, seeds=attacker_seeds,
@@ -256,9 +441,10 @@ def main():
         post_df = post_df.rename(columns={"post_top1": f"post_top1_encseed{enc_seed}"})
         per_encoder_seed.append(post_df[["user_id", f"post_top1_encseed{enc_seed}"]])
 
-        inmodel_df = eval_in_model_confidence(bundle, windows, device)
-        inmodel_df = inmodel_df.rename(columns={"confidence": f"inmodel_confidence_encseed{enc_seed}"})
-        per_encoder_seed_inmodel.append(inmodel_df[["user_id", f"inmodel_confidence_encseed{enc_seed}"]])
+        if has_id_recognizer:
+            inmodel_df = eval_in_model_confidence(bundle, windows, device)
+            inmodel_df = inmodel_df.rename(columns={"confidence": f"inmodel_confidence_encseed{enc_seed}"})
+            per_encoder_seed_inmodel.append(inmodel_df[["user_id", f"inmodel_confidence_encseed{enc_seed}"]])
 
     merged = feats.merge(raw_df[["user_id", "n_windows", "raw_top1"]], on="user_id", how="inner")
     for df_ in per_encoder_seed:
@@ -266,10 +452,11 @@ def main():
     for df_ in per_encoder_seed_inmodel:
         merged = merged.merge(df_, on="user_id", how="left")
     enc_cols = [c for c in merged.columns if c.startswith("post_top1_encseed")]
-    inmodel_cols = [c for c in merged.columns if c.startswith("inmodel_confidence_encseed")]
     merged["post_top1"] = merged[enc_cols].mean(axis=1)
     merged["post_top1_std_over_encoder_seeds"] = merged[enc_cols].std(axis=1)
-    merged["inmodel_confidence"] = merged[inmodel_cols].mean(axis=1)
+    if has_id_recognizer:
+        inmodel_cols = [c for c in merged.columns if c.startswith("inmodel_confidence_encseed")]
+        merged["inmodel_confidence"] = merged[inmodel_cols].mean(axis=1)
     merged["entropy_decile"] = pd.qcut(merged["s_unc"], 10, labels=False, duplicates="drop")
 
     filtered = merged[merged["n_windows"] >= 10].copy()
@@ -278,13 +465,16 @@ def main():
     deciles = filtered["entropy_decile"].to_numpy()
     raw_ci = bootstrap_decile_ci(filtered["raw_top1"].to_numpy(), deciles)
     post_ci = bootstrap_decile_ci(filtered["post_top1"].to_numpy(), deciles)
-    inmodel_ci = bootstrap_decile_ci(filtered["inmodel_confidence"].to_numpy(), deciles)
+    inmodel_ci = (bootstrap_decile_ci(filtered["inmodel_confidence"].to_numpy(), deciles)
+                  if has_id_recognizer else None)
     chance_level = 1.0 / total_users
 
     result = dict(
         dataset=args.dataset, mechanism=args.mechanism, lambda4=args.lambda4,
         loss_variant=args.loss_variant, refit_every_k_epochs=args.refit_every_k_epochs,
         encoder_seeds=list(encoder_seeds), attacker_seeds=list(attacker_seeds),
+        max_epochs=args.mopae_epochs, patience=args.patience, val_frac=args.val_frac,
+        actual_epochs_per_encoder_seed=actual_epochs_list,
         utility_mean=float(np.mean(utilities)), utility_std=float(np.std(utilities)),
         utility_per_encoder_seed=utilities,
         train_wall_time_seconds_per_encoder_seed=train_wall_times,

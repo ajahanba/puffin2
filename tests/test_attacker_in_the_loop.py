@@ -96,8 +96,56 @@ def test_works_with_both_loss_variants():
     print("OK: both floor_loss and group_dro_loss work as the attacker-in-the-loop fairness term")
 
 
+def test_refit_fresh_attacker_head_batches_the_encoder_forward_pass():
+    """Regression test for the Foursquare OOM: refit_fresh_attacker_head
+    used to run `encoder(cell, weekday, hour)` on the FULL input in one
+    unbatched call. On Foursquare (~216k training windows through an
+    LSTM encoder) that was a 16GB single allocation that OOM'd, despite
+    succeeding on GeoLife's much smaller ~36k. This test builds a
+    Foursquare-sized input (220,000 rows) and wraps the encoder so its
+    forward raises if ever called with more rows than the configured
+    encoder_forward_batch_size -- i.e. it fails LOUDLY if the encoder
+    forward pass is ever run unbatched again, rather than silently
+    passing on CPU (where this input is small enough not to literally
+    OOM, unlike on a real GPU)."""
+    torch.manual_seed(0)
+    total_users, sl, total_locations = 50, 10, 200
+    real_encoder = build_bundle("fixed", sl, total_locations, total_users).encoder
+    cap = 4096
+
+    class AssertBatchedEncoder(torch.nn.Module):
+        def __init__(self, inner):
+            super().__init__()
+            self.inner = inner
+            self.max_seen = 0
+
+        def forward(self, cell, weekday, hour):
+            self.max_seen = max(self.max_seen, cell.shape[0])
+            assert cell.shape[0] <= cap, (
+                f"encoder called with {cell.shape[0]} rows at once, expected <= {cap} -- "
+                f"the encoder forward pass is not being batched"
+            )
+            return self.inner(cell, weekday, hour)
+
+    guarded_encoder = AssertBatchedEncoder(real_encoder)
+
+    n = 220_000  # Foursquare-sized (real training set was ~216k windows)
+    cell = torch.randint(1, total_locations + 1, (n, sl))
+    wd = torch.randint(0, 7, (n, sl))
+    hr = torch.randint(0, 24, (n, sl))
+    user_idx = torch.randint(0, total_users, (n,))
+
+    head = refit_fresh_attacker_head(guarded_encoder, cell, wd, hr, user_idx, total_users, DEVICE,
+                                      epochs=1, batch_size=512, encoder_forward_batch_size=cap)
+    assert guarded_encoder.max_seen <= cap
+    assert guarded_encoder.max_seen > 0
+    print(f"OK: refit_fresh_attacker_head on a {n}-row (Foursquare-sized) input never called the "
+          f"encoder with more than {guarded_encoder.max_seen} rows at once (cap was {cap})")
+
+
 if __name__ == "__main__":
     test_refit_fresh_attacker_head_beats_chance()
     test_train_step_updates_encoder_not_fresh_head()
     test_works_with_both_loss_variants()
+    test_refit_fresh_attacker_head_batches_the_encoder_forward_pass()
     print("All attacker_in_the_loop tests passed.")

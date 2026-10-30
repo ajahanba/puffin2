@@ -28,20 +28,32 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 
+from puffin.attacks.reid import _batched_forward
 from puffin.models.mopae_torch import MLPHead, FIXED_LAMBDAS
 
 
 def refit_fresh_attacker_head(encoder, cell, weekday, hour, user_idx, total_users, device,
-                               epochs: int = 10, batch_size: int = 512, lr: float = 1e-3) -> MLPHead:
+                               epochs: int = 10, batch_size: int = 512, lr: float = 1e-3,
+                               encoder_forward_batch_size: int = 4096) -> MLPHead:
     """Trains a brand-new MLPHead (not a continuation of any previous
     refit) on the CURRENT encoder's frozen output -- same role as
     puffin.attacks.reid's external attacker, just without its 5-seed/
     early-stopping treatment (this runs every k epochs inside training,
-    so it needs to be fast, not exhaustively hardened)."""
+    so it needs to be fast, not exhaustively hardened).
+
+    The encoder forward pass is chunked via `_batched_forward`
+    (`encoder_forward_batch_size` rows at a time), not run on the full
+    training set in one call: an unbatched call here OOM'd on Foursquare
+    (~216k training windows through an LSTM encoder, a 16GB single
+    allocation) despite succeeding on GeoLife's much smaller ~36k --
+    this is the same encoder-forward pattern every other attacker in
+    this codebase already chunks via `_batched_forward`
+    (puffin/attacks/reid.py), just missed here."""
     head = MLPHead(total_users).to(device)
     opt = torch.optim.Adam(head.parameters(), lr=lr)
     with torch.no_grad():
-        feat = encoder(cell, weekday, hour)
+        feat = _batched_forward(lambda c, w, h: encoder(c, w, h), cell, weekday, hour,
+                                 batch_size=encoder_forward_batch_size)
     n = len(feat)
     for _ in range(epochs):
         perm = torch.randperm(n, device=device)

@@ -776,3 +776,91 @@ Every utility comparison already drawn from 04d's 20-epoch data (including
 the no-privacy-exceeded-by-ed_soft anomaly itself, and any utility-matched
 comparison in the leveling-down check) should be read with this confound in
 mind until/unless that rerun happens.
+
+
+## Foursquare CUDA OOM: unbatched encoder forward pass in attacker-in-the-loop, and an orchestrator that died on it (2026-10-30)
+
+**Found**: the attacker-in-the-loop batch (launched 09:46 AM, 24 jobs) got
+through all 8 GeoLife jobs cleanly, then crashed immediately on the first
+Foursquare job with `torch.OutOfMemoryError: CUDA out of memory. Tried to
+allocate 16.01 GiB`. The orchestrator script (`launch_attacker_in_the_loop.sh`)
+used `set -e`, so that one job's failure killed the whole script, leaving
+16 of 24 jobs unqueued with GPUs sitting idle.
+
+**Root cause**: `refit_fresh_attacker_head()` (`puffin/fairness/attacker_in_the_loop.py`)
+ran `feat = encoder(cell, weekday, hour)` on the FULL training set in one
+unbatched forward pass, before mini-batching the classifier-head training
+that follows it. GeoLife has ~36,200 training windows and got through
+fine; Foursquare has ~216,600 -- about 6x more -- through an LSTM
+encoder, which is what exhausted memory. Every other attacker in this
+codebase already chunks exactly this kind of full-dataset encoder
+forward pass via `puffin.attacks.reid._batched_forward`; this one call
+site was missed when the formulation was built.
+
+**Fixed**: `refit_fresh_attacker_head` now calls `_batched_forward` for
+the encoder pass (new `encoder_forward_batch_size` parameter, default
+4096). Grepped the whole codebase for other direct `encoder(...)` calls
+on a full split rather than a mini-batch slice: found the SAME pattern
+in `eval_in_model_confidence` and `eval_utility`
+(`scripts/run_phase4d_approved_batch.py`) -- both ran the encoder on the
+full TEST set unbatched. These were lower-risk before (called once, at
+the very end of training) but became a real risk once early stopping
+(see below) calls an equivalent validation check every epoch. Both
+fixed the same way. `scripts/run_phase4_formulations.py`'s `eval_utility`
+has the identical bug but that script is no longer part of the active
+training pipeline (see below) and was not fixed.
+
+**Tested**: `tests/test_attacker_in_the_loop.py` gained
+`test_refit_fresh_attacker_head_batches_the_encoder_forward_pass` -- a
+Foursquare-sized (220,000-row) input through an encoder wrapped to
+assert it is never called with more rows than the configured batch
+size, so this regresses loudly (an assertion failure) rather than
+silently if the unbatched call pattern is ever reintroduced. All
+existing tests across the whole suite re-run clean (no regressions).
+
+**Orchestrators made fault-tolerant**: every orchestrator shell script
+now runs without `set -e`. Each job's exit status is checked
+individually (`wait "$pid"` per job, not just the batch), a failure is
+logged with its exit code (the job's own log has the full traceback)
+and the queue continues regardless, and a `failed_jobs_summary.txt` is
+written at the end. Applied to the new `launch_retraining_to_convergence.sh`
+(written with this pattern from the start) and to
+`launch_attacker_in_the_loop.sh` (rewritten; not relaunched yet). The
+already-finished `launch_phase4e_batch.sh` was not retrofitted (its work
+is now fully superseded by the retraining-to-convergence batch and it
+will not be run again).
+
+## Training protocol: early stopping on a chronological validation split, every mechanism (2026-10-30)
+
+**Problem this closes**: the earlier diagnostic (`scripts/diagnose_no_privacy_ceiling.py`)
+found every mechanism undertrained at a fixed epoch count, with
+differential convergence speed confounding utility comparisons across
+mechanisms. The ad-hoc fix at the time (doubling 20 epochs to 40 for
+some new training only) was itself not justified by a per-mechanism
+convergence check and left most of the Phase 4 grid at the original,
+unconverged 20 epochs.
+
+**Fixed properly**: `scripts/run_phase4d_approved_batch.py` is now the
+single, unified driver for every fairness formulation in this project
+(it absorbed `lipschitz`, `variance`, `group_dro`, `per_user_minimax`,
+and `group_adversarial` from the now-superseded
+`run_phase4_formulations.py`, which used the RETIRED adaptive-attacker
+evaluation standard and is no longer part of the active pipeline).
+Every mechanism trains up to `--mopae-epochs` (now a ceiling, default
+80) and early-stops on a per-user CHRONOLOGICAL validation split carved
+from the training windows -- the last `--val-frac` (default 0.1) of
+each user's train windows BY TIME, via `puffin.attacks.reid`'s existing
+`_chronological_val_split` (already used for attacker-side early
+stopping; this is the first time it is applied to mechanism training
+too). `--patience` (default 8) is identical across every mechanism, so
+no formulation is advantaged or disadvantaged by how many epochs it
+happens to run. The held-out TEST split is never touched until final
+evaluation. `group_adversarial`'s own training step (no `id_recognizer`;
+a per-decile-group adversary instead) is handled via the same generic
+early-stopping loop, just with its own module set for the
+best-validation-utility snapshot.
+
+**Not fixed/out of scope this round**: the five previously single-
+encoder-seed formulations remain single-seed in this round's retrain
+(they get the new early-stopping protocol, not more seeds) -- flagged
+in `PROGRESS.md`, not resolved unilaterally.
