@@ -155,8 +155,68 @@ def gen_04d_inmodel_vs_external_table():
     write("04d_inmodel_vs_external.tex", "\n".join(lines) + "\n")
 
 
+def gen_04e_geolife_10seed_dominance_table():
+    d = json.load(open(ROOT / "reports/figures/phase4e_analysis/reference_curve_comparisons.json"))
+    tr = d["geolife"]["ten_seed_recheck"]
+    lines = [
+        r"\begin{table}[t]",
+        r"\centering",
+        r"\caption{GeoLife, 10 encoder seeds, 40 epochs: paired bootstrap test of "
+        r"ed\_soft vs.\ plain Mo-PAE on per-seed utility and per-seed decile-0 risk. "
+        r"Dominance requires BOTH a significant utility gain and a significant risk "
+        r"reduction; neither $\lambda_4$ value clears this bar. Generated from "
+        r"\texttt{reports/figures/phase4e\_analysis/reference\_curve\_comparisons.json}.}",
+        r"\label{tab:geolife-10seed-dominance}",
+        r"\small",
+        r"\begin{tabular}{@{}lcccc@{}}",
+        r"\toprule",
+        r"$\lambda_4$ & $\Delta$utility (ed\_soft$-$plain) & excl.\ 0? & $\Delta$risk (plain$-$ed\_soft) & excl.\ 0? \\",
+        r"\midrule",
+    ]
+    for l4 in (0.3, 1.0, 3.0):
+        v = tr[f"ed_soft_lambda{l4}"]
+        ut, rt = v["utility_vs_plain_test"], v["decile0_risk_vs_plain_test"]
+        lines.append(
+            f"{l4} & {ut['mean_diff']:+.3f} [{ut['ci_lo']:+.3f},{ut['ci_hi']:+.3f}] & "
+            f"{'yes' if ut['ci_excludes_zero'] else 'no'} & "
+            f"{rt['mean_diff']:+.3f} [{rt['ci_lo']:+.3f},{rt['ci_hi']:+.3f}] & "
+            f"{'yes' if rt['ci_excludes_zero'] else 'no'} \\\\"
+        )
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    write("04e_geolife_10seed_dominance.tex", "\n".join(lines) + "\n")
+
+
+def gen_04e_no_privacy_ceiling_table():
+    d = json.load(open(ROOT / "reports/figures/phase4e_analysis/reference_curve_comparisons.json"))
+    names = {"geolife": "GeoLife", "foursquare": "Foursquare", "gowalla_nyc": "Gowalla-NYC"}
+    lines = [
+        r"\begin{table}[t]",
+        r"\centering",
+        r"\caption{No-privacy ceiling utility, before (20 epochs, 04d) and after "
+        r"(40 epochs, Checkpoint 04e) correcting for undertraining. Generated from "
+        r"\texttt{reports/figures/phase4e\_analysis/reference\_curve\_comparisons.json}.}",
+        r"\label{tab:no-privacy-ceiling}",
+        r"\small",
+        r"\begin{tabular}{@{}lcc@{}}",
+        r"\toprule",
+        r"Dataset & Ceiling @ 20 epochs (stale) & Ceiling @ 40 epochs (corrected) \\",
+        r"\midrule",
+    ]
+    for ds, label in names.items():
+        c20 = d[ds]["no_privacy_ceiling_20ep_stale"]
+        c40 = d[ds]["no_privacy_ceiling_40ep"]
+        lines.append(
+            f"{label} & {c20['utility_mean']:.3f}$\\pm${c20['utility_std']:.3f} & "
+            f"{c40['utility_mean']:.3f}$\\pm${c40['utility_std']:.3f} \\\\"
+        )
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    write("04e_no_privacy_ceiling.tex", "\n".join(lines) + "\n")
+
+
 if __name__ == "__main__":
     gen_gowalla_disparate_risk_table()
     gen_adaptive_gap_decomposition_table()
     gen_04d_decile_reduction_table()
     gen_04d_inmodel_vs_external_table()
+    gen_04e_geolife_10seed_dominance_table()
+    gen_04e_no_privacy_ceiling_table()

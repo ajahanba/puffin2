@@ -28,6 +28,8 @@ import pandas as pd
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
+from puffin.attacks.analysis import paired_bootstrap_test
+
 MIN_WINDOWS = 10
 LAMBDA3_SWEEP = [0.02, 0.1, 0.2, 0.3, 0.5, 0.8]
 BASE_04D = pathlib.Path("reports/figures/phase4d")
@@ -89,12 +91,23 @@ def interpolate(curve, target_utility, key):
 
 
 def compare_to_curve(curve, utility, risk_decile0):
-    interp_risk, note = interpolate(curve, utility, "risk_decile0")
+    """Interpolates against ONLY the 40-epoch curve points -- the reused
+    04d lambda3=0.3 point (20 epochs) is excluded here even though it's
+    kept in `curve` for display, because it is a visible outlier on its
+    own curve (e.g. Foursquare: 0.181->[0.111 stale]->0.080 as lambda3
+    rises, where the stale point breaks an otherwise clean monotonic
+    trend -- consistent with it being undertrained relative to its
+    40-epoch neighbors, not a real kink in the PUT frontier)."""
+    curve_40ep = [p for p in curve if p.get("epochs") == 40]
+    interp_risk, note = interpolate(curve_40ep, utility, "risk_decile0")
     if interp_risk is None:
         return dict(status="unresolvable", note=note)
     delta = interp_risk - risk_decile0  # positive: formulation beats the curve (lower risk)
     return dict(status="beats_curve" if delta > 0 else "worse_than_curve" if delta < 0 else "on_curve",
-                interpolated_curve_risk=interp_risk, actual_risk=risk_decile0, delta=delta)
+                interpolated_curve_risk=interp_risk, actual_risk=risk_decile0, delta=delta,
+                epoch_mismatch_caveat="formulation point is 20 epochs; interpolated against a 40-epoch "
+                                       "curve -- directional only, not a clean comparison, until the "
+                                       "formulation itself is retrained at 40 epochs")
 
 
 def main():
@@ -129,16 +142,43 @@ def main():
             cmp.update(mechanism=mech, lambda4=l4, utility=summ["utility_mean"])
             results[ds]["comparisons"].append(cmp)
 
-        # GeoLife 10-seed recheck of plain + ed_soft, if that data has landed
+        # GeoLife 10-seed recheck of plain + ed_soft, if that data has landed.
+        # Per-seed utility (from summary.json's utility_per_encoder_seed) and
+        # per-seed decile-0 risk (from the per_user post_top1_encseedN
+        # columns) give a proper paired bootstrap test over the 10 seeds,
+        # not just a point-estimate comparison -- this is what "rerun with
+        # 10 encoder seeds before calling it dominance" is actually for.
         if ds == "geolife":
-            for mech, l4 in [("plain", 0.0), ("ed_soft", 0.3), ("ed_soft", 1.0), ("ed_soft", 3.0)]:
-                suffix = "plain_lambda0.0_10seed" if mech == "plain" else f"ed_soft_lambda{l4}_10seed"
-                path = BASE_10SEED / f"geolife_{suffix}"
-                if (path / "summary.json").exists():
+            plain_path = BASE_10SEED / "geolife_plain_lambda0.0_10seed"
+            if (plain_path / "summary.json").exists():
+                plain_summ, plain_df = _load(plain_path)
+                plain_util_per_seed = np.array(plain_summ["utility_per_encoder_seed"])
+                plain_d0_per_seed = np.array([
+                    plain_df[plain_df.entropy_decile == 0][f"post_top1_encseed{s}"].mean()
+                    for s in range(len(plain_summ["encoder_seeds"]))
+                ])
+                results[ds]["ten_seed_recheck"] = dict(plain=dict(
+                    utility_mean=plain_summ["utility_mean"], utility_std=plain_summ["utility_std"],
+                    n_encoder_seeds=len(plain_summ["encoder_seeds"]), risk_decile0=decile_point(plain_df, 0)))
+                for l4 in (0.3, 1.0, 3.0):
+                    path = BASE_10SEED / f"geolife_ed_soft_lambda{l4}_10seed"
+                    if not (path / "summary.json").exists():
+                        continue
                     summ, df = _load(path)
-                    results[ds].setdefault("ten_seed_recheck", {})[f"{mech}_lambda{l4}"] = dict(
+                    util_per_seed = np.array(summ["utility_per_encoder_seed"])
+                    d0_per_seed = np.array([
+                        df[df.entropy_decile == 0][f"post_top1_encseed{s}"].mean()
+                        for s in range(len(summ["encoder_seeds"]))
+                    ])
+                    util_test = paired_bootstrap_test(util_per_seed, plain_util_per_seed)
+                    risk_test = paired_bootstrap_test(plain_d0_per_seed, d0_per_seed)  # positive = ed_soft lower risk
+                    dominates_10seed = bool(util_test["ci_excludes_zero"] and util_test["mean_diff"] > 0
+                                             and risk_test["ci_excludes_zero"] and risk_test["mean_diff"] > 0)
+                    results[ds]["ten_seed_recheck"][f"ed_soft_lambda{l4}"] = dict(
                         utility_mean=summ["utility_mean"], utility_std=summ["utility_std"],
-                        n_encoder_seeds=len(summ["encoder_seeds"]), risk_decile0=decile_point(df, 0))
+                        n_encoder_seeds=len(summ["encoder_seeds"]), risk_decile0=decile_point(df, 0),
+                        utility_vs_plain_test=util_test, decile0_risk_vs_plain_test=risk_test,
+                        dominates_plain_at_10_seeds=dominates_10seed)
 
     json.dump(results, open(out_dir / "reference_curve_comparisons.json", "w"), indent=2, default=_json_default)
     for ds, r in results.items():

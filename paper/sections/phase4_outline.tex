@@ -1,75 +1,100 @@
 \section{Formulations Under the Naive-Attacker Standard}
 \label{sec:phase4}
 
-\draftnote{DRAFT. Results below are from Checkpoint 04d (ed\_soft, with
-$\geq 3$ encoder seeds and utility logged for the first time) and
-Checkpoint 04c (the five single-encoder-seed formulations: lipschitz,
-variance, group-DRO, per-user minimax, group-adversarial, retained from
-an earlier round and not part of this round's retraining -- every
-point from that grid is flagged with its encoder-seed count where it
-appears). See \texttt{reports/04d\_approved\_batch.md} for the full
-analysis this section summarizes.}
-
-\draftnote{WITHDRAWN PENDING RECALIBRATION (2026-10-27): the "Foursquare
-leveling down" framing below (both the dedicated paragraph and the
-"Leveling-down check" subsection) is WRONG, per the PI's direct check
-of the raw numbers -- the RRD ratio rises (3.4$\times \to$15.5$\times$)
-but the absolute risk difference (decile 0 $-$ decile 9) FALLS
-(0.505$\to$0.456) and decile 0's own risk DROPS (0.715$\to$0.487).
-Correct framing: raising $\lambda_4$ moves Foursquare's ed\_soft point
-toward the no-privacy reference point (utility and risk both rise
-together), not a leveling-down pattern. The leveling-down check itself
-also used an unstable per-user ratio and a fixed threshold with no
-null to separate a real effect from encoder-training noise --
-recalibrated in \texttt{puffin/metrics/leveling\_down.py} and being
-rerun for \texttt{reports/04e\_reference\_curve.md}. The GeoLife
-dominance claim below is also being re-checked with 10 encoder seeds
-(up from 3) before being restated. This section will be rewritten
-against 04e's numbers.}
+\draftnote{DRAFT, revised per Checkpoint 04e
+(\texttt{reports/04e\_reference\_curve.md}). Results below draw on
+Checkpoint 04d (ed\_soft, $\geq 3$ encoder seeds), Checkpoint 04c (the
+five single-encoder-seed formulations, not retrained this round, each
+flagged with its seed count), and 04e's GeoLife 10-encoder-seed
+recheck and plain-Mo-PAE reference curve. A diagnostic
+(Section~\ref{sec:residual-risk}) found every mechanism in 04d
+undertrained at its fixed 20-epoch budget, with no early stopping
+anywhere in the training driver -- 04e's new training (the reference
+curve, a no-privacy refit, and GeoLife's 10-seed rerun) uses 40
+epochs; ed\_soft on Foursquare/Gowalla-NYC and floor on GeoLife remain
+at 04d's original 20 epochs and are flagged wherever that matters
+below.}
 
 Every point below is evaluated under the naive/hardened external
 attacker (Section~\ref{sec:threat-model-naive}), against plain Mo-PAE
 and the no-privacy reference (Section~\ref{sec:residual-risk}) as the
 two end-points of the achievable utility range.
 
-\textbf{ed\_soft is the only formulation in this round's retraining
-that improves on plain Mo-PAE in the strict sense required by this
-paper's dominance bar (both utility and decile-0 risk, beyond both
-points' confidence intervals) -- and only on one of three datasets.}
-On GeoLife, ed\_soft at $\lambda_4 \in \{1.0, 3.0\}$ has both higher
-utility than plain Mo-PAE with non-overlapping confidence intervals
-($0.654\pm0.039$ and $0.631\pm0.014$ vs.\ $0.532\pm0.052$) and a
-decile-0 relative risk reduction whose CI excludes zero where plain
-Mo-PAE's does not (Table~\ref{tab:04d-decile-reduction}). This is the
-one case in the batch that survives the dominance bar at 3 encoder
-seeds; every other (dataset, formulation, $\lambda_4$) point in this
-section is reported as a trade-off, not a dominance claim, per the
-correction applied after this paper's own Checkpoint 04c draft stated
-several unverified dominance claims. \draftnote{PENDING (2026-10-27):
-the PI asked for this specific claim to be re-checked with 10 encoder
-seeds (up from 3) before being stated as dominance, given it is the
-only dominance claim in the whole batch -- rerun queued, not yet
-landed. Treat as provisional until 04e confirms or revises it.}
+\textbf{The GeoLife "ed\_soft dominates plain Mo-PAE" claim does not
+survive a clean, matched-epoch, 10-encoder-seed recheck.} 04d's original
+claim (3 encoder seeds, 20 epochs) read as dominance: both higher
+utility and lower decile-0 risk, beyond both points' confidence
+intervals. Checkpoint 04e retrained both \texttt{plain} and
+\texttt{ed\_soft} at 40 epochs with 10 encoder seeds each and ran a
+paired bootstrap test on the per-seed utility and per-seed decile-0 risk
+(Table~\ref{tab:geolife-10seed-dominance}). At $\lambda_4 \in \{0.3,
+1.0\}$, decile-0 risk is significantly lower under ed\_soft (CI excludes
+zero), but the utility difference is \emph{not} significant (CI
+straddles zero) -- a real, partial privacy benefit, not dominance,
+since dominance requires a significant utility gain, not merely a
+utility difference indistinguishable from zero. At $\lambda_4 = 3.0$,
+ed\_soft's utility is \emph{significantly lower} than plain's, alongside
+the significant risk reduction -- an ordinary trade-off, the opposite of
+dominance. \textbf{No formulation in this batch is shown to dominate
+plain Mo-PAE once both epoch count and encoder-seed count are properly
+controlled.} The original claim combined two confounds that both turned
+out to matter: only 3 seeds (too little power, Table~\ref{tab:geolife-10seed-dominance}
+shows how much the point estimate moves with 10), and only 20 epochs
+(Section~\ref{sec:residual-risk}'s diagnostic found ed\_soft's relative
+utility advantage over plain was itself partly an artifact of
+differential convergence speed at that epoch count).
+
+\input{tables/04e_geolife_10seed_dominance}
 
 \textbf{On Foursquare, raising ed\_soft's fairness weight moves the
 operating point toward the no-privacy reference, trading privacy for
-utility -- not a leveling-down pattern.} \draftnote{WITHDRAWN AND
-CORRECTED (2026-10-27): an earlier version of this paragraph
-mischaracterized this as leveling down based on the RRD ratio alone
-(which does rise, 3.4$\times\to$15.5$\times$); the PI's check of the
-absolute risk difference (which FALLS, 0.505$\to$0.456) and decile 0's
-own risk (which DROPS, 0.715$\to$0.487) shows the correct reading is
-the opposite: both the mechanism's utility and its privacy protection
-move together toward the no-privacy reference point as $\lambda_4$
-rises, the ordinary privacy-utility trade-off, not a fairness-specific
-pathology. Full restatement with both metrics pending 04e.}
+utility -- not a leveling-down pattern.} The RRD ratio does rise
+($3.4\times \to 15.5\times$), but the absolute risk difference falls
+($0.505 \to 0.456$) and decile 0's own risk drops in absolute terms
+($0.715 \to 0.487$) as utility rises (Section~\ref{sec:residual-risk}
+reports both metrics together). The correct reading is that the
+mechanism's utility and its privacy protection move together toward the
+no-privacy reference point as $\lambda_4$ rises -- the ordinary
+privacy-utility trade-off, not a fairness-specific pathology. One
+further complication: Foursquare's ed\_soft at $\lambda_4 \in \{1.0,
+3.0\}$ (utility $0.221$, $0.233$) exceeds even the \emph{corrected}
+40-epoch no-privacy ceiling ($0.214$, Table~\ref{tab:no-privacy-ceiling}) --
+the same undertraining artifact diagnosed in Section~\ref{sec:residual-risk},
+not yet resolved for Foursquare's ed\_soft specifically, since it was
+not part of this round's 40-epoch retraining.
 
-\draftnote{Leveling-down check: WITHDRAWN (2026-10-27). The check
-reported here used the unrecalibrated \texttt{leveling\_down\_check}
-(per-user ratio, fixed epsilon threshold, no null) -- see the
-withdrawal note at the top of this section. Rerun with the recalibrated
-check (absolute post-risk, seed-to-seed null) pending for
-\texttt{reports/04e\_reference\_curve.md}.}
+\textbf{Leveling-down check, recalibrated.} \texttt{puffin/metrics/leveling\_down.py}
+now uses absolute post-risk (not the per-user ratio) and derives
+harmed/helped thresholds from a seed-to-seed null (the same baseline
+mechanism's own encoder-seed replicates) rather than a fixed epsilon,
+testing the observed harmed rate against that null before calling
+anything leveling down. Rerun on 04d's existing comparisons: \textbf{0 of
+40 computed comparisons} show a harmed rate distinguishable from the
+null -- the earlier, uncalibrated version's findings (GeoLife floor:
+5--6 of 10 deciles; Gowalla-NYC ed\_soft $\lambda_4=0.3$: 10 of 10
+deciles) do not survive proper null-testing. This is most likely an
+underpowered test (only 3 encoder seeds give a thin null) rather than
+evidence that no redistribution is happening -- a per-decile check using
+GeoLife's much richer 10-seed null (90 ordered pairs vs. 6) is a natural
+follow-up, not yet run.
+
+\textbf{Formulations are now compared against a plain-Mo-PAE Pareto
+\emph{curve}, not a single point.} Per the PI's instruction, plain
+Mo-PAE's privacy weight ($\lambda_3$) was swept (40 epochs, 3 encoder
+seeds) to build a reference curve rather than relying on one operating
+point. The curve's shape differs sharply by dataset: GeoLife's is
+nearly flat (utility $0.722$--$0.758$, decile-0 risk $0.337$--$0.348$
+across the whole sweep) -- a genuine privacy-utility trade-off is not
+visible on this dataset over this range, once properly converged.
+Foursquare's is clean and monotonic (utility $0.051$--$0.210$ as
+$\lambda_3$ falls). Gowalla-NYC's is noisier, consistent with its much
+smaller user count. Because GeoLife's $\lambda_3$ curve and 04d's
+ed\_soft/floor points are at different epoch counts, every curve
+comparison on GeoLife is currently unresolvable (04d's utility values
+fall below the 40-epoch curve's minimum entirely); Foursquare and
+Gowalla-NYC comparisons are reported in
+\texttt{reports/04e\_reference\_curve.md} as directional only, for the
+same epoch-count reason.
 
 \textbf{The five single-encoder-seed formulations (lipschitz,
 variance, group-DRO, per-user minimax, group-adversarial) are not

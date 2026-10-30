@@ -1,0 +1,15 @@
+\begin{table}[t]
+\centering
+\caption{GeoLife, 10 encoder seeds, 40 epochs: paired bootstrap test of ed\_soft vs.\ plain Mo-PAE on per-seed utility and per-seed decile-0 risk. Dominance requires BOTH a significant utility gain and a significant risk reduction; neither $\lambda_4$ value clears this bar. Generated from \texttt{reports/figures/phase4e\_analysis/reference\_curve\_comparisons.json}.}
+\label{tab:geolife-10seed-dominance}
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+$\lambda_4$ & $\Delta$utility (ed\_soft$-$plain) & excl.\ 0? & $\Delta$risk (plain$-$ed\_soft) & excl.\ 0? \\
+\midrule
+0.3 & +0.007 [-0.003,+0.016] & no & +0.113 [+0.097,+0.130] & yes \\
+1.0 & +0.004 [-0.010,+0.019] & no & +0.138 [+0.116,+0.158] & yes \\
+3.0 & -0.020 [-0.031,-0.006] & yes & +0.149 [+0.125,+0.169] & yes \\
+\bottomrule
+\end{tabular}
+\end{table}

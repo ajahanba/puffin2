@@ -1,0 +1,400 @@
+{
+  "geolife": {
+    "reference_curve": [
+      {
+        "lambda3": 0.3,
+        "utility": 0.5323224067687988,
+        "utility_std": 0.052466177286350855,
+        "risk_decile0": 0.3448648449770796,
+        "risk_decile9": 0.04466666564414343,
+        "n_encoder_seeds": 3,
+        "epochs": 20,
+        "note": "reused from 04d at 20 epochs, not 40 -- epoch-count mismatch with the rest of this curve"
+      },
+      {
+        "lambda3": 0.02,
+        "utility": 0.7224583625793457,
+        "utility_std": 0.02821639001004123,
+        "risk_decile0": 0.338773506169673,
+        "risk_decile9": 0.049740739618600455,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.8,
+        "utility": 0.7303568720817566,
+        "utility_std": 0.003126882882161707,
+        "risk_decile0": 0.3463817490652824,
+        "risk_decile9": 0.04049999914649455,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.2,
+        "utility": 0.7488368550936381,
+        "utility_std": 0.00650884059545643,
+        "risk_decile0": 0.34639140230525906,
+        "risk_decile9": 0.04501851735705574,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.5,
+        "utility": 0.7513088981310526,
+        "utility_std": 0.009475068215637128,
+        "risk_decile0": 0.3483890656653481,
+        "risk_decile9": 0.04448148053553365,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.1,
+        "utility": 0.7583732803662618,
+        "utility_std": 0.002375409658410494,
+        "risk_decile0": 0.3365606067391733,
+        "risk_decile9": 0.048777776642667976,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      }
+    ],
+    "comparisons": [
+      {
+        "status": "unresolvable",
+        "note": "target utility outside the reference curve's own range -- extrapolation refused",
+        "mechanism": "ed_soft",
+        "lambda4": 0.3,
+        "utility": 0.6413232684135437
+      },
+      {
+        "status": "unresolvable",
+        "note": "target utility outside the reference curve's own range -- extrapolation refused",
+        "mechanism": "ed_soft",
+        "lambda4": 1.0,
+        "utility": 0.6540250976880392
+      },
+      {
+        "status": "unresolvable",
+        "note": "target utility outside the reference curve's own range -- extrapolation refused",
+        "mechanism": "ed_soft",
+        "lambda4": 3.0,
+        "utility": 0.6305005351702372
+      },
+      {
+        "status": "unresolvable",
+        "note": "target utility outside the reference curve's own range -- extrapolation refused",
+        "mechanism": "floor",
+        "lambda4": 0.3,
+        "utility": 0.5513752003510793
+      },
+      {
+        "status": "unresolvable",
+        "note": "target utility outside the reference curve's own range -- extrapolation refused",
+        "mechanism": "floor",
+        "lambda4": 1.0,
+        "utility": 0.5452453593413035
+      },
+      {
+        "status": "unresolvable",
+        "note": "target utility outside the reference curve's own range -- extrapolation refused",
+        "mechanism": "floor",
+        "lambda4": 3.0,
+        "utility": 0.5163747568925222
+      }
+    ],
+    "no_privacy_ceiling_40ep": {
+      "utility_mean": 0.7415111660957336,
+      "utility_std": 0.00486859234764501,
+      "risk_decile0": 0.3411713805088462,
+      "n_encoder_seeds": 3,
+      "epochs": 40
+    },
+    "no_privacy_ceiling_20ep_stale": {
+      "utility_mean": 0.6226925452550253,
+      "utility_std": 0.014409154711815994,
+      "epochs": 20
+    },
+    "ten_seed_recheck": {
+      "plain": {
+        "utility_mean": 0.7305929958820343,
+        "utility_std": 0.019478681471078747,
+        "n_encoder_seeds": 10,
+        "risk_decile0": 0.3585344231419731
+      },
+      "ed_soft_lambda0.3": {
+        "utility_mean": 0.737674480676651,
+        "utility_std": 0.014899836652668438,
+        "n_encoder_seeds": 10,
+        "risk_decile0": 0.24508119258796793,
+        "utility_vs_plain_test": {
+          "mean_diff": 0.0070814847946166996,
+          "ci_lo": -0.0027215084433555563,
+          "ci_hi": 0.01617256671190261,
+          "n": 10,
+          "ci_excludes_zero": false
+        },
+        "decile0_risk_vs_plain_test": {
+          "mean_diff": 0.11345323055400511,
+          "ci_lo": 0.09688009523364599,
+          "ci_hi": 0.12977856525042444,
+          "n": 10,
+          "ci_excludes_zero": true
+        },
+        "dominates_plain_at_10_seeds": false
+      },
+      "ed_soft_lambda1.0": {
+        "utility_mean": 0.7343854665756225,
+        "utility_std": 0.01216200306989911,
+        "n_encoder_seeds": 10,
+        "risk_decile0": 0.22037522636586798,
+        "utility_vs_plain_test": {
+          "mean_diff": 0.0037924706935882567,
+          "ci_lo": -0.010444533079862586,
+          "ci_hi": 0.018537358343601228,
+          "n": 10,
+          "ci_excludes_zero": false
+        },
+        "decile0_risk_vs_plain_test": {
+          "mean_diff": 0.13815919677610508,
+          "ci_lo": 0.11606179161567706,
+          "ci_hi": 0.15837419081316326,
+          "n": 10,
+          "ci_excludes_zero": true
+        },
+        "dominates_plain_at_10_seeds": false
+      },
+      "ed_soft_lambda3.0": {
+        "utility_mean": 0.7104971230030059,
+        "utility_std": 0.005670076101196804,
+        "n_encoder_seeds": 10,
+        "risk_decile0": 0.2097267413337249,
+        "utility_vs_plain_test": {
+          "mean_diff": -0.02009587287902832,
+          "ci_lo": -0.03124507486820221,
+          "ci_hi": -0.006423994451761248,
+          "n": 10,
+          "ci_excludes_zero": true
+        },
+        "decile0_risk_vs_plain_test": {
+          "mean_diff": 0.14880768180824816,
+          "ci_lo": 0.12497762802694343,
+          "ci_hi": 0.16917440164793515,
+          "n": 10,
+          "ci_excludes_zero": true
+        },
+        "dominates_plain_at_10_seeds": false
+      }
+    }
+  },
+  "foursquare": {
+    "reference_curve": [
+      {
+        "lambda3": 0.8,
+        "utility": 0.05052728330095609,
+        "utility_std": 0.006443420671132428,
+        "risk_decile0": 0.1494453905537633,
+        "risk_decile9": 0.008307336210429835,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.5,
+        "utility": 0.07960126052300136,
+        "utility_std": 0.009493073830157179,
+        "risk_decile0": 0.3240010383553142,
+        "risk_decile9": 0.011525375074749667,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.3,
+        "utility": 0.11129697908957799,
+        "utility_std": 0.0048312309281454595,
+        "risk_decile0": 0.48723997646196543,
+        "risk_decile9": 0.03135236119310332,
+        "n_encoder_seeds": 3,
+        "epochs": 20,
+        "note": "reused from 04d at 20 epochs, not 40 -- epoch-count mismatch with the rest of this curve"
+      },
+      {
+        "lambda3": 0.2,
+        "utility": 0.1805286556482315,
+        "utility_std": 0.0005124445712840452,
+        "risk_decile0": 0.6602548663792078,
+        "risk_decile9": 0.1220613799248722,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.1,
+        "utility": 0.19249280790487924,
+        "utility_std": 0.002692022734520082,
+        "risk_decile0": 0.6538574066867523,
+        "risk_decile9": 0.129317519211122,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.02,
+        "utility": 0.21013089021046957,
+        "utility_std": 0.002314700278724592,
+        "risk_decile0": 0.6850485857530565,
+        "risk_decile9": 0.1738656243235328,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      }
+    ],
+    "comparisons": [
+      {
+        "status": "worse_than_curve",
+        "interpolated_curve_risk": 0.5036166936593547,
+        "actual_risk": 0.554226258728619,
+        "delta": -0.050609565069264284,
+        "epoch_mismatch_caveat": "formulation point is 20 epochs; interpolated against a 40-epoch curve -- directional only, not a clean comparison, until the formulation itself is retrained at 40 epochs",
+        "mechanism": "ed_soft",
+        "lambda4": 0.3,
+        "utility": 0.13351333141326904
+      },
+      {
+        "status": "unresolvable",
+        "note": "target utility outside the reference curve's own range -- extrapolation refused",
+        "mechanism": "ed_soft",
+        "lambda4": 1.0,
+        "utility": 0.22116569677988687
+      },
+      {
+        "status": "unresolvable",
+        "note": "target utility outside the reference curve's own range -- extrapolation refused",
+        "mechanism": "ed_soft",
+        "lambda4": 3.0,
+        "utility": 0.23321789503097534
+      }
+    ],
+    "no_privacy_ceiling_40ep": {
+      "utility_mean": 0.21388742327690125,
+      "utility_std": 0.0015153315279067916,
+      "risk_decile0": 0.7008816353053948,
+      "n_encoder_seeds": 3,
+      "epochs": 40
+    },
+    "no_privacy_ceiling_20ep_stale": {
+      "utility_mean": 0.279509296019872,
+      "utility_std": 0.0019281919686356356,
+      "epochs": 20
+    }
+  },
+  "gowalla_nyc": {
+    "reference_curve": [
+      {
+        "lambda3": 0.8,
+        "utility": 0.17336609959602356,
+        "utility_std": 0.007336456317267171,
+        "risk_decile0": 0.4310603859450887,
+        "risk_decile9": 0.051208784280827715,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.1,
+        "utility": 0.24120882153511047,
+        "utility_std": 0.018288435430603517,
+        "risk_decile0": 0.6425061042402306,
+        "risk_decile9": 0.13956313826143737,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.02,
+        "utility": 0.2504534473021825,
+        "utility_std": 0.007350442434273072,
+        "risk_decile0": 0.6074617376222331,
+        "risk_decile9": 0.16775892962046243,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.3,
+        "utility": 0.26897196968396503,
+        "utility_std": 0.03511323680890907,
+        "risk_decile0": 0.5660194452377219,
+        "risk_decile9": 0.08169346353384076,
+        "n_encoder_seeds": 3,
+        "epochs": 20,
+        "note": "reused from 04d at 20 epochs, not 40 -- epoch-count mismatch with the rest of this curve"
+      },
+      {
+        "lambda3": 0.5,
+        "utility": 0.2705517460902532,
+        "utility_std": 0.01749468509471381,
+        "risk_decile0": 0.48892185063850063,
+        "risk_decile9": 0.08182051056651049,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      },
+      {
+        "lambda3": 0.2,
+        "utility": 0.27300918598969776,
+        "utility_std": 0.026633447996794728,
+        "risk_decile0": 0.6246493154296688,
+        "risk_decile9": 0.14966504593552257,
+        "n_encoder_seeds": 3,
+        "epochs": 40,
+        "note": null
+      }
+    ],
+    "comparisons": [
+      {
+        "status": "worse_than_curve",
+        "interpolated_curve_risk": 0.5341291489159031,
+        "actual_risk": 0.5574979020465238,
+        "delta": -0.0233687531306207,
+        "epoch_mismatch_caveat": "formulation point is 20 epochs; interpolated against a 40-epoch curve -- directional only, not a clean comparison, until the formulation itself is retrained at 40 epochs",
+        "mechanism": "ed_soft",
+        "lambda4": 0.3,
+        "utility": 0.262886901696523
+      },
+      {
+        "status": "beats_curve",
+        "interpolated_curve_risk": 0.6363058734810525,
+        "actual_risk": 0.5482410478533484,
+        "delta": 0.08806482562770412,
+        "epoch_mismatch_caveat": "formulation point is 20 epochs; interpolated against a 40-epoch curve -- directional only, not a clean comparison, until the formulation itself is retrained at 40 epochs",
+        "mechanism": "ed_soft",
+        "lambda4": 1.0,
+        "utility": 0.2392194668451945
+      },
+      {
+        "status": "unresolvable",
+        "note": "target utility outside the reference curve's own range -- extrapolation refused",
+        "mechanism": "ed_soft",
+        "lambda4": 3.0,
+        "utility": 0.1685389926036199
+      }
+    ],
+    "no_privacy_ceiling_40ep": {
+      "utility_mean": 0.25112631420294446,
+      "utility_std": 0.0011155381796726085,
+      "risk_decile0": 0.656881730725952,
+      "n_encoder_seeds": 3,
+      "epochs": 40
+    },
+    "no_privacy_ceiling_20ep_stale": {
+      "utility_mean": 0.32212860385576886,
+      "utility_std": 0.0047600612784691005,
+      "epochs": 20
+    }
+  }
+}
