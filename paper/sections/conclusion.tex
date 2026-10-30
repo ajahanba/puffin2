@@ -1,24 +1,37 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-\draftnote{DRAFT placeholder. Expand once Sections~\ref{sec:residual-risk}
-and~\ref{sec:phase4} are filled in -- the current text only restates
-the introduction's two findings and should not be treated as final.}
-
 Naive, group-agnostic evaluation of a learned mobility-privacy
-mechanism's fairness is unreliable in (at least) two distinct ways we
-have shown to be real and measurable, not merely plausible concerns:
-the mechanism itself protects users unevenly, worst for the
-lowest-entropy, most-identifiable decile (Section~\ref{sec:disparate-risk});
-and a previously reported adaptive-adversary result that appeared to
-show naive evaluation \emph{additionally} understates risk
-asymmetrically does not survive decomposition into its actual causes
-(Appendix~\ref{sec:adaptive-appendix}). Together these point toward a
-single, narrower, and more defensible claim than ``this mechanism is
-unfair'' or ``naive evaluation is meaningless'': individual-fairness
-claims about a learned mobility-privacy mechanism must be measured at
-the level of who is actually protected, not an aggregate or a naive
-per-group average, and the adversary used to measure that protection
-must itself be checked for confounds -- a smaller candidate pool or
-side information an adversary would not realistically have -- before
-its result is attributed to genuine sophistication.
+mechanism's fairness is unreliable in several distinct, measurable ways,
+not merely plausible concerns. The mechanism itself protects users
+unevenly, worst for the lowest-entropy, most-identifiable decile
+(Section~\ref{sec:disparate-risk}). Adding an explicit fairness term to
+the training objective does not reliably fix this: across the
+formulations we test, raising the fairness weight either leaves the
+most-identifiable decile's risk statistically unchanged while
+protecting an already-better-off decile further, or trades real utility
+for risk reduction without improving on the undefended mechanism, and
+no formulation is shown to dominate plain Mo-PAE once training
+convergence and encoder-seed count are properly controlled
+(Section~\ref{sec:phase4}). The mechanistic reason is specific, not
+speculative: a fairness term built on the mechanism's own co-trained
+adversary is targeting a signal that stays near chance and largely flat
+across deciles, while a fresh external attacker on the same released
+features is both more accurate and clearly decile-dependent
+(Section~\ref{sec:residual-risk}). Separately, a previously reported
+adaptive-adversary result that appeared to show naive evaluation
+\emph{additionally} understates risk asymmetrically does not survive
+decomposition into its actual causes (Appendix~\ref{sec:adaptive-appendix}).
+
+Together these point toward a single, narrower, and more defensible
+claim than ``this mechanism is unfair'' or ``naive evaluation is
+meaningless'': individual-fairness claims about a learned
+mobility-privacy mechanism must be measured at the level of who is
+actually protected, using an attacker the mechanism's own training
+objective cannot game, and a fairness term added to fix an uneven
+mechanism must be checked against that same measurement -- at
+convergence, with enough encoder seeds to separate a real effect from
+initialization noise -- before its effect is credited as improvement.
+An aggregate privacy objective does not fix a disparity it was never
+pointed at; closing the gap this paper measures requires targeting it
+directly.

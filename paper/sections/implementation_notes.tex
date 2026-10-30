@@ -1,0 +1,40 @@
+\section{Appendix: Implementation Notes}
+\label{sec:implementation-notes}
+
+This appendix collects data-cleaning and windowing details referenced
+from Sections~\ref{sec:datasets} and~\ref{sec:evaluation-protocol}.
+
+\subsection{User-id sparsity (Gowalla)}
+Gowalla's \texttt{user\_id} values are sparse within each metro subset
+(e.g.\ Gowalla-NYC's maximum id is 7,202 for only 1,517 users with any
+data, a $4$--$5\times$ inflation). Naively using the maximum id as the
+number of classes for a multiclass classifier -- as our
+gradient-boosted-tree attacker architecture does -- made that component
+of our evaluation pathologically slow (one fit ran over 14 hours
+without completing on a 7,202-way problem that is really a 1,517-way
+one). We remap user ids to a dense range before any downstream
+processing; GeoLife and Foursquare already have dense id spaces and are
+unaffected.
+
+\subsection{Window construction}
+GeoLife's \texttt{traj\_id} reflects real trip structure, so windows are
+built respecting trajectory boundaries (a trajectory is a genuine,
+separate trip). Foursquare check-in data has no native trajectory
+identifier; synthesizing one from same-calendar-day grouping left only
+71 of 1,083 users with even one length-10 window, so we instead build
+windows over each user's full chronological check-in sequence within a
+split, ignoring the day boundary.
+
+\subsection{Per-dataset window coverage}
+\label{sec:coverage-rates}
+The per-user minimum filter (Section~\ref{sec:evaluation-protocol})
+removes a negligible fraction of GeoLife (1.7\%) and Foursquare (0\%)
+users, but a majority of a pooled Gowalla sample. For Gowalla-NYC
+specifically, even after shortening the window length from 10 to 5
+steps, only 27.9\% of users had the minimum number of test windows our
+protocol requires, short of a 50\% target; the other three Gowalla
+metros independently fall in the same 24--37\% range. This motivated
+treating the four Gowalla metros as separate datasets
+(Section~\ref{sec:datasets}) rather than pooling them: doing so gives
+2,235 usable users across the four metros combined, where pooling into
+one relaxed-filter sample would not have.

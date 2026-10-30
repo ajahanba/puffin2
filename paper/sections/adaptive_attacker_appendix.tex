@@ -1,15 +1,11 @@
 \section{Appendix: Adaptive-Attacker Robustness}
 \label{sec:adaptive-appendix}
 
-\draftnote{DRAFT. Underlying data and decomposition are final
-(Checkpoint 3d, \texttt{reports/03d\_gap\_decomposition.md}); this
-section restates it under the PI's relabeling, not as a new analysis.}
-
-An earlier phase of this project asked whether a fairness-aware
-adaptive adversary -- one trained and evaluated within a user's true
-behavioral decile, with oracle knowledge of that decile -- recovers
-substantially more risk than the naive attacker of
-Section~\ref{sec:threat-model-naive}. We decompose that adversary's
+This appendix asks whether a fairness-aware adaptive adversary -- one
+trained and evaluated within a user's true behavioral decile, with
+oracle knowledge of that decile -- recovers substantially more risk
+than the naive attacker of Section~\ref{sec:threat-model-naive}. We
+decompose that adversary's
 apparent advantage into three components, computed per user and
 bootstrapped over users: (a) naive, the plain attacker;
 (b) \emph{external side information about regularity class} -- the

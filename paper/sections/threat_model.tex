@@ -1,9 +1,6 @@
 \section{Threat Model}
 \label{sec:threat-model}
 
-\draftnote{DRAFT, but the underlying design/table is final and
-implemented -- see \texttt{puffin/attacks/README.md}.}
-
 We distinguish mechanisms by what they actually release to an
 adversary, and run only the attacks that match that release -- an
 attack that assumes an artifact the mechanism does not release
@@ -15,14 +12,16 @@ overstates risk and is not meaningful evidence against it.
 that apply to it.}
 \label{tab:threat-model}
 \small
-\begin{tabular}{@{}lll@{}}
+\begin{tabular}{@{}p{0.23\linewidth}p{0.33\linewidth}p{0.33\linewidth}@{}}
 \toprule
 Mechanism & Released artifact & Applicable attacks \\
 \midrule
-Mo-PAE & encoder features $f$ & external re-id on $f$; MIA on the \\
-       & (worst case: the encoder itself) & utility model; decoder reconstruction \\
+Mo-PAE & encoder features $f$ (worst case: the encoder itself) &
+  external re-id on $f$; MIA on the utility model; decoder
+  reconstruction \\
 TrajGAN & synthetic trajectories & trajectory-user linking (TUL); MIA \\
-GI-DP & perturbed location sequences & TUL; re-id directly on sequences \\
+GI-DP & perturbed location sequences & TUL; re-id directly on
+  sequences \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -50,16 +49,15 @@ seeds. This reports, for each user, the risk posed by the \emph{best
 attacker we tried for that specific user}, not one globally-chosen
 architecture, following the design in \texttt{puffin/attacks/reid.py}.
 
-\subsection{The retired adaptive adversary}
+\subsection{A robustness check: the adaptive adversary}
 \label{sec:threat-model-adaptive}
 
-An earlier phase of this project also studied an \emph{adaptive}
-adversary explicitly aware of (a) a mechanism's fairness objective and
-(b) each user's true behavioral group (entropy decile), on the
-hypothesis that such an adversary would recover more risk for the
-group a mechanism protects most than the naive attacker above reports.
-We retired this adversary as a primary evaluation standard after
-finding (Section~\ref{sec:adaptive-appendix}) that its apparent
-advantage is mostly explained by a smaller candidate pool and oracle
-group knowledge rather than genuine attacker sophistication. We retain
-it here only as a robustness appendix.
+We also consider an \emph{adaptive} adversary explicitly aware of (a) a
+mechanism's fairness objective and (b) each user's true behavioral
+group (entropy decile), on the hypothesis that such an adversary would
+recover more risk for the group a mechanism protects most than the
+naive attacker above reports. Appendix~\ref{sec:adaptive-appendix}
+finds that this adversary's apparent advantage is mostly explained by a
+smaller candidate pool and oracle group knowledge rather than genuine
+attacker sophistication, so it is not used as this paper's primary
+evaluation standard; it is reported there as a robustness check.

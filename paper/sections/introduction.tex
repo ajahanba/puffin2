@@ -1,11 +1,6 @@
 \section{Introduction}
 \label{sec:intro}
 
-\draftnote{DRAFT. Motivation paragraph below is carried over from an
-earlier draft on this topic (rewritten here in neutral third person,
-not project history, per editorial instruction) -- framing only beyond
-that, expand once Section~\ref{sec:residual-risk} is final.}
-
 The proliferation of mobile devices and location-based services has
 produced an abundance of spatial-temporal mobility data, which in turn
 enables applications in urban planning~\cite{zheng2014urban,
@@ -27,52 +22,77 @@ coarser, demographic or region-level disparity
 measures~\cite{yan2020fairness, yan2019fairst, he2025framework}; this
 paper instead asks the question at the level of the individual user,
 following the individual-fairness principle that similar individuals
-should receive similar treatment~\cite{dwork2012fairness}. If this
-question is answered with an unreliable measurement protocol, a
-mechanism can appear equitable while in fact systematically
-under-protecting exactly the users most in need of protection -- the
-central concern this paper investigates empirically.
+should receive similar treatment~\cite{dwork2012fairness}.
 
 A learned mobility-privacy mechanism is typically evaluated by training
 it once, attacking its output with a single, group-agnostic
 re-identification attacker, and reporting an aggregate or per-group
-privacy gain. We ask a narrower question than ``is the mechanism
-private'': \emph{who, specifically, is protected, and does the
-mechanism's own evaluation protocol correctly report that}?
+privacy gain. This paper asks a narrower question than ``is the
+mechanism private'': \emph{who, specifically, is protected, and does
+the mechanism's own evaluation protocol correctly report that}? If this
+question is answered with an unreliable measurement protocol, a
+mechanism can appear equitable while in fact systematically
+under-protecting exactly the users most in need of protection.
 
 We study this question on a representative learned mechanism from the
 mobility-privacy literature, referred to throughout this paper in the
 third person as Mo-PAE~\cite{zhan2023mopae} (an encoder/decoder/adversary
 architecture that trains a feature encoder adversarially against an
 in-model re-identification head, following the published PETS 2023
-design this project audited and reimplemented in PyTorch). Our
-findings are two-fold.
+design this project audited and reimplemented in PyTorch).
 
-First (Section~\ref{sec:disparate-risk}), across three real mobility
-datasets (GeoLife, Foursquare-NYC, and four Gowalla metro subsets),
-Mo-PAE's naive-attacker-measured privacy gain is \emph{uneven} across
-users: the lowest-entropy decile of users -- the most routine, most
-behaviorally predictable, and so the most re-identifiable to begin
-with -- consistently receives the smallest relative risk reduction of
-any decile, and the residual re-identification risk remaining after the
-mechanism is applied is 2--6$\times$ higher for the lowest-entropy
-decile than for the highest, a disparity that survives standard
-regression controls and is robust to bootstrap resampling.
+\textbf{Contributions.} This paper makes four contributions:
+\begin{itemize}
+\item \textbf{A disparate-risk finding} (Section~\ref{sec:disparate-risk}):
+  across three real mobility datasets and four Gowalla metro subsets,
+  Mo-PAE's privacy gain is uneven across users in a specific, consistent
+  direction -- the lowest-entropy decile, the most routine and so the
+  most re-identifiable to begin with, receives the smallest relative
+  risk reduction of any decile and is left with a residual
+  re-identification risk 2--9$\times$ higher than the best-protected
+  decile, a disparity that survives standard regression controls and is
+  robust to bootstrap resampling.
+\item \textbf{A test of whether an explicit fairness term fixes this}
+  (Section~\ref{sec:phase4}): adding a fairness term to the training
+  objective and raising its weight does not reliably close the gap.
+  Depending on the formulation and dataset, raising the fairness weight
+  either leaves the most-identifiable decile's risk statistically
+  unchanged while further protecting an already-better-protected
+  decile, or trades real utility for risk reduction without improving
+  on the undefended mechanism. No formulation we test is shown to
+  dominate plain Mo-PAE -- higher utility \emph{and} lower
+  most-identifiable-decile risk, both beyond measurement noise -- once
+  training is run to convergence and encoder-initialization variance is
+  properly accounted for.
+\item \textbf{A mechanistic account of why} (Section~\ref{sec:residual-risk}):
+  a fairness term built on the mechanism's own co-trained adversary is
+  targeting the wrong signal. That adversary's confidence stays close
+  to chance and nearly flat across entropy deciles throughout training
+  -- because the encoder is optimized specifically to suppress it --
+  while a fresh external attacker evaluated on the same released
+  features is both far more accurate and clearly decile-dependent. A
+  fairness term that only ever sees the first signal cannot reliably
+  target the risk the second one reveals.
+\item \textbf{A robustness check on an adjacent, attacker-side claim}
+  (Appendix~\ref{sec:adaptive-appendix}): we revisit the hypothesis that
+  a fairness-aware \emph{adaptive} adversary -- one that knows which
+  behavioral group a mechanism protects most and specializes its attack
+  accordingly -- recovers substantially more risk than a naive,
+  group-agnostic attacker. We find this is almost entirely an artifact
+  of two confounds that require no attacker sophistication: a smaller
+  per-group candidate pool, and oracle knowledge of a user's true
+  behavioral group that a real adversary does not have. Once both are
+  controlled for, a realistic adaptive adversary -- one that must infer
+  a user's group from the same released features, achieving only
+  34--42\% group-classification accuracy against a 10\% chance baseline
+  -- performs no better, and in most cases worse, than the naive
+  attacker it was meant to improve on.
+\end{itemize}
 
-Second (Section~\ref{sec:adaptive-appendix}), we revisit an earlier
-hypothesis in this line of work: that a fairness-aware \emph{adaptive}
-adversary -- one that knows which behavioral group a mechanism protects
-most and specializes its attack accordingly -- recovers substantially
-more risk than a naive, group-agnostic attacker, which would mean naive
-evaluation understates risk unevenly in a second, attacker-side sense
-on top of the mechanism-side unevenness above. We find this is almost
-entirely an artifact of two confounds that require no attacker
-sophistication: a smaller per-group candidate pool, and oracle
-knowledge of a user's true behavioral group that a real adversary does
-not have. Once both are controlled for, a realistic adaptive adversary
--- one that must infer a user's group from the same released features,
-achieving only 34--42\% group-classification accuracy against a 10\%
-chance baseline -- performs no better, and in most cases worse, than
-the naive attacker it was meant to improve on.
-
-\draftnote{Contribution bullets, related work, and paper roadmap TODO.}
+Together, these results point toward a specific, falsifiable claim
+about learned mobility-privacy mechanisms, not a general indictment of
+the approach: individual-fairness claims about such a mechanism must be
+measured at the level of who is actually protected using an attacker
+that cannot be gamed by the mechanism's own training objective, and a
+fairness term added to fix an uneven mechanism must be checked against
+that same measurement before its effect is taken as improvement.

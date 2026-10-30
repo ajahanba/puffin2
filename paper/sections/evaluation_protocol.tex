@@ -1,10 +1,6 @@
 \section{Evaluation Protocol}
 \label{sec:evaluation-protocol}
 
-\draftnote{DRAFT. The protocol itself is final and implemented
-(puffin/metrics/decile\_reduction.py, puffin/attacks/analysis.py); prose
-needs polishing.}
-
 \subsection{Behavioral grouping}
 Following prior individual-fairness-of-privacy work, we group users
 into deciles of \emph{unconditional mobility entropy} $S_{\mathrm{unc}}$
@@ -19,21 +15,18 @@ A per-user top-1 accuracy computed from only one or two test windows is
 not a meaningful estimate. We exclude any user with fewer than 10 test
 windows from every per-user metric, decile table, and qualitative
 example throughout this paper, and report the exclusion count
-alongside every table. This filter removes a negligible fraction of
-GeoLife (1.7\%) and Foursquare (0\%) users, but a majority of
-Gowalla-NYC's naive sample (53.7\% at a 10-step window length) --
-motivating the shorter window length and the four-metro split described
-in Section~\ref{sec:datasets}.
+alongside every table; exact per-dataset coverage rates are in
+Appendix~\ref{sec:implementation-notes}.
 
 \subsection{Decile-level reduction metrics}
 \label{sec:decile-reduction-metrics}
-An earlier version of this evaluation (and most prior work in this
-area) reported privacy protection as a \emph{per-user ratio}, averaged
-over users in a decile: $\mathrm{gain}(u) = 1 - r_{\mathrm{post}}(u) /
-r_{\mathrm{raw}}(u)$, then $\overline{\mathrm{gain}}_d =
-\mathrm{mean}_{u \in d}\, \mathrm{gain}(u)$. This statistic is unstable
-whenever a user's raw (pre-mechanism) risk is near zero: a single user
-with $r_{\mathrm{raw}}(u) \approx 0$ can dominate a decile's average and
+Most prior work in this area reports privacy protection as a
+\emph{per-user ratio}, averaged over users in a decile:
+$\mathrm{gain}(u) = 1 - r_{\mathrm{post}}(u) / r_{\mathrm{raw}}(u)$,
+then $\overline{\mathrm{gain}}_d = \mathrm{mean}_{u \in d}\,
+\mathrm{gain}(u)$. This statistic is unstable whenever a user's raw
+(pre-mechanism) risk is near zero: a single user with
+$r_{\mathrm{raw}}(u) \approx 0$ can dominate a decile's average and
 flip its sign without reflecting any real change in the underlying
 post-mechanism risk (we document a concrete case in
 Section~\ref{sec:residual-risk}).
@@ -56,17 +49,17 @@ with a bootstrap CI obtained by independently resampling each decile's
 users and taking the ratio of the two resampled means each iteration --
 the standard construction for a ratio-of-two-group-means statistic. The
 old per-user ratio is retained only in an appendix, explicitly labeled
-unstable, for continuity with earlier reports in this line of work.
+unstable.
 
 \subsection{Seeding}
 \label{sec:seeding}
 Every attacker number is averaged over 5 random seeds (architecture
 initialization and, where applicable, the internal validation split
 used for early stopping). For results that compare across mechanism
-training configurations (Sections~\ref{sec:residual-risk} and the
-Phase~4 formulation comparison), the mechanism itself is additionally
-trained with $\geq 3$ independent encoder-training seeds per
-configuration, and both the mean and the encoder-seed-to-seed standard
-deviation are reported -- an earlier round of this evaluation trained
-the mechanism with a single encoder seed per configuration throughout,
-leaving encoder-initialization variance entirely unmeasured.
+training configurations (Sections~\ref{sec:residual-risk}
+and~\ref{sec:phase4}), the mechanism itself is additionally trained
+with $\geq 3$ independent encoder-training seeds per configuration, and
+both the mean and the encoder-seed-to-seed standard deviation are
+reported: Section~\ref{sec:phase4} shows this matters, since
+encoder-initialization variance alone can be large enough to make a
+single-seed comparison misleading.

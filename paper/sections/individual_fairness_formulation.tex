@@ -1,26 +1,19 @@
 \section{Individual Fairness Formulation}
 \label{sec:individual-fairness}
 
-\draftnote{DRAFT. Carried over from an earlier draft's Problem
-Formulation section, restated as a proper (differentiable, directly
-minimizable) loss rather than an indicator-weighted constraint, per
-editorial instruction. No numbers from that earlier draft's own
-experiments are carried over here or anywhere else in this paper.}
-
 Let $u_i$ and $u_j$ denote two users with original mobility
 trajectories $\tau_i$ and $\tau_j$, and let $\mathrm{sim}(\tau_i,
 \tau_j)$ be a similarity function over trajectories, where higher
 values indicate more similar mobility behavior. Let $P(\tau)$ denote a
 privacy-gain measure associated with a trajectory $\tau$ -- in this
 paper, $P$ is instantiated with the decile-level reduction statistics
-of Section~\ref{sec:decile-reduction-metrics}, not the per-user ratio
-an earlier formulation of this idea used (Section~\ref{sec:methods-changed}).
-Individual fairness, following the general principle that similar
-individuals should receive similar
-treatment~\cite{dwork2012fairness}, requires that users with similar
-trajectories receive comparable privacy gain. An earlier formulation
-of this requirement stated it as a constraint, enforced only above a
-similarity threshold $\delta$ and tolerating a fixed disparity budget
+of Section~\ref{sec:decile-reduction-metrics}, not a per-user ratio
+(Section~\ref{sec:methods-changed} explains why). Individual fairness,
+following the general principle that similar individuals should
+receive similar treatment~\cite{dwork2012fairness}, requires that
+users with similar trajectories receive comparable privacy gain. A
+natural first attempt states this as a constraint, enforced only above
+a similarity threshold $\delta$ and tolerating a fixed disparity budget
 $\epsilon$:
 \begin{equation}
 \sum_{i,j} \mathbb{I}\big(\mathrm{sim}(\tau_i,\tau_j) \ge \delta\big)\,

@@ -48,6 +48,42 @@ def gen_gowalla_disparate_risk_table():
     write("gowalla_disparate_risk.tex", "\n".join(lines) + "\n")
 
 
+def gen_main_datasets_disparate_risk_table():
+    d = json.load(open(ROOT / "reports/figures/paper_section8/geolife_foursquare_disparate_risk.json"))
+    names = {"geolife": "GeoLife", "foursquare": "Foursquare", "gowalla_nyc": "Gowalla-NYC"}
+    lines = [
+        r"\begin{table*}[t]",
+        r"\centering",
+        r"\caption{Residual-risk disparity under plain Mo-PAE -- ratio (decile 0 $\div$ decile 9) "
+        r"and absolute difference (decile 0 $-$ decile 9) of post-mechanism risk -- and relative "
+        r"risk reduction at deciles 0 and 9, GeoLife, Foursquare, and Gowalla-NYC. Bootstrap 95\% "
+        r"CIs in brackets. Generated from "
+        r"\texttt{reports/figures/paper\_section8/geolife\_foursquare\_disparate\_risk.json}.}",
+        r"\label{tab:main-disparate-risk}",
+        r"\small",
+        r"\begin{tabular}{@{}lccccc@{}}",
+        r"\toprule",
+        r"Dataset & $n$ & Rel.\ reduction, decile 0 & Rel.\ reduction, decile 9 & "
+        r"Disparity ratio (0/9) & Disparity difference (0$-$9) \\",
+        r"\midrule",
+    ]
+    for ds, label in names.items():
+        v = d[ds]
+        red = v["reduction"]
+        r0 = red["0"]["relative_reduction"]
+        r9 = red["9"]["relative_reduction"]
+        ratio = v["ratio"]
+        diff = v["difference"]
+        lines.append(
+            f"{label} & {v['n_users']} & {r0['mean']:+.3f} [{r0['ci_lo']:+.3f}, {r0['ci_hi']:+.3f}] & "
+            f"{r9['mean']:+.3f} [{r9['ci_lo']:+.3f}, {r9['ci_hi']:+.3f}] & "
+            f"{ratio['point_estimate']:.2f}$\\times$ [{ratio['ci_lo']:.2f}, {ratio['ci_hi']:.2f}] & "
+            f"{diff['point_estimate']:.3f} [{diff['ci_lo']:.3f}, {diff['ci_hi']:.3f}] \\\\"
+        )
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table*}"]
+    write("main_datasets_disparate_risk.tex", "\n".join(lines) + "\n")
+
+
 def gen_adaptive_gap_decomposition_table():
     results = {}
     for ds in ["geolife", "foursquare", "gowalla_nyc"]:
@@ -56,7 +92,7 @@ def gen_adaptive_gap_decomposition_table():
     lines = [
         r"\begin{table*}[t]",
         r"\centering",
-        r"\caption{Gap decomposition (Checkpoint 3d): mean of the "
+        r"\caption{Gap decomposition: mean of the "
         r"side-information, specialization, and realistic gap components "
         r"across all deciles, per dataset, with the count of (dataset, "
         r"decile) cells whose bootstrap CI excludes zero. Generated from "
@@ -97,9 +133,9 @@ def gen_04d_decile_reduction_table():
     lines = [
         r"\begin{table*}[t]",
         r"\centering",
-        r"\caption{Checkpoint 04d: utility, relative risk reduction at deciles 0 and 9, and "
-        r"residual-risk disparity (RRD, post-mechanism risk decile 0 $\div$ decile 9), every "
-        r"approved-batch run. Bootstrap 95\% CIs in brackets; $\geq 3$ encoder seeds per point. "
+        r"\caption{Utility, relative risk reduction at deciles 0 and 9, and "
+        r"residual-risk disparity (RRD, post-mechanism risk decile 0 $\div$ decile 9), for "
+        r"each fairness formulation and dataset. Bootstrap 95\% CIs in brackets; $\geq 3$ encoder seeds per point. "
         r"Generated from \texttt{reports/figures/phase4d\_analysis/decile\_reduction\_metrics.json}.}",
         r"\label{tab:04d-decile-reduction}",
         r"\small",
@@ -161,11 +197,10 @@ def gen_04e_geolife_10seed_dominance_table():
     lines = [
         r"\begin{table}[t]",
         r"\centering",
-        r"\caption{GeoLife, 10 encoder seeds, 40 epochs: paired bootstrap test of "
+        r"\caption{GeoLife, 10 encoder seeds, trained to convergence: paired bootstrap test of "
         r"ed\_soft vs.\ plain Mo-PAE on per-seed utility and per-seed decile-0 risk. "
         r"Dominance requires BOTH a significant utility gain and a significant risk "
-        r"reduction; neither $\lambda_4$ value clears this bar. Generated from "
-        r"\texttt{reports/figures/phase4e\_analysis/reference\_curve\_comparisons.json}.}",
+        r"reduction; neither $\lambda_4$ value clears this bar.}",
         r"\label{tab:geolife-10seed-dominance}",
         r"\small",
         r"\begin{tabular}{@{}lcccc@{}}",
@@ -192,14 +227,13 @@ def gen_04e_no_privacy_ceiling_table():
     lines = [
         r"\begin{table}[t]",
         r"\centering",
-        r"\caption{No-privacy ceiling utility, before (20 epochs, 04d) and after "
-        r"(40 epochs, Checkpoint 04e) correcting for undertraining. Generated from "
-        r"\texttt{reports/figures/phase4e\_analysis/reference\_curve\_comparisons.json}.}",
+        r"\caption{No-privacy ceiling utility, at the original (shorter) training "
+        r"budget and once extended to convergence.}",
         r"\label{tab:no-privacy-ceiling}",
-        r"\small",
+        r"\footnotesize",
         r"\begin{tabular}{@{}lcc@{}}",
         r"\toprule",
-        r"Dataset & Ceiling @ 20 epochs (stale) & Ceiling @ 40 epochs (corrected) \\",
+        r"Dataset & Shorter budget & Converged \\",
         r"\midrule",
     ]
     for ds, label in names.items():
@@ -215,6 +249,7 @@ def gen_04e_no_privacy_ceiling_table():
 
 if __name__ == "__main__":
     gen_gowalla_disparate_risk_table()
+    gen_main_datasets_disparate_risk_table()
     gen_adaptive_gap_decomposition_table()
     gen_04d_decile_reduction_table()
     gen_04d_inmodel_vs_external_table()

@@ -1,28 +1,6 @@
 \section{Mo-PAE Residual-Risk Disparity}
 \label{sec:residual-risk}
 
-\draftnote{DRAFT. Results below are from Checkpoint 04d (the PI-approved
-batch: plain Mo-PAE, the no-privacy reference, and GeoLife's fixed
-floor\_loss, each with $\geq 3$ encoder seeds and the hardened external
-attacker); see \texttt{reports/04d\_approved\_batch.md} for the full
-analysis. ed\_soft's own results are reported in
-Section~\ref{sec:phase4}, not here, to keep this section focused on
-plain Mo-PAE's own disparity and the no-privacy reference's role as a
-baseline.}
-
-\draftnote{DRAFT, revised per Checkpoint 04e
-(\texttt{reports/04e\_reference\_curve.md}): the leveling-down check
-is recalibrated (absolute post-risk, seed-to-seed null, tested against
-that null -- \texttt{puffin/metrics/leveling\_down.py}) and every
-disparity claim below now reports the absolute risk difference
-alongside the RRD ratio, since the two can disagree in direction. Also
-note: every number in this section still comes from 04d's 20-epoch
-training; Checkpoint 04e found all mechanisms undertrained at 20
-epochs (Section~\ref{sec:phase4}), so this section's own
-\emph{plain}/\emph{no-privacy} comparisons should be read as provisional
-pending a matched-epoch rerun, same as Section~\ref{sec:phase4}'s
-formulations.}
-
 Table~\ref{tab:04d-decile-reduction}'s \emph{plain} and \emph{no-privacy}
 rows report, for each dataset, the relative reduction in
 re-identification risk (Definition~2) at the lowest- and
@@ -37,99 +15,96 @@ comparison described in Section~\ref{sec:methods-changed}.
 
 \textbf{Plain Mo-PAE gives decile 0 no protection distinguishable from
 none, on the dataset where this was checked most carefully.} On
-GeoLife, decile 0's relative risk reduction under plain Mo-PAE is
-$+0.014$ with a 95\% CI of $[-0.133, +0.176]$ -- indistinguishable from
-zero -- while decile 9 receives $+0.371$, $[-0.042, +0.625]$. The
-residual-risk-disparity ratio is $8.08\times$, $[3.72, 14.11]$: decile
-0's post-mechanism re-identification risk is, at the point estimate,
-eight times decile 9's. On Foursquare and Gowalla-NYC, plain Mo-PAE
-does give decile 0 a clearly nonzero reduction ($+0.384$ and $+0.240$
-respectively, both CIs excluding zero), but the disparity is still
-large (RRD $16.02\times$ and $7.26\times$) because decile 9 is reduced
-far more ($+0.897$ and $+0.634$).
+GeoLife, decile 0's relative risk reduction under plain Mo-PAE is not
+statistically distinguishable from zero (Table~\ref{tab:main-disparate-risk}),
+while decile 9 receives a clearly positive reduction. The
+residual-risk-disparity ratio is large: decile 0's post-mechanism
+re-identification risk is several times decile 9's. On Foursquare and
+Gowalla-NYC, plain Mo-PAE does give decile 0 a clearly nonzero
+reduction ($+0.384$ and $+0.240$ respectively, both CIs excluding
+zero), but the disparity is still large (residual-risk ratio
+$16.02\times$ and $7.26\times$) because decile 9 is reduced far more
+($+0.897$ and $+0.634$).
 
-\textbf{The no-privacy reference's ratio and absolute-difference stories
-only agree on one of three datasets -- a disparity claim needs both to
-be well-posed.} The no-privacy reference (lambdas
+\textbf{A disparity-ratio claim and an absolute-difference claim can
+disagree in direction, and this paper reports both for exactly that
+reason.} The no-privacy reference (lambdas
 $\lambda_1=\lambda_3=\lambda_4=0$, $\lambda_2=1$: an encoder trained for
 next-location prediction alone, with no reconstruction or
 re-identification adversary) measures the disparity already present in
 an undefended learned representation, decoupled from any privacy
-objective. On \textbf{Foursquare}, the RRD ratio rises clearly and
-significantly from the no-privacy baseline to plain Mo-PAE ($3.40\times$,
-$[2.74,4.32]$, to $15.54\times$, $[10.84,23.71]$ -- non-overlapping CIs),
-while the absolute difference (decile 0 $-$ decile 9) moves the
-\emph{opposite} direction, from $0.505$, $[0.430,0.577]$, to $0.456$,
-$[0.396,0.519]$ -- overlapping CIs, not independently significant, but
-notably not widening either. Decile 0's own post-mechanism risk drops
-substantially in absolute terms ($0.715 \to 0.487$). On
-\textbf{Gowalla-NYC}, neither the ratio ($3.99\times,[2.63,6.27] \to
-6.93\times,[4.24,11.71]$) nor the difference ($0.446,[0.294,0.597] \to
-0.484,[0.336,0.636]$) is statistically distinguishable between the
-no-privacy baseline and plain Mo-PAE -- both metrics' confidence
-intervals overlap substantially, so "widens" is not a safe claim here
-despite the point estimates moving upward. On \textbf{GeoLife}, both
-metrics agree the two are indistinguishable ($7.72\times,[3.72,14.11]$
-vs.\ $7.65\times,[3.79,13.93]$; difference $0.300,[0.128,0.489]$ vs.\
-$0.313,[0.139,0.500]$). The one claim that survives across datasets is
-narrower than originally stated: Foursquare's RRD ratio widens clearly
-and significantly; nothing else in this comparison does, by either
-metric, on any dataset.
+objective. On \textbf{Foursquare}, the residual-risk ratio rises
+clearly and significantly from the no-privacy baseline to plain Mo-PAE
+($3.40\times$, $[2.74,4.32]$, to $15.54\times$, $[10.84,23.71]$ --
+non-overlapping CIs), while the absolute difference (decile 0 $-$
+decile 9) moves the \emph{opposite} direction, from $0.505$,
+$[0.430,0.577]$, to $0.456$, $[0.396,0.519]$ -- overlapping CIs, not
+independently significant, but notably not widening either. Decile 0's
+own post-mechanism risk drops substantially in absolute terms
+($0.715 \to 0.487$). On \textbf{Gowalla-NYC}, neither the ratio
+($3.99\times,[2.63,6.27] \to 6.93\times,[4.24,11.71]$) nor the
+difference ($0.446,[0.294,0.597] \to 0.484,[0.336,0.636]$) is
+statistically distinguishable between the no-privacy baseline and
+plain Mo-PAE -- both metrics' confidence intervals overlap
+substantially, so ``widens'' is not a safe claim here despite the point
+estimates moving upward. On \textbf{GeoLife}, both metrics agree the
+two are indistinguishable. The one claim that survives across datasets
+is narrower than a single aggregate statistic would suggest:
+Foursquare's residual-risk ratio widens clearly and significantly from
+the undefended baseline to plain Mo-PAE; nothing else in this
+comparison does, by either metric, on any dataset.
 
-\textbf{The fixed floor\_loss raises protection for the decile that was
-already best-protected, not the decile that needed it.} floor\_loss's
-fixed floor of $0.3$ gave the in-model adversary's confidence --
-observed to stay within $0.005$--$0.008$ on GeoLife throughout training,
-regardless of decile, because the encoder's own adversarial training
-suppresses it near chance by construction -- no threshold it could ever
-cross, so the term's gradient was exactly zero at every step; replacing
-the fixed floor with a chance-relative one ($\mathrm{floor} =
-\mathrm{floor\_multiplier} / \mathrm{total\_users}$) restored a genuinely
-nonzero gradient. GeoLife's floor\_loss rows in
-Table~\ref{tab:04d-decile-reduction} show what that restored gradient
-actually does: decile 0's relative reduction stays statistically
-unchanged from plain Mo-PAE at every $\lambda_4$ tested ($-0.031$ to
-$-0.008$, all CIs straddling zero), while decile 9's reduction rises
-monotonically with $\lambda_4$ ($+0.347 \to +0.473$, the
-$\lambda_4{=}1.0$ and $3.0$ CIs excluding zero) and the RRD gets
-\emph{worse}, not better ($8.19\times \to 9.68\times$). The restored
-gradient targets whichever user's in-model confidence crosses the
-(now chance-relative) threshold first, and Table~\ref{tab:inmodel-vs-external}
-shows that is not
-preferentially decile 0's users: GeoLife's in-model adversary stays
-within a narrow $1.5\times$--$4.5\times$-chance band across all ten
-deciles (far flatter than the external attacker's $8\times$--$63\times$-chance
-range), so a confidence-threshold term built on it cannot
+\textbf{A fairness term built on the mechanism's own co-trained
+adversary targets the wrong decile.} We test this directly with
+floor\_loss, a fairness term that penalizes the co-trained
+re-identification unit's confidence once it exceeds a threshold. A
+threshold set in absolute terms is unreachable if the unit's own
+confidence never gets that high: on GeoLife, that confidence stays
+within $0.005$--$0.008$ throughout training, regardless of decile,
+because the encoder's own adversarial training suppresses it near
+chance by construction -- so a fixed, absolute threshold gives the term
+exactly zero gradient at every step. Replacing the fixed threshold with
+one scaled to the chance level restores a genuinely nonzero gradient.
+Table~\ref{tab:04d-decile-reduction}'s floor\_loss rows show what that
+restored gradient actually does: decile 0's relative reduction stays
+statistically unchanged from plain Mo-PAE at every fairness weight
+tested, while decile 9's reduction rises monotonically with the
+fairness weight and the residual-risk ratio gets \emph{worse}, not
+better. The restored gradient targets whichever user's in-model
+confidence crosses the (now chance-relative) threshold first, and
+Table~\ref{tab:inmodel-vs-external} shows that is not preferentially
+decile 0's users: GeoLife's in-model adversary stays within a narrow
+band across all ten deciles (far flatter than the external attacker's
+much wider range), so a confidence-threshold term built on it cannot
 reliably single out the decile this paper's own evaluation protocol
 identifies as worst-off. This is the mechanistic account, not just the
-empirical one, of why loss-based individual-fairness terms built on an
-in-model adversary struggle to target real re-identification risk.
+empirical one, of why a loss-based individual-fairness term built on an
+in-model adversary struggles to target real re-identification risk.
 
-A recalibrated leveling-down check (absolute post-risk, a seed-to-seed
-null from the same mechanism's own encoder-seed replicates, tested
-against that null rather than a fixed threshold) was rerun against these
-same floor\_loss points: \textbf{0 of 40 computed comparisons} across the
-whole batch show a harmed rate distinguishable from the null -- the
-earlier, uncalibrated version's "5--6 of 10 deciles flagged" finding does
-not survive. This is most likely an underpowered test (only 3 encoder
-seeds give a thin null), not evidence that no such pattern exists; a
-much better-powered check (10 seeds) on GeoLife's ed\_soft vs.\ plain,
-reported in Section~\ref{sec:phase4}, does find a real effect at the
-aggregate (decile-0) level, even though the per-decile leveling-down
-classifier here could not confirm or rule out how that effect is
-distributed across users.
+A leveling-down check (testing, per decile, whether users harmed
+relative to plain Mo-PAE at matched utility are disproportionately the
+ones already best-protected, with harmed/helped thresholds derived from
+a seed-to-seed null rather than a fixed epsilon) found no comparison
+in this batch where the harmed rate clears that null -- most likely an
+underpowered test given only 3 encoder seeds, not evidence that no such
+redistribution is happening; Section~\ref{sec:phase4} reports a
+better-powered version of this check (10 encoder seeds) that does find
+a real effect at the aggregate (decile-0) level.
 
-\textbf{The no-privacy reference's own utility was undertrained in 04d
-(Checkpoint 04e).} Every mechanism in this section used a fixed 20-epoch
-budget with no early stopping; a diagnostic found all three mechanisms
-(no-privacy, plain, ed\_soft) still rising substantially at that point,
-with their relative order changing by epoch 40.
-Table~\ref{tab:no-privacy-ceiling} reports both values: the no-privacy
-ceiling rises on GeoLife once properly converged (0.623 $\to$ 0.742) but
-\emph{falls} on Foursquare (0.280 $\to$ 0.214) and Gowalla-NYC
-(0.322 $\to$ 0.251) -- both corrected values fit smoothly into their
-own dataset's privacy-weight sweep (Section~\ref{sec:phase4}), so the
-stale 20-epoch values were inflated by no-privacy's faster early
-convergence, not the corrected values being a regression.
+\textbf{A ceiling reference is only informative if it is itself trained
+to convergence.} Every mechanism in this section uses a fixed training
+budget with no early stopping; a per-epoch diagnostic on GeoLife found
+all three mechanisms (no-privacy, plain, and the fairness-weighted
+variant tested in Section~\ref{sec:phase4}) still rising substantially
+partway through that budget, with their relative utility order changing
+by the time training is extended. Table~\ref{tab:no-privacy-ceiling}
+reports the no-privacy ceiling both at the original budget and once
+extended to convergence: the ceiling rises on GeoLife (0.623 $\to$
+0.742) but \emph{falls} on Foursquare (0.280 $\to$ 0.214) and
+Gowalla-NYC (0.322 $\to$ 0.251) -- both corrected values fit smoothly
+into their own dataset's privacy-weight sweep (Section~\ref{sec:phase4}),
+so the shorter-budget values were inflated by the no-privacy
+objective's faster early convergence, not a regression in the corrected
+values.
 
 \input{tables/04e_no_privacy_ceiling}

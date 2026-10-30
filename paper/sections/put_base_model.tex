@@ -1,12 +1,6 @@
 \section{The PUT Base Model}
 \label{sec:put-base-model}
 
-\draftnote{DRAFT. Carried over from an earlier draft's Section IV-A
-(PUT base model description, Definitions 1-3), redefining
-re-identification risk using the external attacker throughout, per
-editorial instruction. No numbers from that earlier draft's own
-experiments are carried over.}
-
 The base privacy-utility trade-off (PUT) architecture this paper
 studies, following Mo-PAE~\cite{zhan2023mopae}, has three
 components: a Data Reconstruction Unit (DRU), a Mobility Prediction
@@ -36,20 +30,19 @@ can be added to Equation~\ref{eq:sumloss} with its own weight
 $\lambda_4$, alongside the weights $\lambda_1,\lambda_2,\lambda_3$
 already governing the reconstruction/utility/privacy trade-off.
 
-\subsection{Re-identification risk, redefined}
+\subsection{Re-identification risk}
 \label{sec:defs}
-An earlier formulation of this framework defined re-identification
-risk directly in terms of the URU -- the SAME component the encoder
-was adversarially trained against. This paper redefines all three
-quantities below in terms of a \emph{fresh, external} attacker,
-trained strictly after the encoder is frozen
-(Section~\ref{sec:threat-model-naive}), for the reason
-Section~\ref{sec:residual-risk} demonstrates directly: the in-model
-URU's own confidence stays near chance throughout training, regardless
-of entropy decile, because the encoder's adversarial training
-suppresses it by construction -- so a definition of risk anchored to
-the URU cannot distinguish a mechanism that is actually private from
-one whose own adversary is simply weak.
+Defining re-identification risk directly in terms of the URU would
+measure a mechanism's privacy using the SAME component its encoder was
+adversarially trained against. This paper instead defines all three
+quantities below in terms of a \emph{fresh, external} attacker, trained
+strictly after the encoder is frozen (Section~\ref{sec:threat-model-naive}),
+for the reason Section~\ref{sec:residual-risk} demonstrates directly:
+the in-model URU's own confidence stays near chance throughout
+training, regardless of entropy decile, because the encoder's
+adversarial training suppresses it by construction -- so a definition
+of risk anchored to the URU cannot distinguish a mechanism that is
+actually private from one whose own adversary is simply weak.
 
 \textbf{Definition 1 (Re-identification risk).} Let $A$ denote the
 external attacker (Section~\ref{sec:threat-model-naive}), trained
@@ -62,17 +55,20 @@ mechanism's released representation: $R_{\mathrm{anon}}(u) =
 P(A(\mathrm{Enc}_L(\tau_u)) = u)$.
 
 \textbf{Definition 2 (Privacy gain).} This paper reports two
-decile-level statistics in place of a single per-user ratio
-(Section~\ref{sec:decile-reduction-metrics}): absolute reduction,
-$\overline{R_{\mathrm{orig}}}_d - \overline{R_{\mathrm{anon}}}_d$, and
-relative reduction, $1 - \overline{R_{\mathrm{anon}}}_d \,/\,
-\overline{R_{\mathrm{orig}}}_d$, both computed from decile \emph{means}
-over users in decile $d$, with a bootstrap confidence interval. The
-original per-user formulation, $P(\tau_u) = 1 - R_{\mathrm{anon}}(u) /
-R_{\mathrm{orig}}(u)$, is retained only as an appendix statistic,
-explicitly labeled unstable, since it is unstable whenever
-$R_{\mathrm{orig}}(u) \approx 0$ for an individual user
+decile-level statistics (Section~\ref{sec:decile-reduction-metrics}):
+absolute reduction, $\overline{R_{\mathrm{orig}}}_d -
+\overline{R_{\mathrm{anon}}}_d$, and relative reduction, $1 -
+\overline{R_{\mathrm{anon}}}_d \,/\, \overline{R_{\mathrm{orig}}}_d$,
+both computed from decile \emph{means} over users in decile $d$, with a
+bootstrap confidence interval, rather than a per-user ratio
+$P(\tau_u) = 1 - R_{\mathrm{anon}}(u) / R_{\mathrm{orig}}(u)$ averaged
+within the decile: the per-user ratio is unstable whenever
+$R_{\mathrm{orig}}(u) \approx 0$ for an individual user, since a single
+such user can dominate a decile's average and flip its sign without
+reflecting any real change in post-mechanism risk
 (Section~\ref{sec:decile-reduction-metrics} documents a concrete case).
+The per-user ratio is retained only as an appendix statistic, labeled
+unstable.
 
 \textbf{Definition 3 (Residual-risk disparity).} In place of a
 percentage of users correctly re-identified within the top-$k$
@@ -86,36 +82,34 @@ mechanism protects users \emph{on average}, but how much worse off the
 least-protected decile is than the best-protected one, after the
 mechanism has been applied.
 
-\subsection{What changed from the earlier formulation, and why}
+\subsection{Why these definitions}
 \label{sec:methods-changed}
-Three methodological changes separate this paper's measurements from
-an earlier formulation of the same underlying question:
+Three measurement choices in Definitions~1--3 are load-bearing for the
+results in this paper, and are worth stating explicitly:
 \begin{enumerate}
-\item \textbf{External attacker, not the in-model unit.} Every risk
-  number in this paper comes from a fresh external attacker trained
-  after the mechanism is frozen (Definition~1), never the co-trained
-  URU. Section~\ref{sec:residual-risk} shows these two give
-  substantially different answers to ``how private is this
+\item \textbf{A fresh external attacker, not the mechanism's own
+  co-trained unit.} Every risk number in this paper comes from an
+  attacker trained after the mechanism is frozen (Definition~1), never
+  the co-trained URU. Section~\ref{sec:residual-risk} shows these two
+  give substantially different answers to ``how private is this
   mechanism,'' because the URU's own confidence stays near chance by
   construction, independent of entropy decile, while the external
   attacker's accuracy is both higher and clearly decile-dependent.
-\item \textbf{Decile-level reduction metrics, not \%-pairs-within-$\epsilon$.}
-  An earlier formulation reported fairness as the fraction of
-  similar-user pairs whose privacy-gain disparity fell below a fixed
-  threshold $\epsilon$. This paper reports decile-level absolute and
-  relative risk reduction and a residual-risk-disparity ratio
-  (Section~\ref{sec:decile-reduction-metrics}), each with a bootstrap
-  confidence interval, which states \emph{how large} a disparity is
-  and whether it is statistically distinguishable from none, rather
-  than only whether it crosses one fixed, somewhat arbitrary threshold.
-\item \textbf{Multiple seeds with confidence intervals.} Every
-  attacker-side number is averaged over five random seeds; results
-  that compare across mechanism configurations additionally use
+\item \textbf{Decile-level reduction metrics with confidence intervals,
+  not a single threshold crossing.} Reporting fairness only as the
+  fraction of similar-user pairs whose privacy-gain disparity falls
+  below a fixed threshold $\epsilon$ states whether a disparity crosses
+  one, somewhat arbitrary line, not how large it is. This paper reports
+  decile-level absolute and relative risk reduction and a
+  residual-risk-disparity statistic (Section~\ref{sec:decile-reduction-metrics}),
+  each with a bootstrap confidence interval, which states both.
+\item \textbf{Multiple seeds, both attacker-side and encoder-side.}
+  Every attacker-side number is averaged over five random seeds;
+  results that compare across mechanism configurations additionally use
   $\geq 3$ independent encoder-training seeds, with both the mean and
-  the seed-to-seed standard deviation reported
-  (Section~\ref{sec:seeding}). An earlier formulation of this
-  evaluation reported single-seed point estimates throughout.
+  the seed-to-seed standard deviation reported (Section~\ref{sec:seeding}).
+  Section~\ref{sec:phase4} shows a dominance claim that holds at 3
+  encoder seeds can fail to hold at 10, because encoder-initialization
+  variance alone can be large enough to manufacture an apparent
+  advantage.
 \end{enumerate}
-No quantitative result from an earlier formulation of this evaluation
-is carried over into this paper's tables or figures; every number
-reported here was produced under the protocol just described.
