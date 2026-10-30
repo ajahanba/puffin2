@@ -1,70 +1,47 @@
 # PUFFIN v2 — Progress
 
-## Current state (read this first): Checkpoint 04e correction round in progress -- big new training batch running, ETA several hours
+## Current state (read this first): Checkpoint 04e done and reported; attacker-in-the-loop now running at low priority
 
-**The PI reviewed 04d against the raw JSON and found real problems.**
-Six corrections requested, in `reports/04e_reference_curve.md` once
-done (not yet -- blocked on training, see below). Urgent part already
-done, committed, pushed:
-- **All leveling-down claims in 04d and the paper are WITHDRAWN**
-  (per the PI: "until then, withdraw all leveling-down statements").
-  `puffin/metrics/leveling_down.py` recalibrated: absolute post-risk
-  instead of the per-user ratio, harmed/helped thresholds from a
-  seed-to-seed null (same mechanism's own encoder-seed replicates)
-  instead of a fixed epsilon, tested against that null. Rerun on 04d's
-  existing data: **0 of 40 comparisons** now show a real leveling-down
-  pattern (the earlier "5-6/10 deciles" and "10/10 deciles" findings
-  don't survive proper null-testing) -- likely underpowered at only 3
-  null seeds, not proof nothing's there; revisit once GeoLife's
-  10-seed null lands.
-- **Foursquare ed\_soft's "leveling down" framing was wrong**,
-  independent of the above: ratio rises 3.4x->15.5x but the absolute
-  difference (decile0-decile9) FALLS 0.505->0.456 and decile 0's own
-  risk DROPS 0.715->0.487 -- correct reading is the point moving
-  toward the no-privacy reference (utility and risk rise together),
-  an ordinary trade-off. `puffin/metrics/decile_reduction.py` gained
-  `residual_risk_difference` (absolute diff + CI), to be reported
-  alongside the ratio everywhere, since the two can disagree in
-  direction.
-- Both fixes committed (`011e202`) with matching withdrawal notes in
-  `paper/sections/residual_risk_disparity.tex` and `phase4_outline.tex`,
-  test-compiled clean.
+**Checkpoint 04e is complete.** Full report: `reports/04e_reference_curve.md`
+(5-line summary at top). Headline: **the GeoLife "ed\_soft dominates
+plain" claim from 04d is retracted.** A clean, matched-epoch (40), 10-
+encoder-seed paired bootstrap test shows a real, significant decile-0
+risk reduction at λ4∈{0.3,1.0} with **no** significant utility gain
+(a partial benefit, not dominance), and a significant utility *cost* at
+λ4=3.0 (an ordinary trade-off). No formulation in the batch is shown to
+dominate plain Mo-PAE once both epoch count and encoder-seed count are
+controlled.
 
-**Unexpected finding that expanded this round's scope**: diagnosing the
-PI's flagged no-privacy-ceiling anomaly (ed\_soft's GeoLife utility
-0.654 exceeding no\_privacy's 0.623) found it is NOT a no\_privacy-
-specific tuning bug. `scripts/diagnose_no_privacy_ceiling.py` (1 seed,
-40 epochs instead of the batch's 20) shows ALL THREE mechanisms still
-rising substantially at epoch 20, with their relative ORDER changing
-between epoch 20 and 40 (no\_privacy 0.611->0.735, plain 0.473->0.719,
-ed\_soft 0.680->0.740) -- no early stopping exists anywhere in
-`run_phase4d_approved_batch.py`. Full writeup:
-`CHANGES_FROM_ORIGINAL.md`. **This round's new training (reference
-curve, no\_privacy refit, GeoLife 10-seed) now uses 40 epochs; 04d's
-original 21 runs remain at 20 epochs and are NOT being retrained
-without the PI's sign-off** (flagged in 04e's report as a scope
-question, not resolved unilaterally).
+Also done: the plain-Mo-PAE reference curve (λ3 swept, 40 epochs) --
+nearly flat on GeoLife, clean/monotonic on Foursquare, noisier on
+Gowalla-NYC; the reused 20-epoch λ3=0.3 point is a visible outlier on
+its own curve and is excluded from interpolation. No-privacy ceilings
+corrected (GeoLife 0.623→0.742; Foursquare 0.280→0.214; Gowalla-NYC
+0.322→0.251 -- the two drops both fit their dataset's own curve, not a
+regression). Recalibrated leveling-down check rerun: 0/40 comparisons
+exceed the seed-to-seed null (likely underpowered at 3 seeds). Paper
+Sections 6-7 rewritten against these numbers, two new generated tables,
+test-compiled clean (10 pages, zero errors). All committed/pushed
+(`18d17e0`).
 
-**Running now** (`scripts/launch_phase4e_batch.sh`, 22 jobs, both GPUs,
-started 2026-10-27 ~15:32 PDT, ETA several hours given 40 epochs + the
-10-seed jobs): (1) plain-Mo-PAE Pareto reference CURVE -- lambda3
-(lambda\_priv) swept across {0.02,0.1,0.2,0.5,0.8} x3 datasets x3
-encoder seeds (lambda3=0.3 reuses 04d's existing point, flagged with
-an epoch-count-mismatch note since that one is still 20 epochs); every
-formulation will be compared against this curve via interpolation at
-matched utility, not a single point. (2) no\_privacy refit at 40
-epochs x3 seeds, all 3 datasets. (3) GeoLife 10-encoder-seed rerun of
-plain + ed\_soft(0.3,1.0,3.0), before calling that result "dominance."
-Analysis scripts staged and ready to run once this lands:
-`scripts/analyze_04e_reference_curve.py`,
-`scripts/recompute_04e_leveling_and_difference.py` (already run once
-on 04d's existing data, see above; will rerun with the 10-seed null
-once available).
+**Running now, low priority** (`scripts/launch_attacker_in_the_loop.sh`,
+24 jobs, both GPUs, `nice -n 19`, started 2026-10-30 ~09:46 PDT): the
+PI's queued attacker-in-the-loop formulation -- GeoLife, Foursquare,
+**Gowalla-SF-Bay** (not `gowalla_nyc`, per the PI's explicit naming for
+this formulation) × k∈{1,5} × λ4∈{0.3,1.0} × loss\_variant∈{floor,
+group\_dro} × 3 encoder seeds, **40 epochs** (not 04d's original 20,
+per 04e's undertraining finding -- no reason to repeat that mistake on
+a new formulation). To be evaluated against 04e's reference curve once
+complete (not yet analyzed).
 
-**Not started**: writing `reports/04e_reference_curve.md` (blocked on
-the batch above), rewriting paper Sections 6-7 against it, launching
-attacker-in-the-loop (queued, evaluated against the item-1 curve once
-it exists, explicitly lower priority than this correction round).
+**Still open / not resolved this round**: retraining the rest of 04d
+(`ed_soft` on Foursquare/Gowalla-NYC, `floor` on GeoLife) at 40 epochs
+is flagged for the PI's sign-off, not done unilaterally -- until then,
+every curve-comparison involving those points is directional only. A
+per-epoch convergence diagnostic was only run on GeoLife; Foursquare/
+Gowalla-NYC's 40-epoch no-privacy ceilings are not independently
+confirmed to be converged. A richer, per-decile leveling-down check
+using GeoLife's 10-seed null (90 pairs vs. 6) was not run this round.
 
 ---
 
