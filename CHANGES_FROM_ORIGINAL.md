@@ -864,3 +864,52 @@ best-validation-utility snapshot.
 encoder-seed formulations remain single-seed in this round's retrain
 (they get the new early-stopping protocol, not more seeds) -- flagged
 in `PROGRESS.md`, not resolved unilaterally.
+
+
+## GeoLife's 85,074-location vocabulary OOM'd eval_utility too, after the Foursquare fix (2026-10-30)
+
+**Found**: the first fix (CPU-resident best-state snapshots, see above)
+did not resolve GeoLife specifically -- all 7 of GeoLife's item-1 jobs
+failed again, with the identical `torch.OutOfMemoryError: ... Tried to
+allocate 10.51 GiB` at the exact same call site
+(`eval_utility`'s `_batched_forward`), on the very first encoder seed's
+final evaluation, with training itself (including every per-epoch
+validation check) completing without incident. Meanwhile Foursquare's
+7 item-1 jobs and the first 2 of Gowalla-SF-Bay's all succeeded.
+
+**Root cause**: GeoLife has 85,074 distinct location cells (a
+fine-grained continuous-GPS grid), vs.\ Foursquare's 1,668 and
+Gowalla-SF-Bay's ~2,100 -- a 40-50x larger vocabulary.
+`next_predictor`'s output width is `total_locations`, so each row of
+logits is 85,074 floats wide on GeoLife. `_batched_forward`'s pattern
+(accumulate every chunk's output in a Python list, then `torch.cat`
+them all at the end) means the memory needed for the FINAL
+concatenated result is the same regardless of chunk size -- smaller
+chunks reduce peak memory during each individual forward call, but not
+the total memory required to hold the complete `[n_test, 85074]`
+logits tensor before it can be reduced to an accuracy number. This is
+why training's own per-epoch validation checks (over only the
+validation split, a smaller slice) survived while the final
+test-set-sized evaluation did not, and why bigger-by-window-count
+Foursquare/Gowalla-SF-Bay were fine -- their vocabulary, not their
+window count, is what matters for this specific memory cost.
+
+**Fixed**: new `_batched_accuracy` helper computes accuracy
+incrementally -- each chunk's predictions are reduced to a match count
+immediately and discarded, so the full `[n, total_locations]` tensor is
+never materialized, only one `[batch_size, total_locations]` chunk at a
+time (default `batch_size=1024`, smaller than `_batched_forward`'s
+4096, for extra margin). `eval_utility` and `_val_utility` both use it
+now. `eval_in_model_confidence` was not changed -- its output width is
+`total_users` (181 for GeoLife), not `total_locations`, so it was never
+at risk.
+
+**Tested**: a synthetic check at GeoLife's exact vocabulary scale
+(85,074 locations) confirms `_batched_accuracy` produces output
+identical to a naive, unbatched computation (exact match, not just
+close), and the full existing test suite + the 9-mechanism smoke test
+both re-run clean. No orchestrator restart was needed: since each job
+is a fresh `python` process launched by the (still-running) shell
+orchestrator, every job launched after this fix landed on disk picked
+it up automatically, including the GeoLife jobs still queued in items
+2, 4, and 5.

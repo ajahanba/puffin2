@@ -82,12 +82,24 @@ LOSS_FORMULATIONS = dict(ed_soft=ed_soft, floor=floor_loss, lipschitz=lipschitz_
 
 
 def _state_of(modules: dict) -> dict:
-    return {name: copy.deepcopy(m.state_dict()) for name, m in modules.items()}
+    """Snapshots state dicts to CPU, not a same-device deepcopy: with
+    early stopping now running up to --mopae-epochs (a much higher
+    ceiling than the old fixed 20), validation can improve -- and this
+    get called -- dozens of times per run. A GPU-resident deepcopy on
+    every improvement OOM'd in practice (confirmed: GeoLife's very first
+    retraining-to-convergence job, 2026-10-30) despite the model itself
+    being small, because each snapshot is a full second copy of every
+    module's parameters held on the GPU alongside the live training
+    copy. CPU snapshots cost ordinary RAM instead, which is not the
+    scarce resource here."""
+    return {name: {k: v.detach().cpu().clone() for k, v in m.state_dict().items()}
+            for name, m in modules.items()}
 
 
 def _load_state(modules: dict, state: dict):
     for name, m in modules.items():
-        m.load_state_dict(state[name])
+        device = next(m.parameters()).device
+        m.load_state_dict({k: v.to(device) for k, v in state[name].items()})
 
 
 def _fit_val_split(tr, val_frac, seed):
@@ -102,13 +114,32 @@ def _fit_val_split(tr, val_frac, seed):
     return fit_idx, val_idx
 
 
-def _val_utility(encoder, next_predictor, cell, wd, hr, y_next_idx, val_idx_t, batch_size=4096):
+def _batched_accuracy(encoder, next_predictor, cell, wd, hr, y_next_idx, idx_t, batch_size=1024):
+    """Computes next-location top-1 accuracy WITHOUT ever concatenating
+    every chunk's logits into one [n, total_locations] tensor: each
+    chunk's predictions are reduced to a match count immediately, then
+    discarded. GeoLife has 85,074 distinct location cells (vs.
+    Foursquare's 1,668 and Gowalla's ~2,100) -- `_batched_forward`'s
+    usual pattern of accumulating chunk outputs in a Python list before
+    `torch.cat` OOM'd on GeoLife specifically (a 10.5GB single
+    allocation) despite running fine, at the same batch size, on the
+    other two datasets, because the per-row output width (total_locations)
+    dominates memory here, not the row count. Smaller default batch_size
+    than `_batched_forward`'s 4096 for the same reason."""
+    n = len(idx_t)
+    correct = 0
+    with torch.no_grad():
+        for start in range(0, n, batch_size):
+            b = idx_t[start:start + batch_size]
+            logits = next_predictor(encoder(cell[b], wd[b], hr[b]))
+            correct += (logits.argmax(-1) == y_next_idx[b]).sum().item()
+    return correct / n
+
+
+def _val_utility(encoder, next_predictor, cell, wd, hr, y_next_idx, val_idx_t, batch_size=1024):
     encoder.eval()
     next_predictor.eval()
-    with torch.no_grad():
-        logits = _batched_forward(lambda c, w, h: next_predictor(encoder(c, w, h)),
-                                   cell[val_idx_t], wd[val_idx_t], hr[val_idx_t], batch_size=batch_size)
-        acc = (logits.argmax(-1) == y_next_idx[val_idx_t]).float().mean().item()
+    acc = _batched_accuracy(encoder, next_predictor, cell, wd, hr, y_next_idx, val_idx_t, batch_size)
     encoder.train()
     next_predictor.train()
     return acc
@@ -340,20 +371,21 @@ def eval_in_model_confidence(bundle, windows, device):
 
 
 def eval_utility(bundle, windows, device):
-    """Batched (via _batched_forward) -- see eval_in_model_confidence's
-    docstring for why unbatched full-test-set forward passes are unsafe
-    on larger datasets."""
+    """Accumulates accuracy chunk-by-chunk via _batched_accuracy, never
+    concatenating the full [n_test, total_locations] logits tensor --
+    see _batched_accuracy's docstring (GeoLife's 85,074-cell location
+    vocabulary, ~40-50x Foursquare's and Gowalla's, made the
+    concatenated-logits pattern OOM on GeoLife specifically even though
+    it has far fewer windows than either other dataset)."""
     te = windows["test"]
     cell = torch.tensor(te["cell"], dtype=torch.long, device=device)
     wd = torch.tensor(te["weekday"], dtype=torch.long, device=device)
     hr = torch.tensor(te["hour"], dtype=torch.long, device=device)
     y_next_idx = torch.tensor(te["next_cell"], dtype=torch.long, device=device)
+    idx_t = torch.arange(len(cell), device=device)
     bundle.encoder.eval()
     bundle.next_predictor.eval()
-    with torch.no_grad():
-        logits = _batched_forward(lambda c, w, h: bundle.next_predictor(bundle.encoder(c, w, h)),
-                                   cell, wd, hr)
-        acc = (logits.argmax(-1) == y_next_idx).float().mean().item()
+    acc = _batched_accuracy(bundle.encoder, bundle.next_predictor, cell, wd, hr, y_next_idx, idx_t)
     bundle.encoder.train()
     bundle.next_predictor.train()
     return acc

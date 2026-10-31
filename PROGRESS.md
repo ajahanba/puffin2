@@ -85,6 +85,24 @@ reference (0.307-0.349 vs.\ 0.359), with comparable-to-higher utility --
 a consistent, if modest, pattern worth confirming once retrained
 properly; not a result, no CIs, 3 seeds only, fixed epoch count.
 
+**A second, GeoLife-specific OOM surfaced once the retraining batch
+actually launched** (all 7 of GeoLife's item-1 jobs failed, Foursquare's
+7 and Gowalla-SF-Bay's all succeeded) -- the fault-tolerant orchestrator
+worked exactly as designed, logging each failure and moving on rather
+than dying. Root cause: GeoLife has 85,074 distinct location cells (a
+fine GPS grid) vs.\ Foursquare's 1,668 and Gowalla-SF-Bay's ~2,100 --
+`eval_utility`'s batched forward pass accumulated every chunk's
+`[batch, 85074]` logits in a list before concatenating, and the final
+concatenated tensor -- not the per-chunk peak -- is what exhausted
+memory, which no amount of shrinking the chunk size would have fixed.
+New `_batched_accuracy` helper reduces each chunk to a match count
+immediately instead of concatenating logits; verified against a naive
+computation at GeoLife's exact vocabulary size (exact match) and the
+full test suite re-run clean. No orchestrator restart was needed --
+each job is a fresh `python` process, so every job launched after the
+fix landed on disk (including GeoLife's still-queued items 2/4/5) picks
+it up automatically. Full detail in `CHANGES_FROM_ORIGINAL.md`.
+
 ---
 
 **Checkpoint 04e is complete.** Full report: `reports/04e_reference_curve.md`
