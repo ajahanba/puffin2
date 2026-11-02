@@ -1,4 +1,10 @@
 #!/bin/bash
+# OBSOLETE -- DO NOT RUN. Superseded by scripts/launch_retraining_to_convergence.sh.
+# Moved to scripts/legacy/ 2026-11-02: this orchestrator used fixed-epoch-count
+# training (no early stopping) and is not fault-tolerant (set -e; one job failure
+# kills the whole batch). All of its jobs have been superseded by early-stopped,
+# fault-tolerant retraining in launch_retraining_to_convergence.sh. Kept here for
+# historical reference only.
 # Checkpoint 04e, per the PI (2026-10-27):
 # 1. Plain Mo-PAE Pareto reference CURVE: sweep lambda_priv (lambda3) --
 #    {0.02, 0.1, 0.2, 0.5, 0.8}, each x3 datasets x3 encoder seeds.
