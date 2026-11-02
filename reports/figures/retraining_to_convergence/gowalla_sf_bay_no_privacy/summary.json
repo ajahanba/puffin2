@@ -1,0 +1,260 @@
+{
+  "dataset": "gowalla_sf_bay",
+  "mechanism": "no_privacy",
+  "lambda4": 0.0,
+  "loss_variant": null,
+  "refit_every_k_epochs": null,
+  "encoder_seeds": [
+    0,
+    1,
+    2
+  ],
+  "attacker_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "max_epochs": 80,
+  "patience": 8,
+  "val_frac": 0.1,
+  "actual_epochs_per_encoder_seed": [
+    25,
+    23,
+    26
+  ],
+  "utility_mean": 0.25761694758251275,
+  "utility_std": 0.0031135474436953248,
+  "utility_per_encoder_seed": [
+    0.2619464749592219,
+    0.2547574457802211,
+    0.2561469220080952
+  ],
+  "train_wall_time_seconds_per_encoder_seed": [
+    99.90415668487549,
+    90.73792433738708,
+    102.34067916870117
+  ],
+  "train_wall_time_seconds_mean": 97.66092006365459,
+  "n_users_before_filter": 1346,
+  "n_users_after_filter": 738,
+  "n_excluded": 608,
+  "chance_level": 0.0001167269756040621,
+  "raw_decile_ci": {
+    "0": {
+      "mean": 0.5027909522059194,
+      "ci_lo": 0.40562882594355754,
+      "ci_hi": 0.5974886720415139,
+      "n_users": 57,
+      "ci_excludes_zero": true
+    },
+    "1": {
+      "mean": 0.4560979369158546,
+      "ci_lo": 0.3610404911565905,
+      "ci_hi": 0.5445521866992737,
+      "n_users": 60,
+      "ci_excludes_zero": true
+    },
+    "2": {
+      "mean": 0.4925718027625292,
+      "ci_lo": 0.4089305534379349,
+      "ci_hi": 0.5745593032366524,
+      "n_users": 63,
+      "ci_excludes_zero": true
+    },
+    "3": {
+      "mean": 0.38512360571303234,
+      "ci_lo": 0.31484266920717086,
+      "ci_hi": 0.4578494666254929,
+      "n_users": 69,
+      "ci_excludes_zero": true
+    },
+    "4": {
+      "mean": 0.33347393609583376,
+      "ci_lo": 0.26330349664954894,
+      "ci_hi": 0.4071031977024469,
+      "n_users": 62,
+      "ci_excludes_zero": true
+    },
+    "5": {
+      "mean": 0.39297826765105126,
+      "ci_lo": 0.32151412870204593,
+      "ci_hi": 0.4669385319443729,
+      "n_users": 72,
+      "ci_excludes_zero": true
+    },
+    "6": {
+      "mean": 0.3259818296124404,
+      "ci_lo": 0.25977340007326694,
+      "ci_hi": 0.39126324480991,
+      "n_users": 74,
+      "ci_excludes_zero": true
+    },
+    "7": {
+      "mean": 0.3592786650620884,
+      "ci_lo": 0.2977934808057866,
+      "ci_hi": 0.42241362143779626,
+      "n_users": 77,
+      "ci_excludes_zero": true
+    },
+    "8": {
+      "mean": 0.263029034945759,
+      "ci_lo": 0.2121467569707671,
+      "ci_hi": 0.3169508992326224,
+      "n_users": 84,
+      "ci_excludes_zero": true
+    },
+    "9": {
+      "mean": 0.25623144070773074,
+      "ci_lo": 0.2160496523587111,
+      "ci_hi": 0.29934308969439005,
+      "n_users": 120,
+      "ci_excludes_zero": true
+    }
+  },
+  "post_decile_ci": {
+    "0": {
+      "mean": 0.4043922924943138,
+      "ci_lo": 0.31749434799533227,
+      "ci_hi": 0.4937786511293127,
+      "n_users": 57,
+      "ci_excludes_zero": true
+    },
+    "1": {
+      "mean": 0.394579392503947,
+      "ci_lo": 0.3079457885254589,
+      "ci_hi": 0.47853191531946254,
+      "n_users": 60,
+      "ci_excludes_zero": true
+    },
+    "2": {
+      "mean": 0.4017779689597547,
+      "ci_lo": 0.31994738499732517,
+      "ci_hi": 0.48215543554883894,
+      "n_users": 63,
+      "ci_excludes_zero": true
+    },
+    "3": {
+      "mean": 0.314940874039191,
+      "ci_lo": 0.24894206882314981,
+      "ci_hi": 0.3792530128061051,
+      "n_users": 69,
+      "ci_excludes_zero": true
+    },
+    "4": {
+      "mean": 0.256261851715665,
+      "ci_lo": 0.1932588514756231,
+      "ci_hi": 0.32565074687255335,
+      "n_users": 62,
+      "ci_excludes_zero": true
+    },
+    "5": {
+      "mean": 0.29713120765518397,
+      "ci_lo": 0.23424965740196596,
+      "ci_hi": 0.3634392208418878,
+      "n_users": 72,
+      "ci_excludes_zero": true
+    },
+    "6": {
+      "mean": 0.24015727666886272,
+      "ci_lo": 0.18421610248421935,
+      "ci_hi": 0.2985809358764808,
+      "n_users": 74,
+      "ci_excludes_zero": true
+    },
+    "7": {
+      "mean": 0.26174139591474166,
+      "ci_lo": 0.21076873672204866,
+      "ci_hi": 0.3141954349034599,
+      "n_users": 77,
+      "ci_excludes_zero": true
+    },
+    "8": {
+      "mean": 0.15996767765886727,
+      "ci_lo": 0.12548905886351205,
+      "ci_hi": 0.19574570835741711,
+      "n_users": 84,
+      "ci_excludes_zero": true
+    },
+    "9": {
+      "mean": 0.1646709379908215,
+      "ci_lo": 0.13500392350449048,
+      "ci_hi": 0.1978450776728504,
+      "n_users": 120,
+      "ci_excludes_zero": true
+    }
+  },
+  "inmodel_confidence_decile_ci": {
+    "0": {
+      "mean": 0.21963050961494446,
+      "ci_lo": 0.1622246354818344,
+      "ci_hi": 0.2831483781337738,
+      "n_users": 57,
+      "ci_excludes_zero": true
+    },
+    "1": {
+      "mean": 0.22940067946910858,
+      "ci_lo": 0.1662723273038864,
+      "ci_hi": 0.29281553626060486,
+      "n_users": 60,
+      "ci_excludes_zero": true
+    },
+    "2": {
+      "mean": 0.20128647983074188,
+      "ci_lo": 0.15565629303455353,
+      "ci_hi": 0.24871882796287537,
+      "n_users": 63,
+      "ci_excludes_zero": true
+    },
+    "3": {
+      "mean": 0.13224972784519196,
+      "ci_lo": 0.09415104240179062,
+      "ci_hi": 0.17302602529525757,
+      "n_users": 69,
+      "ci_excludes_zero": true
+    },
+    "4": {
+      "mean": 0.12334489822387695,
+      "ci_lo": 0.09018225222826004,
+      "ci_hi": 0.16138334572315216,
+      "n_users": 62,
+      "ci_excludes_zero": true
+    },
+    "5": {
+      "mean": 0.12330052256584167,
+      "ci_lo": 0.09043790400028229,
+      "ci_hi": 0.15910066664218903,
+      "n_users": 72,
+      "ci_excludes_zero": true
+    },
+    "6": {
+      "mean": 0.10295030474662781,
+      "ci_lo": 0.0744839683175087,
+      "ci_hi": 0.13335643708705902,
+      "n_users": 74,
+      "ci_excludes_zero": true
+    },
+    "7": {
+      "mean": 0.10667777061462402,
+      "ci_lo": 0.08175315707921982,
+      "ci_hi": 0.13266552984714508,
+      "n_users": 77,
+      "ci_excludes_zero": true
+    },
+    "8": {
+      "mean": 0.05250363051891327,
+      "ci_lo": 0.04107053950428963,
+      "ci_hi": 0.0655883401632309,
+      "n_users": 84,
+      "ci_excludes_zero": true
+    },
+    "9": {
+      "mean": 0.06039319187402725,
+      "ci_lo": 0.047826625406742096,
+      "ci_hi": 0.07434827834367752,
+      "n_users": 120,
+      "ci_excludes_zero": true
+    }
+  }
+}

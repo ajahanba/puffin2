@@ -1,0 +1,12 @@
+{
+  "git_commit": "e82094b2a6a9c2e3f21fc5c139869010d3d84361",
+  "git_commit_inferred": true,
+  "patience": 8,
+  "val_frac": 0.1,
+  "min_epochs": null,
+  "n_encoder_seeds": 1,
+  "protocol_ok": false,
+  "contamination_audit_passed": true,
+  "usable": true,
+  "usable_note": "predates min_epochs fix; empirically audited for the cold-start-plateau signature and cleared"
+}
