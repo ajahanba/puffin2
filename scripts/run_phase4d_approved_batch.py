@@ -460,6 +460,12 @@ def main():
     ap.add_argument("--encoder-seeds", type=str, default="0,1,2")
     ap.add_argument("--attacker-seeds", type=str, default="0,1,2,3,4")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--attacker-device", default="cpu",
+                     help="device for the per-encoder-seed frozen-encoder attacker MLP head "
+                          "(train_attacker_on_frozen_encoder_strongest_per_user); defaults to CPU "
+                          "since this step, called once per encoder seed, was measured dominating "
+                          "wall time under concurrent-job GPU contention -- see reid.py's comment. "
+                          "Pass the same value as --device to restore the old GPU-only behavior.")
     args = ap.parse_args()
     device = torch.device(args.device)
     encoder_seeds = tuple(int(s) for s in args.encoder_seeds.split(","))
@@ -524,7 +530,8 @@ def main():
               f"post attacker ({len(attacker_seeds)} attacker seeds)...", flush=True)
         post_df, _ = train_attacker_on_frozen_encoder_strongest_per_user(
             bundle.encoder, windows, total_users, device, seeds=attacker_seeds,
-            max_epochs=args.attack_epochs, patience=6)
+            max_epochs=args.attack_epochs, patience=6,
+            attacker_device=torch.device(args.attacker_device))
         post_df = post_df.rename(columns={"post_top1": f"post_top1_encseed{enc_seed}"})
         per_encoder_seed.append(post_df[["user_id", f"post_top1_encseed{enc_seed}"]])
 
@@ -565,7 +572,7 @@ def main():
 
     result = dict(
         dataset=args.dataset, mechanism=args.mechanism, lambda4=args.lambda4,
-        lambda_priv=args.lambda_priv, similarity_basis=args.similarity_basis,
+        lambda_priv=args.lambda_priv, similarity_basis=args.similarity_basis, attacker_device=args.attacker_device,
         loss_variant=args.loss_variant, refit_every_k_epochs=args.refit_every_k_epochs,
         encoder_seeds=list(encoder_seeds), attacker_seeds=list(attacker_seeds),
         max_epochs=args.mopae_epochs, patience=args.patience, val_frac=args.val_frac,

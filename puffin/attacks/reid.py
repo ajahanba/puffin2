@@ -441,7 +441,7 @@ def train_attacker_on_frozen_encoder_strongest_per_user(encoder: nn.Module, wind
                                                          patience: int = 8, val_frac: float = 0.1,
                                                          batch_size: int = 512, lr: float = 1e-3,
                                                          chronological_val: bool = True,
-                                                         include_gbt: bool = True) -> pd.DataFrame:
+                                                         include_gbt: bool = True, attacker_device=None) -> pd.DataFrame:
     """Frozen-encoder sibling of `train_raw_attacker_strongest_per_user`:
     per-user MAX top-1/top-5 across {MLP head, GBT} on the encoder's own
     pooled feature vector (no GRU -- no sequence left to feed it, same
@@ -464,6 +464,25 @@ def train_attacker_on_frozen_encoder_strongest_per_user(encoder: nn.Module, wind
         all_feat = _batched_forward(lambda c, w, h: encoder(c, w, h), cell, wd, hr)
         te_feat = _batched_forward(lambda c, w, h: encoder(c, w, h), te_cell, te_wd, te_hr)
 
+    # Per the PI's instruction (2026-11-02): under GPU contention from
+    # concurrently-running jobs, this per-seed MLP-on-frozen-features loop
+    # (5 seeds x up to 100 epochs, called once PER ENCODER SEED -- 10x per
+    # job) was measured dominating total wall time (111 of 144 min on one
+    # real GeoLife point, ~4.8x its isolated-run baseline), far more than
+    # the one-time encoder training itself. The encoder's forward pass
+    # above still runs on `device` (GPU, where the encoder lives); moving
+    # ONLY this already-pooled, comparatively tiny feature tensor to a
+    # separate `attacker_device` (CPU by default -- see --attacker-device)
+    # frees the GPU for the next encoder seed immediately, instead of
+    # holding it through 5 more MLP-training loops first. GBT already ran
+    # on CPU numpy regardless (see below), so this only changes where the
+    # MLP head trains, not an attack it wasn't already doing.
+    attacker_device = attacker_device or device
+    if attacker_device != device:
+        all_feat, te_feat = all_feat.to(attacker_device), te_feat.to(attacker_device)
+        y, te_y = y.to(attacker_device), te_y.to(attacker_device)
+    device = attacker_device
+
     arch_names = ["mlp"] + (["gbt"] if include_gbt else [])
     per_seed_frames = []
     arch_win_log = []
@@ -485,7 +504,7 @@ def train_attacker_on_frozen_encoder_strongest_per_user(encoder: nn.Module, wind
         n_fit = len(fit_idx)
         for epoch in range(max_epochs):
             head.train()
-            batch_perm = fit_idx[torch.randperm(n_fit, device=device)]
+            batch_perm = fit_idx[torch.randperm(n_fit, device="cpu").to(device)]
             for start in range(0, n_fit, batch_size):
                 idx = batch_perm[start:start + batch_size]
                 opt.zero_grad()
