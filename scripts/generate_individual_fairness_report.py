@@ -131,6 +131,26 @@ def matched_utility_if_rate(data, ds, mechanism_prefix="ed_soft", lambda4_vals=(
     return results
 
 
+def no_privacy_vs_plain(data, ds):
+    """Q1: does plain Mo-PAE violate individual fairness compared with
+    no-privacy -- same user, same pairs, top-10% selection, per
+    similarity definition."""
+    runs = data[ds]
+    if "{}_no_privacy".format(ds) not in runs:
+        return None
+    np_run = "{}_no_privacy".format(ds)
+    plain_run = next((n for n in runs if "_plain_lp0.3" in n or n.endswith("_plain_lambda0.0_10seed")), None)
+    if plain_run is None:
+        return None
+    out = {}
+    for sim in SIM_NAMES:
+        np_rate = runs[np_run][sim]["top_10pct"]["rate"]
+        plain_rate = runs[plain_run][sim]["top_10pct"]["rate"]
+        out[sim] = dict(no_privacy=np_rate, plain=plain_rate,
+                         delta=None if (np_rate is None or plain_rate is None) else plain_rate - np_rate)
+    return dict(no_privacy_run=np_run, plain_run=plain_run, per_similarity=out)
+
+
 def main():
     data = load_all()
     print("Loaded datasets:", list(data.keys()))
@@ -144,6 +164,8 @@ def main():
         print(f"  entropy-similar/location-dissimilar example: {example}")
         mr = matched_utility_if_rate(data, ds)
         print(f"  matched-utility PUFFIN-vs-curve IF-rate: {json.dumps(mr, indent=2, default=float)}")
+        npvp = no_privacy_vs_plain(data, ds)
+        print(f"  no_privacy vs plain (top10%% IF-rate): {json.dumps(npvp, indent=2, default=float)}")
 
 
 if __name__ == "__main__":
