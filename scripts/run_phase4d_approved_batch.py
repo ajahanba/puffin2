@@ -146,13 +146,31 @@ def _val_utility(encoder, next_predictor, cell, wd, hr, y_next_idx, val_idx_t, b
 
 
 def _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size,
-                              train_one_epoch_fn, val_eval_fn, state_modules: dict):
+                              train_one_epoch_fn, val_eval_fn, state_modules: dict, min_epochs=20):
     """Generic early-stopping loop shared by every mechanism: calls
     `train_one_epoch_fn(batch_idx)` once per mini-batch for one epoch
     over a fresh permutation of `fit_idx_t`, evaluates `val_eval_fn()`
     after each epoch, and keeps the best-validation-utility snapshot of
     `state_modules` (name -> nn.Module), restoring it before returning.
-    Returns the number of epochs actually run."""
+    Returns the number of epochs actually run.
+
+    `min_epochs` (default 20, same for every mechanism -- not a per-
+    mechanism tuning knob): plain Mo-PAE's validation utility sits flat
+    at a near-chance plateau for the first ~11 epochs before breaking
+    out (confirmed, scripts/diagnose_no_privacy_ceiling.py), because the
+    multi-objective adversarial training takes time to find a useful
+    joint direction. Without a floor, `patience` epochs of flat
+    plateau is indistinguishable from genuine convergence, and early
+    stopping fires during the plateau -- confirmed in practice: 5 of
+    ~175 encoder-seed runs across the first full retraining-to-
+    convergence batch stopped at epoch <=12 with utility stuck at the
+    exact plateau value, including 2 of 10 seeds in the GeoLife
+    plain-vs-ed_soft dominance comparison and 3 entire single-seed
+    formulation runs (see CHANGES_FROM_ORIGINAL.md). Patience is only
+    evaluated once `epoch+1 >= min_epochs`; the best-validation
+    snapshot is still tracked from epoch 1, so a genuinely fast
+    convergence is not penalized, only PREMATURE STOPPING during the
+    plateau is prevented."""
     n_fit = len(fit_idx_t)
     best_val, best_state, bad_epochs, actual_epochs = -1.0, _state_of(state_modules), 0, 0
     for epoch in range(max_epochs):
@@ -165,7 +183,7 @@ def _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size
             best_val, best_state, bad_epochs = val_acc, _state_of(state_modules), 0
         else:
             bad_epochs += 1
-            if bad_epochs >= patience:
+            if bad_epochs >= patience and actual_epochs >= min_epochs:
                 break
     _load_state(state_modules, best_state)
     return actual_epochs
@@ -175,7 +193,7 @@ def train_attacker_in_the_loop_mechanism(windows, total_locations, total_users, 
                                           loss_variant, refit_every_k_epochs, device, max_epochs,
                                           lambda_priv=0.3, batch_size=512, lr=3e-4, seed=0,
                                           head_refit_epochs=10, head_refit_lr=1e-3,
-                                          patience=8, val_frac=0.1):
+                                          patience=8, val_frac=0.1, min_epochs=20):
     """Every `refit_every_k_epochs`, a FRESH attacker head is refit to
     convergence on the momentarily-frozen encoder (using only the FIT
     split, never validation), then used (frozen) as the fairness term's
@@ -225,13 +243,14 @@ def train_attacker_in_the_loop_mechanism(windows, total_locations, total_users, 
         return _val_utility(bundle.encoder, bundle.next_predictor, cell, wd, hr, y_next_idx, val_idx_t)
 
     actual_epochs = _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size,
-                                              train_batch, val_eval, state)
+                                              train_batch, val_eval, state, min_epochs=min_epochs)
     return bundle, actual_epochs
 
 
 def train_group_adversarial_mechanism(windows, total_locations, total_users, entropy_table,
                                        lambda_priv_override, device, max_epochs, n_groups=10,
-                                       batch_size=512, lr=3e-4, seed=0, patience=8, val_frac=0.1):
+                                       batch_size=512, lr=3e-4, seed=0, patience=8, val_frac=0.1,
+                                       min_epochs=20):
     """No id_recognizer: a per-decile-group adversary (GroupAdversaryHeads)
     instead. lambda_priv_override plays the role every other mechanism's
     lambda_priv plays (see module docstring)."""
@@ -273,23 +292,25 @@ def train_group_adversarial_mechanism(windows, total_locations, total_users, ent
         return _val_utility(bundle.encoder, bundle.next_predictor, cell, wd, hr, y_next_idx, val_idx_t)
 
     actual_epochs = _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size,
-                                              train_batch, val_eval, state)
+                                              train_batch, val_eval, state, min_epochs=min_epochs)
     return bundle, actual_epochs
 
 
 def train_mechanism(windows, total_locations, total_users, entropy_table, mechanism, lambda4, device,
                      max_epochs, lambda_priv=0.3, batch_size=512, lr=3e-4, seed=0,
-                     loss_variant=None, refit_every_k_epochs=None, patience=8, val_frac=0.1):
+                     loss_variant=None, refit_every_k_epochs=None, patience=8, val_frac=0.1,
+                     min_epochs=20):
     if mechanism == "attacker_in_the_loop":
         return train_attacker_in_the_loop_mechanism(
             windows, total_locations, total_users, entropy_table, lambda4, loss_variant,
             refit_every_k_epochs, device, max_epochs, lambda_priv=lambda_priv, batch_size=batch_size,
-            lr=lr, seed=seed, patience=patience, val_frac=val_frac)
+            lr=lr, seed=seed, patience=patience, val_frac=val_frac, min_epochs=min_epochs)
     if mechanism == "group_adversarial":
         # lambda4 OVERRIDES l_priv for this mechanism -- see module docstring.
         return train_group_adversarial_mechanism(
             windows, total_locations, total_users, entropy_table, lambda4, device, max_epochs,
-            batch_size=batch_size, lr=lr, seed=seed, patience=patience, val_frac=val_frac)
+            batch_size=batch_size, lr=lr, seed=seed, patience=patience, val_frac=val_frac,
+            min_epochs=min_epochs)
 
     torch.manual_seed(seed)
     sl = windows["train"]["cell"].shape[1]
@@ -337,7 +358,7 @@ def train_mechanism(windows, total_locations, total_users, entropy_table, mechan
         return _val_utility(bundle.encoder, bundle.next_predictor, cell, wd, hr, y_next_idx, val_idx_t)
 
     actual_epochs = _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size,
-                                              train_batch, val_eval, state)
+                                              train_batch, val_eval, state, min_epochs=min_epochs)
     return bundle, actual_epochs
 
 
@@ -412,6 +433,12 @@ def main():
     ap.add_argument("--patience", type=int, default=8,
                      help="epochs without validation-utility improvement before stopping, same for "
                           "every mechanism")
+    ap.add_argument("--min-epochs", type=int, default=20,
+                     help="patience is not evaluated before this many epochs, same for every "
+                          "mechanism -- plain Mo-PAE's validation utility sits flat at a near-chance "
+                          "plateau for ~11 epochs before breaking out, and without this floor, "
+                          "patience epochs of plateau looks identical to genuine convergence "
+                          "(confirmed happening in practice; see CHANGES_FROM_ORIGINAL.md)")
     ap.add_argument("--val-frac", type=float, default=0.1,
                      help="fraction of each user's TRAIN windows (chronologically latest) held out "
                           "for early-stopping validation; 0 disables early stopping (trains exactly "
@@ -460,7 +487,8 @@ def main():
             windows, total_locations, total_users, entropy_table, args.mechanism,
             args.lambda4, device, max_epochs=args.mopae_epochs, lambda_priv=args.lambda_priv,
             seed=enc_seed, loss_variant=args.loss_variant,
-            refit_every_k_epochs=args.refit_every_k_epochs, patience=args.patience, val_frac=args.val_frac)
+            refit_every_k_epochs=args.refit_every_k_epochs, patience=args.patience, val_frac=args.val_frac,
+            min_epochs=args.min_epochs)
         train_wall_times.append(time.time() - _t0)
         actual_epochs_list.append(actual_epochs)
         utility = eval_utility(bundle, windows, device)
@@ -506,6 +534,7 @@ def main():
         loss_variant=args.loss_variant, refit_every_k_epochs=args.refit_every_k_epochs,
         encoder_seeds=list(encoder_seeds), attacker_seeds=list(attacker_seeds),
         max_epochs=args.mopae_epochs, patience=args.patience, val_frac=args.val_frac,
+        min_epochs=args.min_epochs,
         actual_epochs_per_encoder_seed=actual_epochs_list,
         utility_mean=float(np.mean(utilities)), utility_std=float(np.std(utilities)),
         utility_per_encoder_seed=utilities,

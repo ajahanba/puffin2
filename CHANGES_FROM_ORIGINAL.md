@@ -913,3 +913,53 @@ is a fresh `python` process launched by the (still-running) shell
 orchestrator, every job launched after this fix landed on disk picked
 it up automatically, including the GeoLife jobs still queued in items
 2, 4, and 5.
+
+
+## Early stopping fired during the known cold-start plateau: min_epochs burn-in added (2026-11-02)
+
+**Found**: before trusting the GeoLife plain-vs-ed_soft 10-seed dominance
+data for analysis, a check of the raw per-seed values found 2 of the 10
+`plain` seeds had stopped at epoch 9 with utility stuck at exactly
+0.05999216182810286 -- identical to many decimal places, not
+coincidence. This is the cold-start plateau already diagnosed in
+`scripts/diagnose_no_privacy_ceiling.py` (plain Mo-PAE sits flat near
+chance for ~11 epochs before breaking out, because the multi-objective
+adversarial training takes time to find a useful joint direction).
+With `patience=8` and no floor on when patience is evaluated, 8 flat
+epochs during the plateau is indistinguishable from genuine
+convergence, so early stopping fired before training ever really began.
+
+A scan of all 72 completed jobs in the first retraining-to-convergence
+batch found 5 affected (run, seed) pairs total: the 2 in the critical
+GeoLife plain 10-seed run, plus 3 ENTIRE single-seed formulation jobs
+(`foursquare_group_adversarial_lambda1.0_1seed`,
+`geolife_group_adversarial_lambda3.0_1seed`,
+`geolife_per_user_minimax_lambda0.3_1seed`) -- with only one seed each,
+these three results are simply wrong, not just noisy.
+
+**Fixed**: `_run_with_early_stopping` gained a `min_epochs` parameter
+(default 20, same for every mechanism -- a floor on the stopping rule
+itself, not a per-mechanism tuning knob): patience is only evaluated
+once `actual_epochs >= min_epochs`. The best-validation snapshot is
+still tracked from epoch 1 regardless, so genuinely fast convergence is
+not penalized -- only premature stopping during a plateau is prevented.
+Threaded through every training function and the CLI
+(`--min-epochs`), recorded in each run's `summary.json` for
+transparency.
+
+**Tested**: `tests/test_min_epochs_burnin.py` drives the stopping logic
+in isolation (no real training) with scripted validation sequences: (1)
+a 12-epoch flat plateau then real improvement does NOT stop
+prematurely with `min_epochs=20`; (2) genuine fast convergence still
+stops once `min_epochs` is cleared, not forced to run to `max_epochs`;
+(3) a sanity check confirms the SAME plateau scenario WOULD have
+stopped during the plateau under the old `min_epochs=0` behavior --
+i.e. the test actually reproduces the bug being fixed, not a scenario
+that was already safe. Full existing test suite and the 10-mechanism
+smoke test both re-run clean.
+
+**Not yet done**: the 4 contaminated job outputs (3 single-seed
+formulations + the GeoLife plain 10-seed run) are archived (renamed
+with a `_CONTAMINATED_premature_stop` suffix, not deleted) and queued
+for rerun with the fix once GPU0/1 free up from the current item-1
+retry batch.
