@@ -18,10 +18,12 @@ speculative: a fairness term built on the mechanism's own co-trained
 adversary is targeting a signal that stays near chance and largely flat
 across deciles, while a fresh external attacker on the same released
 features is both more accurate and clearly decile-dependent
-(Section~\ref{sec:residual-risk}). Separately, a previously reported
-adaptive-adversary result that appeared to show naive evaluation
-\emph{additionally} understates risk asymmetrically does not survive
-decomposition into its actual causes (Appendix~\ref{sec:adaptive-appendix}).
+(Section~\ref{sec:residual-risk}). Separately, the hypothesis that naive
+evaluation \emph{additionally} understates risk asymmetrically -- because
+a fairness-aware adaptive adversary with oracle knowledge of a user's
+behavioral group recovers substantially more risk than a naive one --
+does not survive decomposition into its actual causes
+(Appendix~\ref{sec:adaptive-appendix}).
 
 Together these point toward a single, narrower, and more defensible
 claim than ``this mechanism is unfair'' or ``naive evaluation is

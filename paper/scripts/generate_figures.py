@@ -16,6 +16,27 @@ def write(name, content):
     print(f"wrote {TABLES / name}")
 
 
+RETRAIN_BASE = ROOT / "reports/figures/retraining_to_convergence"
+REQUIRED_MIN_COMMIT = "ac55a06f2cde82a0fe785bdabc3fb2465c34b57c"
+
+
+def require_protocol(run_name):
+    """Refuses to build a table/figure from a run directory whose
+    protocol_tag.json says it is not usable (missing the min_epochs
+    burn-in, wrong patience/val_frac, or a commit that predates the
+    required fix) -- so a stale/contaminated run cannot silently end up
+    in the paper again. Returns the tag dict on success."""
+    tag_path = RETRAIN_BASE / run_name / "protocol_tag.json"
+    if not tag_path.exists():
+        raise RuntimeError(f"REFUSING to build: {run_name} has no protocol_tag.json -- "
+                            f"run scripts/backfill_protocol_tags.py first")
+    tag = json.loads(tag_path.read_text())
+    if not tag.get("usable"):
+        raise RuntimeError(f"REFUSING to build: {run_name} is not usable per its protocol tag "
+                            f"({tag.get('usable_note')}) -- rerun under the current protocol first")
+    return tag
+
+
 def gen_gowalla_disparate_risk_table():
     d = json.load(open(ROOT / "reports/figures/phase2d/decile_reduction_metrics.json"))
     names = {"gowalla_nyc": "Gowalla-NYC", "gowalla_la": "Gowalla-LA",
@@ -191,34 +212,40 @@ def gen_04d_inmodel_vs_external_table():
     write("04d_inmodel_vs_external.tex", "\n".join(lines) + "\n")
 
 
-def gen_04e_geolife_10seed_dominance_table():
-    d = json.load(open(ROOT / "reports/figures/phase4e_analysis/reference_curve_comparisons.json"))
-    tr = d["geolife"]["ten_seed_recheck"]
+def gen_geolife_frontier_table():
+    for run in ("geolife_plain_lambda0.0_10seed", "geolife_ed_soft_lambda0.3_10seed",
+                "geolife_ed_soft_lambda1.0_10seed", "geolife_ed_soft_lambda3.0_10seed"):
+        require_protocol(run)
+    d = json.load(open(ROOT / "reports/figures/retraining_to_convergence_analysis/geolife_frontier_test.json"))
+    direct = d["direct"]
     lines = [
         r"\begin{table}[t]",
         r"\centering",
-        r"\caption{GeoLife, 10 encoder seeds, trained to convergence: paired bootstrap test of "
-        r"ed\_soft vs.\ plain Mo-PAE on per-seed utility and per-seed decile-0 risk. "
-        r"Dominance requires BOTH a significant utility gain and a significant risk "
-        r"reduction; neither $\lambda_4$ value clears this bar.}",
+        r"\caption{GeoLife, 10 encoder seeds, trained to convergence: paired-bootstrap effect of "
+        r"ed\_soft vs.\ plain Mo-PAE on utility, decile-0 risk, decile-9 risk, and mean risk over "
+        r"all users. $\Delta$ is ed\_soft$-$plain throughout (negative = ed\_soft lower). All "
+        r"four effects are significant at every $\lambda_4$ tested; see \S\ref{sec:phase4} for the "
+        r"curve-interpolated frontier test.}",
         r"\label{tab:geolife-10seed-dominance}",
         r"\small",
         r"\begin{tabular}{@{}lcccc@{}}",
         r"\toprule",
-        r"$\lambda_4$ & $\Delta$utility (ed\_soft$-$plain) & excl.\ 0? & $\Delta$risk (plain$-$ed\_soft) & excl.\ 0? \\",
+        r"$\lambda_4$ & $\Delta$utility & $\Delta$decile-0 risk & $\Delta$decile-9 risk & $\Delta$mean risk (all users) \\",
         r"\midrule",
     ]
     for l4 in (0.3, 1.0, 3.0):
-        v = tr[f"ed_soft_lambda{l4}"]
-        ut, rt = v["utility_vs_plain_test"], v["decile0_risk_vs_plain_test"]
+        v = direct[f"lambda4_{l4}"]
+        ut, d0t, d9t, mt = v["utility_test"], v["decile0_risk_test"], v["decile9_risk_test"], v["mean_risk_test"]
         lines.append(
             f"{l4} & {ut['mean_diff']:+.3f} [{ut['ci_lo']:+.3f},{ut['ci_hi']:+.3f}] & "
-            f"{'yes' if ut['ci_excludes_zero'] else 'no'} & "
-            f"{rt['mean_diff']:+.3f} [{rt['ci_lo']:+.3f},{rt['ci_hi']:+.3f}] & "
-            f"{'yes' if rt['ci_excludes_zero'] else 'no'} \\\\"
+            f"{-d0t['mean_diff']:+.3f} [{-d0t['ci_hi']:+.3f},{-d0t['ci_lo']:+.3f}] & "
+            f"{-d9t['mean_diff']:+.3f} [{-d9t['ci_hi']:+.3f},{-d9t['ci_lo']:+.3f}] & "
+            f"{-mt['mean_diff']:+.3f} [{-mt['ci_hi']:+.3f},{-mt['ci_lo']:+.3f}] \\\\"
         )
     lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
-    write("04e_geolife_10seed_dominance.tex", "\n".join(lines) + "\n")
+    write("geolife_frontier.tex", "\n".join(lines) + "\n")
+
+
 
 
 def gen_04e_no_privacy_ceiling_table():
@@ -253,5 +280,5 @@ if __name__ == "__main__":
     gen_adaptive_gap_decomposition_table()
     gen_04d_decile_reduction_table()
     gen_04d_inmodel_vs_external_table()
-    gen_04e_geolife_10seed_dominance_table()
+    gen_geolife_frontier_table()
     gen_04e_no_privacy_ceiling_table()

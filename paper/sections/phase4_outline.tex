@@ -6,33 +6,9 @@ attacker (Section~\ref{sec:threat-model-naive}), against plain Mo-PAE
 and the no-privacy reference (Section~\ref{sec:residual-risk}) as the
 two end-points of the achievable utility range.
 
-\textbf{A fairness-term dominance claim can fail to survive more seeds
-and more training.} An initial comparison on GeoLife, at 3 encoder
-seeds and the shorter training budget used throughout
-Section~\ref{sec:residual-risk}, read as dominance: ed\_soft (an
-entropy-soft-weighted fairness term) achieved both higher utility and
-lower decile-0 risk than plain Mo-PAE, beyond both points' confidence
-intervals. We retrained both \texttt{plain} and \texttt{ed\_soft} to
-convergence with 10 encoder seeds each and ran a paired bootstrap test
-on the per-seed utility and per-seed decile-0 risk
-(Table~\ref{tab:geolife-10seed-dominance}). At the two lower fairness
-weights tested, decile-0 risk is significantly lower under ed\_soft (CI
-excludes zero), but the utility difference is \emph{not} significant
-(CI straddles zero) -- a real, partial privacy benefit, not dominance,
-since dominance requires a significant utility gain, not merely a
-utility difference indistinguishable from zero. At the highest fairness
-weight tested, ed\_soft's utility is \emph{significantly lower} than
-plain's, alongside the significant risk reduction -- an ordinary
-trade-off, the opposite of dominance. \textbf{No formulation we test is
-shown to dominate plain Mo-PAE once both training convergence and
-encoder-seed count are properly controlled.} Both confounds mattered:
-seed count (Table~\ref{tab:geolife-10seed-dominance} shows how much the
-point estimate moves between 3 and 10 seeds) and training convergence
-(the GeoLife diagnostic in Section~\ref{sec:residual-risk} found
-ed\_soft's relative utility advantage over plain was itself partly an
-artifact of differential convergence speed at the shorter budget).
+\textbf{On GeoLife, ed\_soft lowers the most-identifiable decile's risk at a real but modest utility cost, and does something plain Mo-PAE cannot do by simply raising its own privacy weight.} We retrained \texttt{plain} and \texttt{ed\_soft} to convergence with 10 encoder seeds each, under one shared early-stopping protocol (Section~\ref{sec:evaluation-protocol}), and ran a paired bootstrap test on the per-seed utility, decile-0 risk, decile-9 risk, and mean risk over all users (Table~\ref{tab:geolife-10seed-dominance}). At every $\lambda_4$ tested, all four effects are significant: decile-0 risk falls by 0.11--0.14 (roughly a third, from a baseline of 0.34), mean risk over all users falls too, decile-9 risk rises by a much smaller 0.007--0.018, and utility falls by 0.012--0.040. This is not leveling down -- the gain to the worst-off decile is an order of magnitude larger than the cost to the best-off one -- and it is not something plain Mo-PAE can reach by simply turning up its own privacy weight: swept across $\lambda_3 \in \{0.02,\ldots,0.8\}$, plain's own curve never brings decile-0 risk below 0.334, even at its most private setting (Section~\ref{sec:residual-risk}'s reference curve), while ed\_soft reaches 0.20--0.23 at every $\lambda_4$ tested, at a utility no lower than plain's own most-private point. A matched-utility interpolation against that curve confirms this directly at $\lambda_4=0.3$; at $\lambda_4\in\{1.0,3.0\}$, ed\_soft's utility falls below the curve's own range entirely, so interpolation is refused rather than extrapolated -- an extended sweep to resolve those two points at matched utility is in progress and will update this comparison once it lands. \textbf{No formulation we test dominates plain Mo-PAE in the strict two-sided sense (higher utility and lower decile-0 risk, both significant) once training convergence and encoder-seed count are properly controlled -- but dominance was the wrong test for a fairness intervention that is allowed to trade some utility for risk reduction; the four-effect comparison above is the one that matters.}
 
-\input{tables/04e_geolife_10seed_dominance}
+\input{tables/geolife_frontier}
 
 \begin{figure}[t]
 \centering
