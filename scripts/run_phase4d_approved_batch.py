@@ -55,6 +55,7 @@ import argparse
 import copy
 import json
 import pathlib
+import subprocess
 import sys
 import time
 
@@ -529,12 +530,20 @@ def main():
                   if has_id_recognizer else None)
     chance_level = 1.0 / total_users
 
+    try:
+        git_commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=pathlib.Path(__file__).resolve().parents[1]
+        ).decode().strip()
+    except Exception:
+        git_commit = None
+
     result = dict(
         dataset=args.dataset, mechanism=args.mechanism, lambda4=args.lambda4,
+        lambda_priv=args.lambda_priv,
         loss_variant=args.loss_variant, refit_every_k_epochs=args.refit_every_k_epochs,
         encoder_seeds=list(encoder_seeds), attacker_seeds=list(attacker_seeds),
         max_epochs=args.mopae_epochs, patience=args.patience, val_frac=args.val_frac,
-        min_epochs=args.min_epochs,
+        min_epochs=args.min_epochs, git_commit=git_commit,
         actual_epochs_per_encoder_seed=actual_epochs_list,
         utility_mean=float(np.mean(utilities)), utility_std=float(np.std(utilities)),
         utility_per_encoder_seed=utilities,

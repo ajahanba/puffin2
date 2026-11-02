@@ -1,0 +1,83 @@
+{
+  "lambda4_0.3": {
+    "utility_ed_soft": 0.7354677278345543,
+    "utility_plain": 0.7477495402610714,
+    "util_test": {
+      "mean_diff": -0.01228181242651718,
+      "ci_lo": -0.0208045431250189,
+      "ci_hi": -0.004204953121702751,
+      "n": 10,
+      "ci_excludes_zero": true
+    },
+    "decile0_test": {
+      "mean_diff": 0.11363799161626957,
+      "ci_lo": 0.09699256652049369,
+      "ci_hi": 0.12845866659088642,
+      "n": 10,
+      "ci_excludes_zero": true
+    },
+    "decile9_test": {
+      "mean_diff": -0.017777777384552693,
+      "ci_lo": -0.0224499993905839,
+      "ci_hi": -0.012777638589342439,
+      "n": 10,
+      "ci_excludes_zero": true
+    },
+    "dominates_at_10_seeds": false,
+    "decile9_significantly_harmed": true
+  },
+  "lambda4_1.0": {
+    "utility_ed_soft": 0.7227065810497121,
+    "utility_plain": 0.7477495402610714,
+    "util_test": {
+      "mean_diff": -0.02504295921135934,
+      "ci_lo": -0.03354436103825631,
+      "ci_hi": -0.017182629405203376,
+      "n": 10,
+      "ci_excludes_zero": true
+    },
+    "decile0_test": {
+      "mean_diff": 0.1321695027279202,
+      "ci_lo": 0.11126467093420796,
+      "ci_hi": 0.1545170469543955,
+      "n": 10,
+      "ci_excludes_zero": true
+    },
+    "decile9_test": {
+      "mean_diff": -0.012438888631554118,
+      "ci_lo": -0.017595138550089262,
+      "ci_hi": -0.0065106943066283686,
+      "n": 10,
+      "ci_excludes_zero": true
+    },
+    "dominates_at_10_seeds": false,
+    "decile9_significantly_harmed": true
+  },
+  "lambda4_3.0": {
+    "utility_ed_soft": 0.7075276597027523,
+    "utility_plain": 0.7477495402610714,
+    "util_test": {
+      "mean_diff": -0.04022188055831903,
+      "ci_lo": -0.047201697265683906,
+      "ci_hi": -0.03268789002441893,
+      "n": 10,
+      "ci_excludes_zero": true
+    },
+    "decile0_test": {
+      "mean_diff": 0.13940199208911508,
+      "ci_lo": 0.11976323644089282,
+      "ci_hi": 0.15863563206995604,
+      "n": 10,
+      "ci_excludes_zero": true
+    },
+    "decile9_test": {
+      "mean_diff": -0.007122222058888938,
+      "ci_lo": -0.012344583078494498,
+      "ci_hi": -0.002381388958543553,
+      "n": 10,
+      "ci_excludes_zero": true
+    },
+    "dominates_at_10_seeds": false,
+    "decile9_significantly_harmed": true
+  }
+}
