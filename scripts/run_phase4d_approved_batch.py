@@ -71,8 +71,10 @@ from puffin.attacks.reid import (train_raw_attacker_strongest_per_user,
                                   train_attacker_on_frozen_encoder_strongest_per_user,
                                   _batched_forward, _chronological_val_split)
 from puffin.attacks.analysis import bootstrap_decile_ci
-from puffin.fairness.losses import (ed_soft, floor_loss, lipschitz_soft, variance_of_risk, group_dro_loss,
-                                     per_user_minimax_loss, build_entropy_table)
+from puffin.fairness.losses import (ed_soft, floor_loss, lipschitz_soft, variance_of_risk,
+                                     group_dro_loss, per_user_minimax_loss, build_entropy_table,
+                                     ed_soft_location, lipschitz_soft_pairtable,
+                                     build_histogram_table, build_pairwise_distance_table)
 from puffin.fairness.attacker_in_the_loop import refit_fresh_attacker_head, attacker_in_the_loop_train_step
 from puffin.fairness.group_adversarial import GroupAdversaryHeads, group_adversarial_train_step, decile_group_idx
 from puffin.models.mopae_torch import build_bundle, fixed_train_step
@@ -300,7 +302,7 @@ def train_group_adversarial_mechanism(windows, total_locations, total_users, ent
 def train_mechanism(windows, total_locations, total_users, entropy_table, mechanism, lambda4, device,
                      max_epochs, lambda_priv=0.3, batch_size=512, lr=3e-4, seed=0,
                      loss_variant=None, refit_every_k_epochs=None, patience=8, val_frac=0.1,
-                     min_epochs=20):
+                     min_epochs=20, fairness_fn_override=None):
     if mechanism == "attacker_in_the_loop":
         return train_attacker_in_the_loop_mechanism(
             windows, total_locations, total_users, entropy_table, lambda4, loss_variant,
@@ -332,7 +334,8 @@ def train_mechanism(windows, total_locations, total_users, entropy_table, mechan
         fairness_fn, l4 = None, 0.0
     elif mechanism in LOSS_FORMULATIONS:
         lambdas = dict(l_recon=0.1, l_util=0.8, l_priv=lambda_priv)
-        fairness_fn, l4 = LOSS_FORMULATIONS[mechanism], lambda4
+        fairness_fn = fairness_fn_override if fairness_fn_override is not None else LOSS_FORMULATIONS[mechanism]
+        l4 = lambda4
     else:
         raise ValueError(mechanism)
 
@@ -448,6 +451,11 @@ def main():
     ap.add_argument("--lambda4", type=float, default=0.0,
                      help="additive fairness weight; OVERRIDES lambda-priv for group_adversarial "
                           "(see module docstring)")
+    ap.add_argument("--similarity-basis", choices=["entropy", "location_distribution"], default="entropy",
+                     help="what ed_soft/lipschitz treat as the individual-fairness similarity: the "
+                          "default 'entropy' (original PUFFIN) or 'location_distribution' (1 - "
+                          "Jensen-Shannon distance between train-split visitation histograms over "
+                          "cells), to show the fairness objective is not entropy-specific")
     ap.add_argument("--attack-epochs", type=int, default=25)
     ap.add_argument("--encoder-seeds", type=str, default="0,1,2")
     ap.add_argument("--attacker-seeds", type=str, default="0,1,2,3,4")
@@ -465,6 +473,24 @@ def main():
     feats = compute_mobility_features(df)
     entropy_by_user = dict(zip(feats["user_id"], feats["s_unc"]))
     entropy_table = build_entropy_table(entropy_by_user, total_users, device=device)
+
+    fairness_table = entropy_table
+    fairness_fn_override = None
+    if args.similarity_basis == "location_distribution" and args.mechanism in ("ed_soft", "lipschitz"):
+        import puffin.metrics.individual_fairness as ifm
+        train_df = ifm.train_only(df)
+        hist_by_user = ifm.per_user_cell_histogram(train_df, total_locations)
+        if args.mechanism == "ed_soft":
+            fairness_table = build_histogram_table(hist_by_user, total_users, total_locations, device=device)
+            fairness_fn_override = ed_soft_location
+        else:
+            user_ids = sorted(hist_by_user.keys())
+            sim_matrix = ifm.sim_location_distribution(hist_by_user, user_ids)
+            fairness_table = build_pairwise_distance_table(sim_matrix, user_ids, total_users, device=device)
+            fairness_fn_override = lipschitz_soft_pairtable
+        print(f"[{tag}] similarity-basis=location_distribution: built "
+              f"{'histogram' if args.mechanism == 'ed_soft' else 'pairwise-distance'} table "
+              f"from {len(hist_by_user)} train-split users", flush=True)
 
     print(f"[{tag}] building windows...", flush=True)
     windows = build_sl_windows(df, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
@@ -485,11 +511,11 @@ def main():
               f"patience {args.patience})...", flush=True)
         _t0 = time.time()
         bundle, actual_epochs = train_mechanism(
-            windows, total_locations, total_users, entropy_table, args.mechanism,
+            windows, total_locations, total_users, fairness_table, args.mechanism,
             args.lambda4, device, max_epochs=args.mopae_epochs, lambda_priv=args.lambda_priv,
             seed=enc_seed, loss_variant=args.loss_variant,
             refit_every_k_epochs=args.refit_every_k_epochs, patience=args.patience, val_frac=args.val_frac,
-            min_epochs=args.min_epochs)
+            min_epochs=args.min_epochs, fairness_fn_override=fairness_fn_override)
         train_wall_times.append(time.time() - _t0)
         actual_epochs_list.append(actual_epochs)
         utility = eval_utility(bundle, windows, device)
@@ -539,7 +565,7 @@ def main():
 
     result = dict(
         dataset=args.dataset, mechanism=args.mechanism, lambda4=args.lambda4,
-        lambda_priv=args.lambda_priv,
+        lambda_priv=args.lambda_priv, similarity_basis=args.similarity_basis,
         loss_variant=args.loss_variant, refit_every_k_epochs=args.refit_every_k_epochs,
         encoder_seeds=list(encoder_seeds), attacker_seeds=list(attacker_seeds),
         max_epochs=args.mopae_epochs, patience=args.patience, val_frac=args.val_frac,

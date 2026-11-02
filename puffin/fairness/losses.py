@@ -110,6 +110,78 @@ def _global_decile_boundaries(entropy_table: torch.Tensor, n_deciles: int = 10) 
     return torch.quantile(entropy_table, qs)
 
 
+def build_histogram_table(hist_by_user: dict, total_users: int, n_cells: int, device=None) -> torch.Tensor:
+    """Location-distribution analog of build_entropy_table: hist_by_user
+    keys are 1-indexed user ids (puffin.metrics.individual_fairness's
+    per_user_cell_histogram convention), values are (n_cells+1,) normalized
+    visitation histograms over 1-indexed cell_id (index 0 unused). Returns
+    a 0-indexed (total_users, n_cells+1) tensor so it lines up with
+    cross-entropy class indices (user_id - 1), same convention as
+    build_entropy_table."""
+    table = torch.zeros(total_users, n_cells + 1, dtype=torch.float32, device=device)
+    for user_id, hist in hist_by_user.items():
+        table[user_id - 1] = torch.as_tensor(hist, dtype=torch.float32, device=device)
+    return table
+
+
+def build_pairwise_distance_table(sim_matrix, user_ids: list, total_users: int, device=None) -> torch.Tensor:
+    """Converts a (n_present_users, n_present_users) similarity matrix (as
+    produced by puffin.metrics.individual_fairness's sim_* functions, over
+    only the users present in that similarity computation) plus the
+    user_ids list it was built from, into a full (total_users, total_users)
+    0-indexed DISTANCE table (1 - similarity), so it can be indexed
+    directly by z_user_idx the same way entropy_table is. Users absent from
+    sim_matrix (e.g. filtered out of the train-split similarity
+    computation) get distance 1.0 (maximally dissimilar) to everyone,
+    including each other, as a safe default -- they should not appear in
+    z_user_idx during training if the windows themselves were already
+    filtered consistently, but this avoids an out-of-bounds/undefined
+    value if they ever do."""
+    table = torch.ones(total_users, total_users, dtype=torch.float32, device=device)
+    idx = torch.as_tensor([u - 1 for u in user_ids], dtype=torch.long, device=device)
+    dist = 1.0 - torch.as_tensor(sim_matrix, dtype=torch.float32, device=device)
+    table[idx[:, None], idx[None, :]] = dist
+    table.fill_diagonal_(0.0)
+    return table
+
+
+def lipschitz_soft_pairtable(id_logits: torch.Tensor, z_user_idx: torch.Tensor,
+                              pairwise_distance_table: torch.Tensor, sigma: float = 1.0) -> torch.Tensor:
+    """Identical to lipschitz_soft, except the pairwise distance `d` is
+    looked up from a precomputed (total_users, total_users) table instead
+    of derived by broadcasting a per-user SCALAR table -- needed because a
+    similarity basis like location-distribution (Jensen-Shannon distance
+    over each user's visitation histogram) is not itself a per-user
+    scalar, so there is no "entropy_table"-style single number to
+    broadcast a pairwise difference from. The table is precomputed once
+    (puffin.metrics.individual_fairness.sim_location_distribution on the
+    training split, via build_pairwise_distance_table) before training
+    starts, same spirit as entropy_table."""
+    confidence = _per_sample_confidence(id_logits, z_user_idx)
+    d = pairwise_distance_table[z_user_idx][:, z_user_idx]
+    w = torch.exp(-(d ** 2) / (2 * sigma ** 2))
+    risk_diff = confidence.unsqueeze(0) - confidence.unsqueeze(1)
+    return (w * risk_diff ** 2).mean()
+
+
+def ed_soft_location(id_logits: torch.Tensor, z_user_idx: torch.Tensor,
+                      histogram_table: torch.Tensor) -> torch.Tensor:
+    """PUFFIN/ed_soft generalized from entropy to location-distribution
+    similarity, to show the fairness objective is not entropy-specific:
+    same structural pattern as ed_soft (expected value of the similarity
+    basis under the predicted distribution should match the true user's
+    own value), but the "value" is now each user's full visitation
+    histogram over cells rather than a single entropy scalar, so the
+    scalar MSE becomes an MSE over histogram vectors (an L2 surrogate for
+    distribution closeness -- JS/KL distance itself is not a convenient
+    loss term to backprop through here, unlike at evaluation time in
+    puffin.metrics.individual_fairness)."""
+    probs = F.softmax(id_logits, dim=-1)
+    pred_hist = probs @ histogram_table  # (B, n_cells+1) expected histogram under predicted distribution
+    true_hist = histogram_table[z_user_idx]  # (B, n_cells+1)
+    return F.mse_loss(pred_hist, true_hist)
+
+
 def lipschitz_soft(id_logits: torch.Tensor, z_user_idx: torch.Tensor, entropy_table: torch.Tensor,
                     sigma: float = 1.0) -> torch.Tensor:
     """L_lipschitz with soft pairwise weights: an individual-fairness penalty
