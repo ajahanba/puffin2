@@ -23,8 +23,13 @@ opposite reason: no coordinates at all rather than already-gridded ones).
 
 `ts` = d*48 + t, a genuinely monotonic, evenly-spaced relative time (NOT a
 wall-clock timestamp, since the start date/city is undisclosed by design).
-`hour` = t // 2. `weekday` is left null -- there is no way to anchor day 0 to
-a real calendar date. `cell_id` is the dataset's own (x, y) grid cell, dense
+`hour` = t // 2. `weekday` = day_index % 7 (2026-11-03, PI instruction): there is no way to
+anchor day 0 to a real calendar date, so this is NOT a real day-of-week --
+it is a 7-day-periodic proxy so the model can still learn weekly structure
+if any exists, at an arbitrary, unknown phase offset. build_sl_windows
+requires a real integer weekday for its embedding and had never actually
+been run on this dataset before this was caught (the all-null version broke
+it); do not read this column as calendar truth. `cell_id` is the dataset's own (x, y) grid cell, dense
 1-indexed, same "pass through the dataset's own grid" treatment as GeoLife's
 `loc` column -- no re-tessellation, since x/y already IS the grid.
 `traj_id` = day index (d), dense per user (handles the rare case where a
@@ -69,7 +74,7 @@ def load_yjmob100k_unified(path: str, nrows: int | None = None, chunksize: int |
     df["ts"] = raw["d"] * 48 + raw["t"]
     df["lat"] = float("nan")
     df["lon"] = float("nan")
-    df["weekday"] = pd.NA
+    df["weekday"] = raw["d"].to_numpy() % 7  # no real calendar anchor; see module docstring
     df["hour"] = raw["t"] // 2
 
     # Vectorized: this file can be 100M+ rows, so no Python-level per-row loops.
