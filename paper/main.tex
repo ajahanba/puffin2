@@ -24,7 +24,7 @@
 \title{\puffin: Optimizing for Individual Fairness in Privacy--Utility Trade-off Models for Mobility Data}
 
 \begin{abstract}
-Spatial-temporal mobility data enable critical applications, from transit planning to epidemic response, but expose individuals to re-identification. Privacy--utility trade-off (PUT) models address this by learning representations that retain what downstream tasks need while suppressing what identifies a person. Their protection, however, is assessed as an aggregate, and it is not distributed fairly: users with similar mobility can receive very different protection, and the most predictable users, who are the easiest to re-identify to begin with, receive the least. We present \puffin, a fairness-aware PUT framework that treats individual fairness of privacy protection as a first-class training objective alongside privacy and utility. \puffin{} quantifies user similarity through mobility entropy and adds an entropy-difference fairness loss to an adversarial encoder, so that users with similar mobility receive comparable privacy protection. We evaluate \puffin{} against a fresh external re-identification attacker, with multiple training seeds and confidence intervals, on GeoLife, Foursquare, and Gowalla. On GeoLife, \puffin{} lowers the re-identification risk of the most predictable users by roughly a third (0.11--0.14 in absolute top-1 risk) while lowering mean risk across all users, at a cost of 1--4 points of next-location accuracy and a small increase (0.007--0.018) in risk for the least predictable users. \pending{Foursquare and Gowalla results; individual-fairness metric results; similarity-robustness results.} Our results show that explicit fairness optimization is feasible in PUT models, and that measuring who is actually protected is a prerequisite for doing so.
+Spatial-temporal mobility data enable critical applications, from transit planning to epidemic response, but expose individuals to re-identification. Privacy--utility trade-off (PUT) models address this by learning representations that retain what downstream tasks need while suppressing what identifies a person. Their protection, however, is assessed as an aggregate, and it is not distributed fairly: users with similar mobility can receive very different protection, and the most predictable users, who are the easiest to re-identify to begin with, receive the least. We present \puffin, a fairness-aware PUT framework that treats individual fairness of privacy protection as a first-class training objective alongside privacy and utility. \puffin{} quantifies user similarity through mobility entropy and adds an entropy-difference fairness loss to an adversarial encoder, so that users with similar mobility receive comparable privacy protection. We evaluate \puffin{} against a fresh external re-identification attacker, with multiple training seeds, on GeoLife, Foursquare, and Gowalla, comparing it with the base PUT model across the base model's full privacy--utility curve. The base model leaves the most predictable users with 4--10$\times$ the residual risk of the least predictable. On GeoLife, at matched utility, \puffin{} lowers the most predictable users' re-identification risk by 38\% (0.334 to 0.207), lowers mean risk by 27\%, and brings the risks of similar users 25--39\% closer together under all four similarity definitions we test; the base model cannot reach this point at any privacy weight, even when it gives up 26 points of accuracy. On the check-in datasets the benefit is small and confined to low fairness weights, and higher weights trade privacy away. We also show that the commonly used pairwise fairness rate mostly measures how low risk is rather than how evenly it is distributed, and propose measures that separate the two. Our results show that explicit fairness optimization in PUT models is feasible but dataset dependent, and that measuring who is actually protected is a prerequisite for it.
 \end{abstract}
 
 \keywords{human mobility, privacy, individual fairness, privacy--utility trade-off, representation learning}
@@ -85,7 +85,14 @@ Let $u_i$ and $u_j$ denote two users with original mobility trajectories $\tau_i
 \mathrm{IF}_{\delta,\epsilon} = \frac{\sum_{i<j} \mathbb{I}\big(\mathrm{sim}(\tau_i,\tau_j)\ge\delta\big)\,\mathbb{I}\big(|P(\tau_i)-P(\tau_j)|\le\epsilon\big)}{\sum_{i<j} \mathbb{I}\big(\mathrm{sim}(\tau_i,\tau_j)\ge\delta\big)},
 \label{eq:if}
 \end{equation}
-where $\delta$ is a similarity threshold and $\epsilon$ a fairness tolerance. Higher is fairer. Because a fixed $\delta$ selects very different numbers of pairs under different similarity definitions, we also report $\mathrm{IF}$ over the 10\% most similar pairs under each definition, the full curve over $\epsilon$, and the relationship between pairwise similarity and pairwise protection difference (Section~\ref{sec:metrics}).
+where $\delta$ is a similarity threshold and $\epsilon$ a fairness tolerance. Higher is fairer.
+
+This rate has two weaknesses. First, a fixed $\delta$ selects very different numbers of pairs under different similarity definitions; at $\delta=0.8$, entropy similarity counts 61--75\% of all user pairs as similar in our datasets, while location similarity counts almost none. We therefore select the 10\% most similar pairs under each definition. Second, and more important, a fixed tolerance $\epsilon$ rewards any mechanism that lowers everyone's risk: when all risks are small, all differences are small. In our data, a base-model configuration that collapses utility to 0.06 and mean risk to 0.03 scores 0.98 on this rate. To separate fairness from the level of protection, we report, over the selected similar pairs $\mathcal{S}$:
+\begin{align}
+D_{\mathrm{abs}} &= \tfrac{1}{|\mathcal{S}|}\textstyle\sum_{(i,j)\in\mathcal{S}} |R(u_i)-R(u_j)|, \\
+D_{\mathrm{rel}} &= D_{\mathrm{abs}} / \bar R ,
+\end{align}
+where $R(u)$ is a user's post-mechanism re-identification risk and $\bar R$ the mean risk over all users. $D_{\mathrm{abs}}$ is the typical risk gap between similar users; $D_{\mathrm{rel}}$ expresses it relative to the overall risk level. Lower is fairer for both. We compare mechanisms at matched utility.
 
 \paragraph{Similarity.} We instantiate $\mathrm{sim}$ primarily with Shannon entropy, which captures the regularity of a user's mobility and is tightly coupled to re-identification risk: more regular (lower-entropy) traces are easier to identify~\cite{song2010limits}. This aligns the similarity notion with our objective of equalizing protection among similarly predictable users, and entropy is computationally lightweight (a single pass over grid statistics) and robust to small spatial or temporal perturbations. For each user $u$ we compute the entropy $H(T_u)$ of the user's visitation distribution over a discretized spatial grid. Entropy alone, however, can judge two users similar when they visit entirely different places at the same rates. We therefore also evaluate three further definitions (Section~\ref{sec:metrics}): location-distribution similarity, trajectory-shape similarity, and radius of gyration.
 
@@ -158,7 +165,7 @@ while the DRU, URU, and MPU minimize their own losses. Here $\lambda_4$ controls
 \label{sec:setup}
 %=====================================================================
 \subsection{Datasets}
-We use three public mobility datasets. \textbf{GeoLife}~\cite{zheng2010geolife,zheng2011geolifeguide} contains GPS trajectories of 182 users in Beijing over five years; we use 181 users with sufficient data. \textbf{Foursquare-NYC}~\cite{yang2015foursquare} contains 227{,}428 check-ins from 1{,}083 users in New York City. \textbf{Gowalla}~\cite{cho2011gowalla} contains check-ins worldwide; we use four metropolitan subsets (San Francisco Bay Area, Los Angeles, New York, Chicago), with the San Francisco Bay Area, the largest, as the main Gowalla dataset. We discretize locations into grid cells, build windows of consecutive visits for each user (within trajectories for GPS data and over each user's chronological check-in sequence for check-in data), and split each user's data in time, with earlier data for training. We exclude from per-user metrics any user with fewer than 10 test windows. \pending{final per-dataset user counts after filtering, window length per dataset.} \note{The earlier manuscript used MDC; it is not used here because data access was not available.}
+We use three public mobility datasets. \textbf{GeoLife}~\cite{zheng2010geolife,zheng2011geolifeguide} contains GPS trajectories of 182 users in Beijing over five years; we use 181 users with sufficient data. \textbf{Foursquare-NYC}~\cite{yang2015foursquare} contains 227{,}428 check-ins from 1{,}083 users in New York City. \textbf{Gowalla}~\cite{cho2011gowalla} contains check-ins worldwide; we use four metropolitan subsets (San Francisco Bay Area, Los Angeles, New York, Chicago), with the San Francisco Bay Area, the largest, as the main Gowalla dataset. We discretize locations into grid cells, build windows of consecutive visits for each user (within trajectories for GPS data and over each user's chronological check-in sequence for check-in data), and split each user's data in time, with earlier data for training. We exclude from per-user metrics any user with fewer than 10 test windows, leaving 178 GeoLife, 1{,}083 Foursquare, and 738 Gowalla (San Francisco Bay Area) users. \pending{window length per dataset; Gowalla user count to confirm.} \note{The earlier manuscript used MDC; it is not used here because data access was not available.}
 
 \subsection{Baselines}
 \textbf{Mo-PAE}~\cite{zhan2023mopae}, the base PUT model ($\lambda_4=0$), evaluated across a sweep of its privacy weight $\lambda_3$, so that \puffin{} is compared against the base model's full privacy--utility curve rather than a single configuration. A \textbf{no-privacy reference}, the same encoder trained for prediction only ($\lambda_1=\lambda_3=\lambda_4=0$), marks the utility ceiling. \textbf{LSTM-TrajGAN}~\cite{rao2020trajgan} and \textbf{geo-indistinguishability}~\cite{andres2013geo} represent the generative and data-perturbation families. \pending{TrajGAN and geo-indistinguishability results.} Within the fairness family, we compare the entropy-difference objective with a Lipschitz-style penalty.
@@ -169,19 +176,37 @@ We use three public mobility datasets. \textbf{GeoLife}~\cite{zheng2010geolife,z
 
 \paragraph{Re-identification risk.} Measuring privacy with the URU itself would overstate protection, because the encoder is trained specifically to defeat it~\cite{elazar2018adversarial}. In our models the URU's confidence in the true user stays close to chance for all users, while an attacker trained afresh on the same features re-identifies the most predictable users at 35--57\% top-1 accuracy \pending{confirm on final runs}. We therefore define risk with an external attacker. After the PUT model is frozen, we train three attackers on its released features (a multilayer perceptron, a GRU, and gradient-boosted trees), each with five seeds, and take for each user the most successful. The re-identification risk $R_{\mathrm{orig}}(u)$ is this attacker's top-1 accuracy on the user's original windows, and $R_{\mathrm{anon}}(u)$ its accuracy on the PUT model's features. Privacy protection is the reduction in risk.
 
-\paragraph{Individual fairness.} $\mathrm{IF}_{\delta,\epsilon}$ (Equation~\ref{eq:if}) with $\delta=0.8$ and $\epsilon=0.2$, following prior work~\cite{zhan2023fairness}, together with the top-10\%-most-similar-pairs variant, the curve over $\epsilon$, and the binned relationship between pairwise similarity and pairwise risk difference. We compute these under four similarity definitions: entropy; location-distribution similarity ($1$ minus the Jensen--Shannon distance between users' visitation distributions over cells); trajectory-shape similarity (Hausdorff distance between visited locations); and radius of gyration.
+\paragraph{Individual fairness.} $D_{\mathrm{abs}}$ and $D_{\mathrm{rel}}$ over the 10\% most similar pairs (Section~\ref{sec:problem}), with $\mathrm{IF}_{\delta,\epsilon}$ at $\delta=0.8$, $\epsilon=0.2$ reported for comparison with prior work~\cite{zhan2023fairness}. We compute these under four similarity definitions: entropy; location-distribution similarity ($1$ minus the Jensen--Shannon distance between users' visitation distributions over cells); trajectory-shape similarity (Hausdorff distance between visited locations); and radius of gyration.
 
 \paragraph{Protection across regularity groups.} To see who gains and who loses, we group users into deciles of mobility entropy and report each decile's risk before and after the PUT model, the risk of the most predictable decile (decile~0), and the ratio and difference of post-model risk between the most and least predictable deciles.
 
 \subsection{Training protocol}
-All models use windows of \pending{length} visits, mini-batches of 128, and the Adam optimizer. Every model, including baselines and the no-privacy reference, is trained with the same early-stopping rule on a chronological validation split, after a fixed minimum number of epochs. Each configuration is trained with at least three independent encoder seeds (ten for the main GeoLife comparison), and we report bootstrap 95\% confidence intervals over seeds and users. \puffin{} is evaluated at $\lambda_4\in\{0.3,1.0,3.0\}$. \pending{list of $\lambda_1,\lambda_2,\lambda_3$ defaults and the $\lambda_3$ sweep values.}
+All models use windows of \pending{length} visits, mini-batches of 128, and the Adam optimizer. Every model, including baselines and the no-privacy reference, is trained with the same early-stopping rule on a chronological validation split, after a fixed minimum number of epochs. Each configuration is trained with at least three independent encoder seeds (ten for the main GeoLife comparison), and we report bootstrap 95\% confidence intervals over seeds and users where shown. \puffin{} is evaluated at $\lambda_4\in\{0.3,1.0,3.0\}$. Mo-PAE's privacy weight is swept over $\lambda_3\in\{0.02,0.1,0.2,0.3,0.5,0.8\}$ on all datasets and extended to $\{1.2,2,3\}$ on GeoLife, where the shorter sweep does not reach \puffin's utility range. Unless stated otherwise, ``Mo-PAE'' refers to $\lambda_3=0.3$. \pending{$\lambda_1,\lambda_2$ defaults.}
 
 %=====================================================================
 \section{Results}
 %=====================================================================
 \subsection{Fairness of the base PUT model}
 \label{sec:results-base}
-\pending{RQ1 baseline: $\mathrm{IF}_{\delta,\epsilon}$ for no-privacy and Mo-PAE across its $\lambda_3$ curve, all three datasets; risk by entropy decile before and after Mo-PAE; residual-risk ratio and difference between deciles 0 and 9.}
+Table~\ref{tab:base} compares Mo-PAE with the no-privacy reference. Mo-PAE reduces risk for the least predictable users far more than for the most predictable: in relative terms, the least predictable decile's risk falls by 21--46\% while the most predictable decile's falls by 1--15\%. After the mechanism, the most predictable users carry 4--10$\times$ the risk of the least predictable. On GeoLife, Mo-PAE gives the most predictable decile essentially no protection (0.334 to 0.331).
+
+\begin{table}[t]
+\centering
+\caption{Re-identification risk (top-1, external attacker) before (no-privacy reference) and after Mo-PAE ($\lambda_3=0.3$), for all users and for the most and least predictable entropy deciles. Point estimates; \pending{bootstrap CIs}.}
+\label{tab:base}
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & Mean & Most predictable & Least predictable \\
+\midrule
+GeoLife & 0.142 $\to$ 0.134 & 0.334 $\to$ 0.331 & 0.043 $\to$ 0.034 \\
+Foursquare & 0.423 $\to$ 0.298 & 0.707 $\to$ 0.601 & 0.201 $\to$ 0.108 \\
+Gowalla & 0.274 $\to$ 0.188 & 0.404 $\to$ 0.360 & 0.165 $\to$ 0.091 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Measured among similar users, Mo-PAE does not make protection more even. The absolute risk gap between similar users ($D_{\mathrm{abs}}$) shrinks on the check-in datasets, but only because overall risk falls; relative to the remaining risk ($D_{\mathrm{rel}}$), similar users end up no closer, and under three of the four similarity definitions they end up further apart (for example, entropy: 0.86 to 0.97 on Foursquare, 1.04 to 1.09 on Gowalla). This confirms, under an external attacker and with multiple seeds, the earlier finding that PUT models do not attain individual fairness~\cite{zhan2023fairness}.
 
 \subsection{\puffin{} versus the base model}
 \label{sec:results-puffin}
@@ -203,13 +228,45 @@ $\lambda_4$ & $\Delta$ utility (Acc@1) & $\Delta$ risk, most predictable decile 
 \end{tabular}
 \end{table*}
 
-Could Mo-PAE reach the same point simply by weighting privacy more heavily? Across its privacy weights $\lambda_3\in\{0.02,\dots,0.8\}$, Mo-PAE's risk for the most predictable decile does not fall below 0.334, while \puffin{} reaches 0.20--0.23. \pending{Extended $\lambda_3$ sweep: comparison at matched utility and at matched mean risk; this determines whether the gain is specific to the fairness objective or reflects stronger privacy overall.}
+\paragraph{Is the gain specific to the fairness objective?} Could Mo-PAE reach the same point simply by weighting privacy more heavily? Table~\ref{tab:matched} compares \puffin{} with Mo-PAE at the same utility, interpolating along Mo-PAE's privacy-weight curve. On GeoLife, at matched utility, \puffin{} lowers the most predictable decile's risk by a third or more (0.334 to 0.207 at $\lambda_4=1.0$) and mean risk by about a quarter. Mo-PAE cannot reach this point at any privacy weight: at its strongest setting ($\lambda_3=3$) it matches \puffin's mean risk (0.094 vs.\ 0.096) only by giving up 26 points of accuracy (0.460 vs.\ 0.723), and even then its most predictable users remain more exposed (0.262 vs.\ 0.207). The benefit on GeoLife is therefore specific to the fairness objective, not a by-product of stronger privacy.
 
-\pending{$\mathrm{IF}_{\delta,\epsilon}$ for \puffin{} vs.\ Mo-PAE; Foursquare and Gowalla results; Lipschitz-style alternative; trade-off figure (utility vs.\ risk of the most predictable decile, with Mo-PAE's $\lambda_3$ curve and the no-privacy reference).}
+\begin{table*}[t]
+\centering
+\caption{\puffin{} versus Mo-PAE at matched utility (Mo-PAE interpolated along its privacy-weight curve to \puffin's utility). Each cell: Mo-PAE $\to$ \puffin. Point estimates; \pending{bootstrap CIs}. $^\dagger$\puffin's utility lies slightly above Mo-PAE's curve; nearest Mo-PAE point ($\lambda_3=0.3$, utility 0.263) shown.}
+\label{tab:matched}
+\small
+\begin{tabular}{@{}llccc@{}}
+\toprule
+ & $\lambda_4$ (Acc@1) & Mean risk & Most pred. & Least pred. \\
+\midrule
+GeoLife & 0.3 (0.735) & 0.133 $\to$ 0.110 & 0.334 $\to$ 0.225 & 0.035 $\to$ 0.055 \\
+ & 1.0 (0.723) & 0.132 $\to$ 0.096 & 0.334 $\to$ 0.207 & 0.028 $\to$ 0.049 \\
+ & 3.0 (0.708) & 0.130 $\to$ 0.091 & 0.331 $\to$ 0.200 & 0.027 $\to$ 0.044 \\
+\addlinespace
+Foursquare & 0.3 (0.244) & 0.372 $\to$ 0.351 & 0.671 $\to$ 0.654 & 0.145 $\to$ 0.141 \\
+ & 1.0 (0.245) & 0.376 $\to$ 0.384 & 0.675 $\to$ 0.689 & 0.147 $\to$ 0.154 \\
+ & 3.0 (0.229) & 0.300 $\to$ 0.380 & 0.603 $\to$ 0.685 & 0.109 $\to$ 0.134 \\
+\addlinespace
+Gowalla & 0.3 (0.266)$^\dagger$ & 0.188 $\to$ 0.201 & 0.360 $\to$ 0.369 & 0.091 $\to$ 0.098 \\
+ & 1.0 (0.245) & 0.162 $\to$ 0.223 & 0.322 $\to$ 0.391 & 0.072 $\to$ 0.119 \\
+ & 3.0 (0.226) & 0.135 $\to$ 0.203 & 0.285 $\to$ 0.345 & 0.053 $\to$ 0.085 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\paragraph{Individual fairness.} At matched utility on GeoLife, \puffin{} brings similar users' risks closer together under every similarity definition: $D_{\mathrm{abs}}$ falls by 25\% (entropy), 33\% (location distribution), 39\% (trajectory shape), and 36\% (radius of gyration) at $\lambda_4=1.0$. Relative to the lower overall risk, the gap falls by 8\%, 16\%, and 12\% under the last three definitions and is essentially unchanged under entropy (+3\%). \puffin{} thus improves individual fairness on GeoLife both in absolute terms and, for three of four definitions, beyond what its lower overall risk alone would explain.
+
+\paragraph{Check-in datasets.} On Foursquare and Gowalla the picture is different (Table~\ref{tab:matched}). At $\lambda_4=0.3$, \puffin{} is slightly better than Mo-PAE on Foursquare (mean risk 0.372 to 0.351; most predictable decile 0.671 to 0.654) and roughly equal to slightly worse on Gowalla. At higher fairness weights it is equal (Foursquare, $\lambda_4=1.0$) or worse: at the same utility, risk rises for every group, so the fairness term trades privacy away rather than redistributing it. Correspondingly, $D_{\mathrm{abs}}$ rises by 15--56\% at those points, while $D_{\mathrm{rel}}$ changes by at most 10\%.
+
+\paragraph{Why the datasets differ.} On GeoLife, Mo-PAE's privacy weight barely binds: across $\lambda_3\in\{0.02,\dots,0.8\}$ utility stays at 0.75--0.76 and mean risk at 0.13--0.14, close to the no-privacy reference (0.142). The adversarial privacy term provides little signal there, and \puffin's term supplies one. On the check-in datasets the adversarial term is effective, and a strong fairness term competes with it. \pending{Confirm with the in-model vs.\ external attacker comparison by dataset.}
+
+\pending{Lipschitz-style alternative (training); trade-off figure (utility vs.\ risk of the most predictable decile, with Mo-PAE's $\lambda_3$ curve, the no-privacy reference, and \puffin{} points).}
 
 \subsection{Sensitivity to the similarity definition}
 \label{sec:results-similarity}
-\pending{RQ3: agreement between similarity definitions on which pairs are similar (including an example of two users with near-identical entropy but disjoint locations); $\mathrm{IF}$ under each definition for Mo-PAE and \puffin; the location-distribution variant of \puffin.}
+The four similarity definitions largely disagree about which users are alike: the overlap (Jaccard) between their sets of 10\% most similar pairs is 0.06--0.14, except trajectory shape and radius of gyration on GeoLife (0.54), both measures of spatial extent. Entropy and location distribution capture genuinely different things: in each dataset we find pairs with near-identical entropy (similarity $\geq 0.98$) whose visitation distributions have essentially no overlap, which is precisely the case a single entropy-based notion cannot see. Despite this disagreement, \puffin's improvement on GeoLife holds under all four definitions (Section~\ref{sec:results-puffin}), although it was trained only on entropy.
+
+The reverse does not hold. A \puffin{} variant trained on location-distribution similarity instead of entropy is indistinguishable from Mo-PAE on GeoLife (mean risk 0.130--0.133, most predictable decile 0.315--0.318): its loss, a squared error between visitation histograms, appears too small relative to the other terms to shape training. \pending{Check the location loss's gradient magnitude; rescale and rerun if appropriate.}
 
 \subsection{Training overhead}
 \pending{Wall-clock overhead of the fairness module relative to the base model.}
@@ -218,14 +275,14 @@ Could Mo-PAE reach the same point simply by weighting privacy more heavily? Acro
 \section{Discussion and Limitations}
 \label{sec:limitations}
 %=====================================================================
-\pending{Summary of when \puffin{} helps and when it does not, by dataset, once all results are in.}
+\puffin{} helps where the base model's own privacy mechanism provides little signal. On GeoLife it reaches operating points the base model cannot, protecting the most predictable users substantially better and making protection more even among similar users. On the check-in datasets, where the adversarial privacy term is already effective, the benefit is small and limited to low fairness weights, and higher weights weaken privacy. Practitioners should therefore choose $\lambda_4$ per dataset against the base model's privacy--utility curve rather than at a single configuration, and should evaluate fairness with measures that do not reward a uniformly lower risk.
 
 Our approach has several limitations. First, entropy captures only one dimension of trajectory similarity, ignoring spatial structure, temporal patterns, and semantic context; we evaluate three further definitions, but learned trajectory embeddings may reveal different fairness properties. Second, \puffin{} optimizes individual fairness without explicit group-fairness constraints, which may not address systemic disparities if mobility regularity correlates with demographic attributes; routine mobility is often a product of constraint (fixed work shifts, reliance on fixed transit routes) rather than choice. A concrete next step is to link users' inferred home locations to census tracts and test whether the users \puffin{} protects more are disproportionately from disadvantaged groups, and to combine individual and group terms in a hybrid objective. Third, our attackers predate foundation-model trajectory linkers~\cite{gong2024mobilityllm}, so measured protection may be optimistic against such attackers; applying a fairness term inside foundation-model fine-tuning is a natural extension. Fourth, the fairness gain to the least protected users comes with a small, measurable cost to the best protected and to utility; we make this trade-off explicit rather than resolve it. Finally, adversaries aware of the fairness criterion could attempt to exploit it; we report a group-aware attacker analysis \pending{in an appendix, or remove}.
 
 %=====================================================================
 \section{Conclusion}
 %=====================================================================
-We proposed \puffin, a fairness-aware PUT model that optimizes an entropy-difference objective to align privacy protection across users with similar mobility while preserving predictive utility. Evaluated against an external attacker with multiple seeds, \puffin{} lowers the re-identification risk of the most predictable GeoLife users by roughly a third, and lowers mean risk overall, at a small and explicit cost in utility and in the protection of the best-protected users. \pending{Cross-dataset conclusion.}
+We proposed \puffin, a fairness-aware PUT model that optimizes an entropy-difference objective to align privacy protection across users with similar mobility while preserving predictive utility. Evaluated against an external attacker with multiple seeds and at matched utility, \puffin{} lowers the re-identification risk of the most predictable GeoLife users by 38\%, lowers mean risk, and makes protection more even among similar users under every similarity definition we test, reaching operating points the base model cannot. On check-in data its benefit is small and confined to low fairness weights. Fairness-aware PUT training is feasible, but whether it helps depends on how much signal the base model's own privacy mechanism provides, and evaluating it requires fairness measures that separate how evenly risk is distributed from how low it is.
 
 %=====================================================================
 % Mandatory PoPETs sections (excluded from the page limit)
