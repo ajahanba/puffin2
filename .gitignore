@@ -11,4 +11,3 @@ logs/
 legacy/POIPrivacy/
 legacy/MainTUL/
 legacy/LSTM-TrajGAN/
-reports/figures/individual_fairness/gowalla_sf_bay_similarities.npz

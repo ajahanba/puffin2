@@ -1,0 +1,11 @@
+{
+  "git_commit": "57c708b23373ab78999065216fc47e1f9892f3a7",
+  "git_commit_inferred": false,
+  "patience": 8,
+  "val_frac": 0.1,
+  "min_epochs": 20,
+  "n_encoder_seeds": 10,
+  "protocol_ok": true,
+  "usable": true,
+  "usable_note": "trained under full current protocol"
+}

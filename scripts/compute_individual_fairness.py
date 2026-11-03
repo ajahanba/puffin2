@@ -19,6 +19,7 @@ import puffin.metrics.individual_fairness as ifm
 MIN_TEST_WINDOWS = 10
 TRAJ_SHAPE_MAX_POINTS = {"geolife": 150, "foursquare": 150, "gowalla_sf_bay": 150}
 RETRAIN_BASE = pathlib.Path("reports/figures/retraining_to_convergence")
+TASK2_BASE = pathlib.Path("reports/figures/task2_formulations")
 OUT_BASE = pathlib.Path("reports/figures/individual_fairness")
 PARQUET = {"geolife": "data/processed/geolife/unified.parquet",
            "foursquare": "data/processed/foursquare/unified.parquet",
@@ -29,12 +30,13 @@ EPSILON = 0.2
 TOP_FRAC = 0.10
 
 
-def _run_dirs_for(ds):
-    """Every retraining_to_convergence run directory for this dataset
-    that is usable per its protocol tag, mapped to a (mechanism, lambda4
-    or lambda_priv) label."""
+def _run_dirs_for(ds, base=None):
+    """Every run directory for this dataset under `base` (default
+    retraining_to_convergence; pass TASK2_BASE for Task 2 runs) that is
+    usable per its protocol tag."""
+    base = base or RETRAIN_BASE
     runs = []
-    for d in sorted(RETRAIN_BASE.glob(f"{ds}_*")):
+    for d in sorted(base.glob(f"{ds}_*")):
         if "CONTAMINATED" in d.name:
             continue
         tag_path = d / "protocol_tag.json"

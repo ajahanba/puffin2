@@ -23,6 +23,7 @@ import subprocess
 
 REPO = pathlib.Path("/data/mashhadi/puffin2")
 BASE = REPO / "reports/figures/retraining_to_convergence"
+TASK2_BASE = REPO / "reports/figures/task2_formulations"
 
 REQUIRED_PROTOCOL = dict(patience=8, val_frac=0.1, min_epochs=20, min_encoder_seeds=1)
 # min_commit: the first commit where the min_epochs burn-in bug was fixed.
@@ -67,7 +68,8 @@ def is_descendant(sha, ancestor):
 def main():
     entries = git_log_entries()
     n_tagged, n_ok, n_bad = 0, 0, 0
-    for d in sorted(BASE.iterdir()):
+    all_dirs = sorted(BASE.iterdir()) + (sorted(TASK2_BASE.iterdir()) if TASK2_BASE.exists() else [])
+    for d in all_dirs:
         summ_path = d / "summary.json"
         if not summ_path.exists():
             continue

@@ -1,0 +1,74 @@
+{
+  "run": "geolife_plain_lp1.2_10seed",
+  "n_seeds": 10,
+  "n_flagged": 0,
+  "n_genuine_collapse": 0,
+  "seed_records": [
+    {
+      "seed": 0,
+      "original_utility": 0.6758894460362942,
+      "flagged": false
+    },
+    {
+      "seed": 1,
+      "original_utility": 0.7148698662846227,
+      "flagged": false
+    },
+    {
+      "seed": 2,
+      "original_utility": 0.7238240210124164,
+      "flagged": false
+    },
+    {
+      "seed": 3,
+      "original_utility": 0.7503283190066857,
+      "flagged": false
+    },
+    {
+      "seed": 4,
+      "original_utility": 0.7299725405921681,
+      "flagged": false
+    },
+    {
+      "seed": 5,
+      "original_utility": 0.7169890162368673,
+      "flagged": false
+    },
+    {
+      "seed": 6,
+      "original_utility": 0.7365389207258835,
+      "flagged": false
+    },
+    {
+      "seed": 7,
+      "original_utility": 0.7149295606494747,
+      "flagged": false
+    },
+    {
+      "seed": 8,
+      "original_utility": 0.7192872492836676,
+      "flagged": false
+    },
+    {
+      "seed": 9,
+      "original_utility": 0.7277936962750716,
+      "flagged": false
+    }
+  ],
+  "original_mean": 0.7210422636103152,
+  "original_median": 0.721555635148042,
+  "audited_mean": 0.7210422636103152,
+  "audited_median": 0.721555635148042,
+  "final_utils": [
+    0.6758894460362942,
+    0.7148698662846227,
+    0.7238240210124164,
+    0.7503283190066857,
+    0.7299725405921681,
+    0.7169890162368673,
+    0.7365389207258835,
+    0.7149295606494747,
+    0.7192872492836676,
+    0.7277936962750716
+  ]
+}

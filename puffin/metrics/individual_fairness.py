@@ -216,3 +216,57 @@ def bootstrap_if_rate(risk_per_seed: np.ndarray, i_idx: np.ndarray, j_idx: np.nd
     point = individual_fairness_rate(risk_per_seed.mean(axis=0), i_idx, j_idx, epsilon)["rate"]
     return dict(rate=point, ci_lo=float(np.quantile(boots, 0.025)), ci_hi=float(np.quantile(boots, 0.975)),
                 n_pairs=n_pairs)
+
+
+def all_pairs_mean_abs_diff(risk: np.ndarray) -> float:
+    """Mean |risk_i - risk_j| over ALL pairs, regardless of similarity --
+    the denominator for the scale-free individual-fairness measure. A
+    mechanism that just compresses everyone's risk toward zero (more
+    privacy, not more fairness) shrinks this right along with the
+    top-10%-similar-pairs numerator, so their RATIO -- not either one
+    alone -- is what isolates whether similar users are treated more
+    alike relative to the population's own overall spread."""
+    n = len(risk)
+    diff = np.abs(risk[:, None] - risk[None, :])
+    iu = np.triu_indices(n, k=1)
+    return float(diff[iu].mean())
+
+
+def scale_free_if(risk_per_seed: np.ndarray, top_i_idx: np.ndarray, top_j_idx: np.ndarray,
+                   n_boot: int = 1000, seed: int = 0) -> dict:
+    """Scale-free individual-fairness measure: mean |risk_i - risk_j|
+    over the top-10%-similar pairs, divided by the same quantity over
+    ALL pairs. Lower = similar users are treated more alike relative to
+    the population's overall risk spread (the thing "individual
+    fairness" is actually supposed to mean); a ratio near 1 means the
+    similarity definition carries no extra information about who gets
+    similar protection, whatever the raw absolute IF-rate says. risk is
+    per_seed is (n_seeds, n_users); bootstraps over both seeds and pairs
+    (top-10% set AND the full all-pairs set) jointly per draw.
+    """
+    n_seeds, n_users = risk_per_seed.shape
+    all_i, all_j = np.triu_indices(n_users, k=1)
+    rng = np.random.default_rng(seed)
+    n_top = len(top_i_idx)
+    n_all = len(all_i)
+
+    boots = []
+    for _ in range(n_boot):
+        s = rng.integers(0, n_seeds)
+        r = risk_per_seed[s]
+        top_sample = rng.integers(0, n_top, n_top)
+        num = np.abs(r[top_i_idx[top_sample]] - r[top_j_idx[top_sample]]).mean()
+        all_sample = rng.integers(0, n_all, n_all)
+        den = np.abs(r[all_i[all_sample]] - r[all_j[all_sample]]).mean()
+        boots.append(num / den if den > 0 else np.nan)
+    boots = np.array(boots)
+    boots = boots[~np.isnan(boots)]
+
+    mean_risk = risk_per_seed.mean(axis=0)
+    point_num = np.abs(mean_risk[top_i_idx] - mean_risk[top_j_idx]).mean()
+    point_den = all_pairs_mean_abs_diff(mean_risk)
+    point = point_num / point_den if point_den > 0 else None
+
+    ci_lo, ci_hi = (float(np.quantile(boots, 0.025)), float(np.quantile(boots, 0.975))) if len(boots) else (None, None)
+    return dict(ratio=point, ci_lo=ci_lo, ci_hi=ci_hi, mean_risk=float(mean_risk.mean()),
+                numerator_mean_abs_diff=float(point_num), denominator_mean_abs_diff=float(point_den))
