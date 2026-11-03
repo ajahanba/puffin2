@@ -1,6 +1,101 @@
 # PUFFIN v2 — Progress
 
-## Current state (read this first): retraining-to-convergence batch running (79 jobs); target Nov 12
+## Current state (read this first): paper reframed around individual fairness; Task 1 done (with a major correction), Task 2 in progress, target Nov 12
+
+**The paper's focus changed (2026-11-02, PI instruction).** This is now a
+paper about individual fairness of privacy protection: do users with
+similar mobility receive similar protection, and does PUFFIN (the
+entropy-difference fairness term, `ed_soft`) make protection fairer? The
+evaluation machinery (external attacker, seeds, decile risk, protocol
+tagging) supports that question; it is not the contribution. Census/group
+analysis is out of scope for this submission.
+
+**`paper/` has been replaced and is frozen.** A parallel Claude session
+rebuilt `paper/main.tex` from the original PUFFIN manuscript (commit
+`532ffaf`); the previous draft (disparate-risk framing, Table 7, the
+PoPETs-template work) is preserved in `paper_legacy/`. Per the PI's
+explicit instruction, **do not edit anything under `paper/` until told
+it's in place.**
+
+**Task 1 (individual-fairness analysis) is done for all three datasets,
+with one major mid-course correction.** `reports/06_individual_fairness.md`:
+four similarity definitions computed from training-split data only
+(entropy, 1-JS-distance between visitation histograms, Hausdorff on
+(subsampled) lat/lon, radius of gyration; `puffin/metrics/
+individual_fairness.py`), the individual-fairness metric at
+delta=0.8/top-10%-similar-pairs and epsilon=0.2/curve, dose-response,
+all bootstrapped over seeds and users.
+
+The correction: **the raw absolute IF-rate mostly tracks overall privacy
+level (mean risk), not genuine individual fairness** (Foursquare
+lambda3=0.5: utility 0.06, mean risk 0.03, raw rate 0.98 under every
+similarity definition -- that 0.98 is mostly "this point gives a lot of
+privacy"). Added a scale-free ratio (top-10%-pairs mean |risk_i-risk_j|
+divided by the same quantity over ALL pairs) and, after a further PI
+correction, a THIRD framing: report all of (a) the raw absolute
+mean-|risk_i-risk_j| over top-10% pairs, (b) that divided by mean risk,
+and (c) the scale-free ratio, side by side -- (c) alone can be fooled by
+a mechanism that simply narrows the population's own risk spread, which
+is a separate effect from individual fairness. With the scale-free
+correction, GeoLife's "plain is more fair than no-privacy" finding mostly
+does NOT survive (3 of 4 definitions turn slightly negative); a smaller
+real effect survives on Foursquare/Gowalla-SF-Bay for entropy/location-
+distribution/trajectory-shape; radius-of-gyration shows essentially no
+genuine signal anywhere.
+
+**A second correction, also from PI review against the per-user CSVs**:
+an earlier claim that PUFFIN trained on location-distribution similarity
+"makes trajectory-shape/radius-of-gyration fairness worse than random"
+was wrong -- no-privacy and plain Mo-PAE show the SAME ratios (~1.3-1.4)
+on GeoLife; it is a baseline property of that dataset/definition pair,
+not a PUFFIN effect. The location-trained variant is statistically
+indistinguishable from plain Mo-PAE on every metric. A gradient-magnitude
+check confirms why: `ed_soft_location`'s loss (MSE over an 85,075-entry
+near-uniform probability vector for GeoLife) produces a gradient **~3x10^8
+times smaller** than `ed_soft`'s (MSE over a single entropy scalar) at the
+same lambda4 -- the loss term is providing essentially no training signal
+as currently scaled. This needs a rescaling fix before "PUFFIN with a
+different similarity basis" can be tested honestly; not yet done.
+
+**The GeoLife lambda3 sweep (plain Mo-PAE reference curve) is complete**:
+extended with {1.2, 2, 3} beyond the original {0.02,...,0.8}, 10 seeds
+each, stopped per the PI's rule (crossed utility<=0.70 at lambda3=2.0,
+ran lambda3=3.0 as the one extra point, stopped). This makes GeoLife's
+matched-utility PUFFIN-vs-curve comparisons resolvable for the first time
+(utility now ranges ~0.46-0.76, bracketing PUFFIN's own 0.71-0.74) --
+Table 7's frontier-test data and report 06 Section 5 are being redone
+with the extended curve; not yet landed as of this entry.
+
+**Plateau-vs-genuine-collapse audit, new infrastructure**
+(`puffin/eval/plateau_audit.py`): at higher privacy weights a seed sitting
+at a low-utility plateau may be a genuine collapse, not the known
+cold-start artifact -- the PI's instruction is to rerun each flagged seed
+with `min_epochs` doubled rather than assume either way. lambda3=2.0's one
+flagged seed was confirmed `artifact_fixed` (0.062 at 20 epochs -> 0.665
+at 80 epochs once given more floor); a corrected copy of that run
+(`geolife_plain_lp2_10seed_corrected`) replaces the contaminated seed's
+full per-user data, not just its utility scalar.
+`apply_audit_corrections` does this merge generically. lambda3=3.0's
+flagged seed is being audited the same way.
+
+**Task 2 (new training) is in progress on GPU1** (GPU0 is free, the
+sweep finished): Lipschitz (both entropy and location-distribution
+similarity bases, three datasets, lambda4 in {0.3,1.0,3.0}) and PUFFIN-
+with-location-distribution (GeoLife only, done, see above). Found and
+fixed a real protocol bug while building this: GeoLife jobs were
+launched with `--respect-traj-boundary`, inconsistent with every other
+GeoLife job this round; caught after 1 job completed and 1 was mid-run,
+both deleted and rerun. One unexplained anomaly: a ~12x overnight
+slowdown hit both GPUs (a ~70-min job took 868 min); system load was
+back to normal and the next job's pace recovered by the time it was
+checked, cause not identified.
+
+**Every run directory is protocol-tagged** (`scripts/backfill_protocol_tags.py`,
+now covers both `reports/figures/retraining_to_convergence/` and
+`reports/figures/task2_formulations/`) and only `usable: true` runs feed
+any analysis or table.
+
+## Superseded (2026-11-03): retraining-to-convergence batch running; superseded by the fairness-reframing pivot below
 
 **The attacker-in-the-loop batch crashed on its first Foursquare job**
 (2026-10-30, ~11:00 AM) with a CUDA OOM, and its orchestrator's `set -e`

@@ -270,3 +270,53 @@ def scale_free_if(risk_per_seed: np.ndarray, top_i_idx: np.ndarray, top_j_idx: n
     ci_lo, ci_hi = (float(np.quantile(boots, 0.025)), float(np.quantile(boots, 0.975))) if len(boots) else (None, None)
     return dict(ratio=point, ci_lo=ci_lo, ci_hi=ci_hi, mean_risk=float(mean_risk.mean()),
                 numerator_mean_abs_diff=float(point_num), denominator_mean_abs_diff=float(point_den))
+
+
+def three_fairness_measures(risk_per_seed: np.ndarray, top_i_idx: np.ndarray, top_j_idx: np.ndarray,
+                             n_boot: int = 1000, seed: int = 0) -> dict:
+    """Per the PI's instruction (2026-11-02): the scale-free ratio alone
+    penalizes a mechanism for narrowing the population's OWN risk spread
+    (the denominator shrinks too), which is a separate effect from
+    individual fairness. Reports three numbers side by side, from the
+    SAME bootstrap draws (so they are directly comparable, not just
+    independently estimated):
+      (a) mean |risk_i-risk_j| over the top-10%-similar pairs (absolute,
+          same units as risk itself);
+      (b) (a) / mean risk -- normalizes by the mechanism's OWN average
+          risk level instead of the population's pairwise spread;
+      (c) the scale-free ratio -- (a) / mean |risk_i-risk_j| over ALL
+          pairs.
+    """
+    n_seeds, n_users = risk_per_seed.shape
+    all_i, all_j = np.triu_indices(n_users, k=1)
+    rng = np.random.default_rng(seed)
+    n_top, n_all = len(top_i_idx), len(all_i)
+
+    a_boots, b_boots, c_boots = [], [], []
+    for _ in range(n_boot):
+        s = rng.integers(0, n_seeds)
+        r = risk_per_seed[s]
+        top_sample = rng.integers(0, n_top, n_top)
+        a = np.abs(r[top_i_idx[top_sample]] - r[top_j_idx[top_sample]]).mean()
+        mean_r = r.mean()
+        all_sample = rng.integers(0, n_all, n_all)
+        den = np.abs(r[all_i[all_sample]] - r[all_j[all_sample]]).mean()
+        a_boots.append(a)
+        b_boots.append(a / mean_r if mean_r > 0 else np.nan)
+        c_boots.append(a / den if den > 0 else np.nan)
+
+    def summarize(boots):
+        boots = np.array(boots)
+        boots = boots[~np.isnan(boots)]
+        if len(boots) == 0:
+            return dict(point=None, ci_lo=None, ci_hi=None)
+        return dict(point=float(np.mean(boots)), ci_lo=float(np.quantile(boots, 0.025)),
+                     ci_hi=float(np.quantile(boots, 0.975)))
+
+    mean_risk_all = risk_per_seed.mean()
+    return dict(
+        mean_abs_diff_top10=summarize(a_boots),
+        risk_normalized=summarize(b_boots),
+        scale_free_ratio=summarize(c_boots),
+        mean_risk=float(mean_risk_all),
+    )

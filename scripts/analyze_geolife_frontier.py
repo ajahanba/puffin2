@@ -29,7 +29,7 @@ sys.path.insert(0, ".")
 from puffin.attacks.analysis import paired_bootstrap_test
 
 MIN_WINDOWS = 10
-LAMBDA3_SWEEP = [0.02, 0.1, 0.2, 0.3, 0.5, 0.8]
+LAMBDA3_SWEEP = [0.02, 0.1, 0.2, 0.3, 0.5, 0.8, 1.2, 2, 3]
 BASE = pathlib.Path("reports/figures/retraining_to_convergence")
 N_BOOT = 5000
 RNG = np.random.default_rng(0)
@@ -67,7 +67,17 @@ def default(o):
 # ---- load curve points (plain, lambda_priv swept) ----
 curve_points = []
 for lp in LAMBDA3_SWEEP:
-    name = "geolife_plain_lambda0.0_10seed" if lp == 0.3 else f"geolife_plain_lp{lp}"
+    if lp == 0.3:
+        name = "geolife_plain_lambda0.0_10seed"
+    elif lp == 2:
+        name = "geolife_plain_lp2_10seed_corrected"  # seed 3 cold-start artifact fixed, see plateau_audit_lp2.json
+    elif lp == 3:
+        corrected = BASE / "geolife_plain_lp3_10seed_corrected"
+        name = "geolife_plain_lp3_10seed_corrected" if corrected.exists() else "geolife_plain_lp3_10seed"
+    elif lp in (1.2,):
+        name = f"geolife_plain_lp{lp}_10seed"
+    else:
+        name = f"geolife_plain_lp{lp}"
     summ, df = load(name)
     n_seeds = len(summ["encoder_seeds"])
     util_per_seed = np.array(summ["utility_per_encoder_seed"])

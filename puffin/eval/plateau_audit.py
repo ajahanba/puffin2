@@ -98,3 +98,39 @@ def audit_run(run_dir: pathlib.Path, dataset: str, parquet: str, device: str,
         audited_mean=statistics.mean(final_utils), audited_median=statistics.median(final_utils),
         final_utils=final_utils,
     )
+
+
+def apply_audit_corrections(run_dir, audit_result, out_dir=None):
+    """Writes a fully-corrected per_user_04d.csv (not just a corrected
+    utility scalar): for every seed classified artifact_fixed, replaces
+    that seed's post_top1_encseedN / inmodel_confidence_encseedN columns
+    with the doubled-min_epochs rerun's own columns (same seed label,
+    verified to match). genuine_collapse seeds are left as originally
+    recorded -- they are kept, not dropped, per instruction. Writes to
+    out_dir (default: run_dir itself, in place) and returns the
+    corrected utility array actually used."""
+    import pandas as pd
+    out_dir = pathlib.Path(out_dir) if out_dir else run_dir
+    df = pd.read_csv(run_dir / "per_user_04d.csv")
+    for rec in audit_result["seed_records"]:
+        if rec.get("classification") != "artifact_fixed":
+            continue
+        i = rec["seed"]
+        rerun_dir = run_dir.parent / "{}_auditseed{}".format(run_dir.name, i)
+        rerun_df = pd.read_csv(rerun_dir / "per_user_04d.csv")
+        col = f"post_top1_encseed{i}"
+        assert col in rerun_df.columns, f"seed label mismatch: {col} not in rerun"
+        merged = df[["user_id"]].merge(rerun_df[["user_id", col]], on="user_id", how="left", suffixes=("_old", ""))
+        df[col] = merged[col].values
+        inmodel_col = f"inmodel_confidence_encseed{i}"
+        if inmodel_col in df.columns and inmodel_col in rerun_df.columns:
+            merged2 = df[["user_id"]].merge(rerun_df[["user_id", inmodel_col]], on="user_id", how="left", suffixes=("_old", ""))
+            df[inmodel_col] = merged2[inmodel_col].values
+
+    seed_cols = sorted([c for c in df.columns if c.startswith("post_top1_encseed")],
+                        key=lambda c: int(c.replace("post_top1_encseed", "")))
+    df["post_top1"] = df[seed_cols].mean(axis=1)
+    df["post_top1_std"] = df[seed_cols].std(axis=1)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out_dir / "per_user_04d.csv", index=False)
+    return audit_result["final_utils"]
