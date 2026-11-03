@@ -30,7 +30,12 @@ DATASETS = {"geolife": "data/processed/geolife/unified.parquet",
             "foursquare": "data/processed/foursquare/unified.parquet",
             "gowalla_sf_bay": "data/processed/gowalla_sf_bay/unified.parquet"}
 N_SEEDS = {"geolife": 10, "foursquare": 3, "gowalla_sf_bay": 3}
-TRAJ_BOUNDARY = {"geolife": True, "foursquare": False, "gowalla_sf_bay": False}
+TRAJ_BOUNDARY = {"geolife": False, "foursquare": False, "gowalla_sf_bay": False}
+# NOTE: GeoLife uses --no-respect-traj-boundary here too, matching every other
+# GeoLife job in retraining_to_convergence/ -- an earlier version of this script
+# incorrectly used --respect-traj-boundary for GeoLife, which builds different
+# windows (and a different train/test split) than the rest of this round's
+# GeoLife data. Caught before 2 of 20 jobs completed; both were deleted and rerun.
 GPU = 1
 
 
