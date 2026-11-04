@@ -180,7 +180,10 @@ def run_gi_dp(df: pd.DataFrame, epsilon: float = 0.01, seed: int = 0,
         raise ValueError(f"run_gi_dp: missing required columns: {missing}")
 
     rng = np.random.default_rng(seed)
-    out = df[["user_id", "traj_id", "ts", "weekday", "hour"]].copy()
+    carry_through = ["user_id", "traj_id", "ts", "weekday", "hour"]
+    if "split" in df.columns:
+        carry_through.append("split")  # perturbation touches location only; train/test membership is unchanged
+    out = df[carry_through].copy()
     out["lat"], out["lon"] = perturb_latlon(df["lat"].to_numpy(), df["lon"].to_numpy(), epsilon, rng)
     out = assign_grid_cells(out, resolution_deg=0.01, existing_mapping=cell_mapping)
-    return out[["user_id", "traj_id", "ts", "lat", "lon", "cell_id", "weekday", "hour"]]
+    return out[carry_through + ["lat", "lon", "cell_id"]]
