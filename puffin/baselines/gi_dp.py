@@ -147,12 +147,28 @@ def perturb_latlon(lat: np.ndarray, lon: np.ndarray, epsilon: float, rng: np.ran
     return lat + dlat, lon + dlon
 
 
-def run_gi_dp(df: pd.DataFrame, epsilon: float = 0.01, seed: int = 0) -> pd.DataFrame:
+def run_gi_dp(df: pd.DataFrame, epsilon: float = 0.01, seed: int = 0,
+              cell_mapping: dict | None = None) -> pd.DataFrame:
     """Applies Planar Laplace location perturbation to every row of `df`
     (every point treated as an independent release -- see module
     docstring's "Scope" section). `epsilon` is in units of 1/meter;
     smaller = more noise = more private (standard convention; e.g.
     epsilon=0.01 means ~2/0.01=200m mean perturbation radius).
+
+    `cell_mapping`: pass the ORIGINAL (unperturbed) dataset's grid-cell
+    mapping (`df.attrs["grid_cell_mapping"]` after calling
+    `assign_grid_cells` on it, or build one via
+    `assign_grid_cells(original_df, resolution_deg=0.01).attrs[
+    "grid_cell_mapping"]`) so the perturbed release's cell_id stays in the
+    SAME numbering as the original -- without this, re-tessellating the
+    perturbed coordinates builds an independent dense mapping, and the
+    resulting cell_id values are not comparable to the original's at all
+    (same physical cell gets a different integer); see
+    puffin.data.tessellation.assign_grid_cells's docstring for the bug
+    this was found fixing (2026-11-04). Any physical cell not in
+    `cell_mapping` (a point perturbed outside the original's observed
+    footprint) gets a newly-assigned id extending that mapping, same as
+    assign_grid_cells's own extension behavior.
 
     Returns a unified-schema dataframe (`puffin.data.schema.
     REQUIRED_COLUMNS`): perturbed `lat`/`lon`, re-tessellated `cell_id`,
@@ -166,5 +182,5 @@ def run_gi_dp(df: pd.DataFrame, epsilon: float = 0.01, seed: int = 0) -> pd.Data
     rng = np.random.default_rng(seed)
     out = df[["user_id", "traj_id", "ts", "weekday", "hour"]].copy()
     out["lat"], out["lon"] = perturb_latlon(df["lat"].to_numpy(), df["lon"].to_numpy(), epsilon, rng)
-    out = assign_grid_cells(out, resolution_deg=0.01)
+    out = assign_grid_cells(out, resolution_deg=0.01, existing_mapping=cell_mapping)
     return out[["user_id", "traj_id", "ts", "lat", "lon", "cell_id", "weekday", "hour"]]

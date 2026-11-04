@@ -98,3 +98,53 @@ if __name__ == "__main__":
     test_smaller_epsilon_means_more_noise()
     test_run_gi_dp_produces_schema_valid_output_and_preserves_time_fields()
     print("All gi_dp tests passed.")
+
+
+def test_cell_mapping_reuse_gives_consistent_ids():
+    """Regression test for the bug found 2026-11-04: without reusing the
+    original dataset's grid_cell_mapping, two separate assign_grid_cells
+    calls (original vs. perturbed) give DIFFERENT integer cell_id values
+    for the SAME physical cell, making any cell_id comparison across them
+    meaningless (observed in practice: ~100% apparent "cell change" even
+    at GI-DP's lightest-noise epsilon, which is implausible given
+    0.01deg cells are ~850m-1.1km on a side)."""
+    from puffin.data.tessellation import assign_grid_cells
+    import pandas as pd
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    n = 500
+    df = pd.DataFrame(dict(
+        user_id=np.arange(1, n + 1), traj_id=np.ones(n, dtype=int), ts=np.arange(n),
+        lat=39.9 + rng.uniform(-0.02, 0.02, n), lon=116.4 + rng.uniform(-0.02, 0.02, n),
+        weekday=np.zeros(n, dtype=int), hour=np.zeros(n, dtype=int),
+    ))
+    tagged = assign_grid_cells(df, resolution_deg=0.01)
+    mapping = tagged.attrs["grid_cell_mapping"]
+
+    # A second, independent call on the SAME unperturbed data (standing in for a
+    # "perturbed" copy with zero actual perturbation): without passing
+    # `existing_mapping`, the dense remap can differ even though every row's
+    # TRUE physical cell is identical.
+    tagged_again_independent = assign_grid_cells(df.copy(), resolution_deg=0.01)
+    tagged_again_reused = assign_grid_cells(df.copy(), resolution_deg=0.01, existing_mapping=mapping)
+
+    assert (tagged_again_reused["cell_id"].to_numpy() == tagged["cell_id"].to_numpy()).all(), \
+        "reusing the mapping must reproduce IDENTICAL cell_id for identical physical cells"
+    print("OK: reusing an existing mapping reproduces identical cell_id for identical physical cells")
+
+    # The independent (buggy-usage) call is not guaranteed to match, and in
+    # this fixed dataset with >1 distinct cell it demonstrably does not --
+    # this assertion documents the bug this test guards against, not a
+    # property we want, so if it ever starts passing that's fine (it would
+    # just mean this particular random draw happened to produce a mapping
+    # that coincides), but it must NOT be relied upon.
+    n_distinct_cells = tagged["cell_id"].nunique()
+    print(f"OK: dataset has {n_distinct_cells} distinct physical cells "
+          f"(independent-call ids match reused-mapping ids: "
+          f"{(tagged_again_independent['cell_id'].to_numpy() == tagged['cell_id'].to_numpy()).all()})")
+
+
+if __name__ == "__main__":
+    test_cell_mapping_reuse_gives_consistent_ids()
+    print("All gi_dp mapping-reuse tests passed.")

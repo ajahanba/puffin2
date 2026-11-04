@@ -1,0 +1,98 @@
+{
+  "geolife": {
+    "0.0005": {
+      "mean_displacement_km": 3.993253690911154,
+      "median_displacement_km": 3.354229103130368,
+      "theoretical_mean_displacement_km": 4.0,
+      "cell_change_rate": 0.9703425
+    },
+    "0.001": {
+      "mean_displacement_km": 1.9966269330498954,
+      "median_displacement_km": 1.6771101387820162,
+      "theoretical_mean_displacement_km": 2.0,
+      "cell_change_rate": 0.906031
+    },
+    "0.002": {
+      "mean_displacement_km": 0.9983134803388001,
+      "median_displacement_km": 0.8385516567744173,
+      "theoretical_mean_displacement_km": 1.0,
+      "cell_change_rate": 0.7551275
+    },
+    "0.005": {
+      "mean_displacement_km": 0.39932539441599957,
+      "median_displacement_km": 0.3354206990375723,
+      "theoretical_mean_displacement_km": 0.4,
+      "cell_change_rate": 0.4398075
+    },
+    "0.01": {
+      "mean_displacement_km": 0.19966269750184193,
+      "median_displacement_km": 0.16771016811365788,
+      "theoretical_mean_displacement_km": 0.2,
+      "cell_change_rate": 0.242987
+    }
+  },
+  "foursquare": {
+    "0.0005": {
+      "mean_displacement_km": 4.004943087468924,
+      "median_displacement_km": 3.3529867431509106,
+      "theoretical_mean_displacement_km": 4.0,
+      "cell_change_rate": 0.9710150025502576
+    },
+    "0.001": {
+      "mean_displacement_km": 2.002472460715219,
+      "median_displacement_km": 1.676477266040505,
+      "theoretical_mean_displacement_km": 2.0,
+      "cell_change_rate": 0.9080807991979879
+    },
+    "0.002": {
+      "mean_displacement_km": 1.0012364510307012,
+      "median_displacement_km": 0.8382397023281223,
+      "theoretical_mean_displacement_km": 1.0,
+      "cell_change_rate": 0.7603197495471095
+    },
+    "0.005": {
+      "mean_displacement_km": 0.40049463227659915,
+      "median_displacement_km": 0.3352960043335503,
+      "theoretical_mean_displacement_km": 0.4,
+      "cell_change_rate": 0.445938934519936
+    },
+    "0.01": {
+      "mean_displacement_km": 0.20024732469091594,
+      "median_displacement_km": 0.1676477720798199,
+      "theoretical_mean_displacement_km": 0.2,
+      "cell_change_rate": 0.24781469300174122
+    }
+  },
+  "gowalla_sf_bay": {
+    "0.0005": {
+      "mean_displacement_km": 4.002671851461764,
+      "median_displacement_km": 3.3575072698179325,
+      "theoretical_mean_displacement_km": 4.0,
+      "cell_change_rate": 0.9697813748160605
+    },
+    "0.001": {
+      "mean_displacement_km": 2.0013362203079454,
+      "median_displacement_km": 1.6787417347642482,
+      "theoretical_mean_displacement_km": 2.0,
+      "cell_change_rate": 0.9050101604652793
+    },
+    "0.002": {
+      "mean_displacement_km": 1.0006681760625844,
+      "median_displacement_km": 0.8393708641069816,
+      "theoretical_mean_displacement_km": 1.0,
+      "cell_change_rate": 0.7517588115759232
+    },
+    "0.005": {
+      "mean_displacement_km": 0.4002672852529355,
+      "median_displacement_km": 0.3357503253497156,
+      "theoretical_mean_displacement_km": 0.4,
+      "cell_change_rate": 0.4302466540536753
+    },
+    "0.01": {
+      "mean_displacement_km": 0.20013364501527092,
+      "median_displacement_km": 0.16787511612506612,
+      "theoretical_mean_displacement_km": 0.2,
+      "cell_change_rate": 0.23283932450423936
+    }
+  }
+}
