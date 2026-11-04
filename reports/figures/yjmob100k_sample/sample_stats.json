@@ -1,0 +1,23 @@
+{
+  "seed": 0,
+  "n_sampled": 2000,
+  "n_users_with_raw_train_data": 2000,
+  "n_users_ge_min_test_windows": 2000,
+  "min_test_windows": 10,
+  "windows": {
+    "train": 400000,
+    "test": 359294,
+    "sl": 10,
+    "max_windows_per_user": 200,
+    "respect_traj_boundary": false
+  },
+  "rog_km": {
+    "min": 0.324714873266206,
+    "median": 8.347833207318569,
+    "max": 35.06841478274761,
+    "mean": 9.418034551395749
+  },
+  "raw_rows_for_sample": 2230204,
+  "sentinel_rows_in_sample": 0,
+  "cell_size_m": 500.0
+}

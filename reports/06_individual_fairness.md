@@ -14,12 +14,22 @@ on GeoLife, plain Mo-PAE's apparent fairness gain over no-privacy mostly
 on Foursquare and Gowalla-SF-Bay, a real, smaller effect survives for
 entropy/location-distribution/trajectory-shape, but radius-of-gyration
 shows essentially none anywhere. PUFFIN (ed_soft) at matched utility
-against the plain lambda3 curve, redone with the scale-free measure,
-still shows the same qualitative shape as the raw-rate version (modest
-improvement at Foursquare's lowest tested weight, flat around
-lambda4=1.0, worse at lambda4=3.0 and at Gowalla-SF-Bay lambda4=1.0/3.0)
--- so that conclusion survives the correction, even though Q1's headline
-claim does not survive it cleanly everywhere.
+against the plain lambda3 curve, redone with the scale-free measure, is
+mixed on Foursquare/Gowalla-SF-Bay (modest improvement at the lowest
+tested weight, worse at the highest) -- so that part of the earlier
+conclusion survives the correction, even though Q1's headline claim does
+not survive it cleanly everywhere. **GeoLife is now resolvable** (the
+extended lambda3 sweep covers utility 0.46-0.76, finally bracketing
+PUFFIN's own range) and gives a genuinely surprising, carefully-stated
+result: at matched utility, ed_soft is LESS fair than plain's own curve
+by the entropy-based scale-free measure (the exact similarity it was
+trained on), but MORE fair by trajectory-shape -- while, by the
+decile-level measure, ed_soft clearly beats plain's curve on decile-0
+risk and reaches a decile-0 risk level plain cannot reach at any tested
+privacy weight. At matched MEAN RISK instead of matched utility, PUFFIN
+(lambda4=1.0) beats plain's most extreme tested point (lambda3=3) on
+BOTH utility (0.723 vs. 0.501) and decile-0 risk (0.207 vs. 0.270)
+simultaneously, at a modest cost to the already-best-off decile-9.
 
 ## 1. Methodology
 
@@ -116,14 +126,20 @@ under the raw rate was almost entirely the privacy-level confound.
 
 ## 5. Does PUFFIN improve individual fairness, at matched utility against the lambda3 curve?
 
-Scale-free ratio, PUFFIN (ed_soft) vs. the plain lambda3 curve
-interpolated to PUFFIN's own utility. Delta = ed_soft's ratio minus the
-curve's interpolated ratio; **negative means PUFFIN is more fair** at
-that matched utility:
+**GeoLife is now resolvable.** The extended lambda3 sweep ({0.02,...,0.8,
+1.2,2,3}, lambda3=2 and 3 using their plateau-audit-corrected data -- see
+Section 9) covers utility 0.46-0.76, bracketing all three PUFFIN points
+(0.71-0.74) for the first time; 0/5000 bootstrap draws require
+extrapolation at every lambda4. Scale-free ratio, PUFFIN (ed_soft) vs.
+the plain lambda3 curve interpolated to PUFFIN's own utility. Delta =
+ed_soft's ratio minus the curve's interpolated ratio; **negative means
+PUFFIN is more fair** at that matched utility:
 
 | dataset | lambda4 | entropy | location-dist. | trajectory-shape | rog | status |
 |---|---|---|---|---|---|---|
-| GeoLife | 0.3, 1.0, 3.0 | -- | -- | -- | -- | unresolvable (same reason as the raw-rate version and Table 7) |
+| GeoLife | 0.3 | **+0.089** | -0.004 | **-0.119** | -0.066 | mixed: worse on its OWN training signal, better on 2 of 3 others |
+| GeoLife | 1.0 | **+0.095** | -0.002 | **-0.119** | -0.059 | same pattern |
+| GeoLife | 3.0 | **+0.100** | +0.003 | **-0.107** | -0.058 | same pattern |
 | Foursquare | 0.3 | -0.0095 | **-0.033** | -0.0057 | -0.0066 | PUFFIN more fair, all 4 |
 | Foursquare | 1.0 | -0.0008 | -0.0018 | +0.0082 | +0.0002 | ~flat, mixed sign |
 | Foursquare | 3.0 | +0.0296 | **+0.0975** | +0.0209 | -0.0010 | PUFFIN less fair, 3 of 4 |
@@ -131,16 +147,57 @@ that matched utility:
 | Gowalla-SF-Bay | 1.0 | -0.0058 | +0.0606 | +0.0276 | -0.0016 | mixed, 2 of 4 worse |
 | Gowalla-SF-Bay | 3.0 | +0.0410 | **+0.0942** | +0.0320 | +0.0023 | PUFFIN less fair, all 4 |
 
-**The qualitative shape survives the correction**: PUFFIN helps (all four
-definitions agree) only at Foursquare's lowest tested weight, is flat to
-mixed at the middle weight, and is clearly worse at the highest weight on
-both resolvable datasets. The magnitudes differ from the raw-rate version
-(scale-free deltas are smaller in absolute terms, as expected since both
-measures' numerators/denominators move together under a utility-matched
-comparison), but the direction-of-effect conclusion from Section 5 of the
-original report -- PUFFIN does not reliably improve individual fairness,
-and when it does, the improvement is small and confined to low fairness
-weights -- stands.
+**GeoLife's result is genuinely surprising and worth stating carefully.**
+At matched utility, ed_soft is *less* scale-free-fair than plain's own
+curve under the exact similarity basis it was trained on (entropy,
+consistently worse by +0.09 to +0.10 across all three lambda4) -- but
+*more* fair under trajectory-shape (consistently better by -0.11 to
+-0.12) and, more weakly, radius-of-gyration. Location-distribution is
+essentially a wash. This does not contradict Section 4's decile-level
+finding (ed_soft lowers decile-0 risk substantially at matched utility --
+see the frontier test below): a mechanism can genuinely compress the
+worst-off decile's risk while, by the entropy-based scale-free measure
+specifically, not bringing entropy-similar pairs any closer together
+than a same-utility point on plain's own curve already would. The two
+measures are asking different questions (decile-level risk reduction vs.
+whether similar-under-this-definition pairs end up close in risk), and
+GeoLife is the one dataset where they disagree in sign.
+
+**The decile-level frontier test (Table 7's analysis, now fully resolved)**
+confirms the positive reading: at matched utility, ed_soft beats plain's
+curve by +0.111 to +0.132 on decile-0 risk and +0.022 to +0.039 on mean
+risk over all users (both significant, 0/5000 extrapolated), at a cost of
+-0.017 to -0.022 on decile-9 risk (ed_soft worse there) -- an order of
+magnitude smaller than the decile-0 gain. Plain's curve's own best-ever
+decile-0 risk, reached only at its most extreme tested point (lambda3=3,
+utility 0.50), is 0.270; PUFFIN reaches 0.200-0.226 at every lambda4
+tested, at utility 0.71-0.74 -- a decile-0 risk level plain cannot reach
+at any privacy weight tested, now confirmed with a properly powered,
+non-extrapolated comparison.
+
+**Matched mean risk (the complementary question: at the same overall
+privacy level, which gives better utility and better worst-decile
+protection?).** PUFFIN lambda4=0.3's mean risk (0.110) falls inside the
+curve's range: at that matched mean risk, PUFFIN beats the curve's
+interpolated point on BOTH utility (+0.139: 0.735 vs. 0.597) and
+decile-0 risk (-0.077: 0.225 vs. 0.303). lambda4=1.0's own mean risk
+(0.0962) sits 0.0003 below the curve's single lowest point (lambda3=3,
+corrected, mean risk 0.0965) -- too close to interpolate honestly, but
+close enough to compare directly instead:
+
+| | utility | decile-0 risk | decile-9 risk | mean risk |
+|---|---|---|---|---|
+| PUFFIN (lambda4=1.0) | 0.723 | 0.207 | 0.049 | 0.0962 |
+| plain Mo-PAE (lambda3=3, corrected) | 0.501 | 0.270 | 0.023 | 0.0965 |
+
+At essentially the same overall privacy level, PUFFIN gives *much* higher
+utility (+0.22) and lower decile-0 risk (-0.063) than plain's most extreme
+tested point, at the cost of the already-best-off decile-9 being somewhat
+worse off (+0.026) -- PUFFIN is not just moving along the same
+utility-risk trade-off plain already offers; it reaches a better combined
+operating point for the worst-off decile specifically. (Plain lambda3=3's
+utility here, 0.501, is the plateau-audit-corrected value -- an earlier,
+pre-audit reading of this same point gave 0.460; see Section 9.)
 
 ## 6. How much do the similarity definitions agree, and a concrete example
 
@@ -217,25 +274,30 @@ utility, reruns it with `min_epochs` doubled, and classifies
 `artifact_fixed` vs. `genuine_collapse` by whether it still sits at the
 floor.
 
-Applied so far: lambda3=1.2 (0 flagged, clean) and lambda3=2.0 (1
-flagged: seed 3, original utility 0.0622 at 20 epochs; rerun at
-min_epochs=40 reached 0.6653 at 80 epochs -- **artifact_fixed**, not a
-genuine collapse). Per-seed utilities and the audited mean/median for
-every lambda3 point reached so far:
+Applied to all four extended-sweep points. lambda3=1.2: 0 flagged,
+clean. lambda3=2.0: 1 flagged (seed 3, original utility 0.0622 at 20
+epochs; rerun at min_epochs=40 reached 0.6653 at 80 epochs --
+**artifact_fixed**). lambda3=3.0: 1 flagged (seed 6, original utility
+0.1465 at 20 epochs; rerun at min_epochs=40 reached 0.5625 at 80 epochs
+-- **artifact_fixed**, consistent with its siblings' 0.37-0.61 range).
+Neither flagged seed turned out to be a genuine collapse. Per-seed
+utilities and the audited mean/median for every lambda3 point:
 
 | lambda3 | per-seed utilities | naive mean | naive median | audited mean | audited median | genuine collapses |
 |---|---|---|---|---|---|---|
 | 1.2 | 0.676, 0.715, 0.724, 0.750, 0.730, 0.717, 0.737, 0.715, 0.719, 0.728 | 0.721 | 0.722 | 0.721 | 0.722 | 0 |
 | 2.0 | 0.645, 0.628, 0.667, **0.665\***, 0.571, 0.682, 0.629, 0.621, 0.683, 0.645 | 0.583 | 0.637 | 0.644 | 0.645 | 0 |
+| 3.0 | 0.474, 0.504, 0.443, 0.492, 0.370, 0.563, **0.562\***, 0.513, 0.614, 0.477 | 0.460 | 0.483 | 0.501 | 0.498 | 0 |
 
-(\*seed 3's audited value, replacing the original artifact 0.0622.) Both
-points' audited mean and median remain well below the sweep's 0.70
+(\*audited value, replacing the original cold-start-plateau artifact.)
+Every point's audited mean and median remain well below the sweep's 0.70
 stopping threshold, so the controller's "crossed, run exactly one more
 point, then stop" decision (triggered at lambda3=2.0) is correct whether
 evaluated on the naive or the audited statistic -- the audit does not
-change the sweep's trajectory here, only the honesty of what is reported
-for it. lambda3=3.0 (the predetermined last point) and all Task 2 runs
-will be audited the same way as they land.
+change the sweep's trajectory, only the honesty of what is reported for
+it (and, for lambda3=3.0 specifically, the number used throughout Section
+5's matched-mean-risk comparison: 0.501, not the naive 0.460). All Task 2
+runs will be audited the same way as they land.
 
 ## Data and reproducibility
 

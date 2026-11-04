@@ -1,0 +1,78 @@
+{
+  "run": "geolife_plain_lp3_10seed",
+  "n_seeds": 10,
+  "n_flagged": 1,
+  "n_genuine_collapse": 0,
+  "seed_records": [
+    {
+      "seed": 0,
+      "original_utility": 0.47397325692454634,
+      "flagged": false
+    },
+    {
+      "seed": 1,
+      "original_utility": 0.5038801337153773,
+      "flagged": false
+    },
+    {
+      "seed": 2,
+      "original_utility": 0.44290234001910217,
+      "flagged": false
+    },
+    {
+      "seed": 3,
+      "original_utility": 0.49241881566380136,
+      "flagged": false
+    },
+    {
+      "seed": 4,
+      "original_utility": 0.36986628462273163,
+      "flagged": false
+    },
+    {
+      "seed": 5,
+      "original_utility": 0.5633954154727794,
+      "flagged": false
+    },
+    {
+      "seed": 6,
+      "original_utility": 0.14648997134670488,
+      "flagged": true,
+      "doubled_min_epochs": 40,
+      "rerun_utility": 0.5624701528175741,
+      "classification": "artifact_fixed",
+      "final_utility_used": 0.5624701528175741
+    },
+    {
+      "seed": 7,
+      "original_utility": 0.5125059694364852,
+      "flagged": false
+    },
+    {
+      "seed": 8,
+      "original_utility": 0.6144340974212035,
+      "flagged": false
+    },
+    {
+      "seed": 9,
+      "original_utility": 0.47707736389684813,
+      "flagged": false
+    }
+  ],
+  "original_mean": 0.45969436485195797,
+  "original_median": 0.48474808978032474,
+  "audited_mean": 0.5012923829990449,
+  "audited_median": 0.49814947468958937,
+  "final_utils": [
+    0.47397325692454634,
+    0.5038801337153773,
+    0.44290234001910217,
+    0.49241881566380136,
+    0.36986628462273163,
+    0.5633954154727794,
+    0.5624701528175741,
+    0.5125059694364852,
+    0.6144340974212035,
+    0.47707736389684813
+  ]
+}

@@ -259,6 +259,65 @@ def no_privacy_vs_plain_scale_free(scale_free, ds):
     return dict(no_privacy_run=np_run, plain_run=plain_run, per_similarity=out)
 
 
+def matched_mean_risk_comparison(data, scale_free, ds, mechanism_prefix="ed_soft", lambda4_vals=(0.3, 1.0, 3.0)):
+    """Per the PI's instruction (2026-11-03): interpolates the plain
+    lambda3 curve to each PUFFIN point's own MEAN RISK (not utility) and
+    compares utility and decile-0 risk at that matched mean-risk level --
+    the complementary question to the matched-utility comparison: at the
+    same overall privacy level, which approach gives better utility and
+    better worst-decile protection?"""
+    runs = data[ds]
+    curve_runs = {name: r for name, r in runs.items() if "_plain_lp" in name or name.endswith("_plain_lambda0.0_10seed")}
+    results = {}
+
+    def mean_risk_of(run_name, sim="entropy"):
+        ds_sf = scale_free.get(ds, {})
+        return ds_sf[run_name][sim].get("mean_risk") if run_name in ds_sf and sim in ds_sf[run_name] else None
+
+    def utility_of(run_name):
+        p = pathlib.Path(f"reports/figures/retraining_to_convergence/{run_name}/summary.json")
+        return json.loads(p.read_text())["utility_mean"] if p.exists() else None
+
+    def decile0_of(run_name):
+        p = pathlib.Path(f"reports/figures/retraining_to_convergence/{run_name}/per_user_04d.csv")
+        if not p.exists():
+            return None
+        df = pd.read_csv(p)
+        df = df[df.n_windows >= 10]
+        return float(df[df.entropy_decile == 0]["post_top1"].mean())
+
+    curve = []
+    for name in curve_runs:
+        mr = mean_risk_of(name)
+        u = utility_of(name)
+        d0 = decile0_of(name)
+        if mr is not None and u is not None and d0 is not None:
+            curve.append((mr, u, d0, name))
+    curve.sort()
+    if len(curve) < 2:
+        return results
+
+    for l4 in lambda4_vals:
+        ed_name = next((n for n in runs if n.startswith(f"{ds}_{mechanism_prefix}_lambda{l4}")), None)
+        if ed_name is None:
+            continue
+        ed_mr = mean_risk_of(ed_name)
+        if ed_mr is None or ed_mr < curve[0][0] or ed_mr > curve[-1][0]:
+            results[l4] = dict(status="unresolvable (outside curve range)",
+                                ed_soft_mean_risk=ed_mr)
+            continue
+        mrs = [c[0] for c in curve]
+        interp_u = float(np.interp(ed_mr, mrs, [c[1] for c in curve]))
+        interp_d0 = float(np.interp(ed_mr, mrs, [c[2] for c in curve]))
+        ed_u = utility_of(ed_name)
+        ed_d0 = decile0_of(ed_name)
+        results[l4] = dict(status="ok", matched_mean_risk=ed_mr,
+                            plain_curve_interp=dict(utility=interp_u, decile0_risk=interp_d0),
+                            ed_soft=dict(utility=ed_u, decile0_risk=ed_d0),
+                            delta=dict(utility=ed_u - interp_u, decile0_risk=ed_d0 - interp_d0))
+    return results
+
+
 def main():
     data = load_all()
     print("Loaded datasets:", list(data.keys()))
@@ -284,6 +343,8 @@ def main():
         print(f"[{ds}] matched-utility PUFFIN-vs-curve (scale-free ratio): {json.dumps(msf, indent=2, default=float)}")
         npvp_sf = no_privacy_vs_plain_scale_free(scale_free, ds)
         print(f"[{ds}] no_privacy vs plain (scale-free ratio, lower=more fair): {json.dumps(npvp_sf, indent=2, default=float)}")
+        mmr = matched_mean_risk_comparison(data, scale_free, ds)
+        print(f"[{ds}] matched-mean-risk comparison (utility & decile0 at same mean risk): {json.dumps(mmr, indent=2, default=float)}")
 
 
 if __name__ == "__main__":

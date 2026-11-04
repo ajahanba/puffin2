@@ -39,6 +39,10 @@ def _run_dirs_for(ds, base=None):
     for d in sorted(base.glob(f"{ds}_*")):
         if "CONTAMINATED" in d.name:
             continue
+        if d.name.endswith("_auditseed" + d.name.rsplit("_auditseed", 1)[-1]) and "_auditseed" in d.name:
+            continue  # single-seed audit rerun artifact, not a real comparison point
+        if (base / f"{d.name}_corrected").exists():
+            continue  # superseded by its audit-corrected version, picked up on its own iteration
         tag_path = d / "protocol_tag.json"
         if not tag_path.exists():
             continue

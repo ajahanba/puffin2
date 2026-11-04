@@ -1,0 +1,1090 @@
+{
+  "geolife_ed_soft_lambda0.3_10seed": {
+    "entropy": {
+      "ratio": 0.9036214088503403,
+      "ci_lo": 0.844850668615746,
+      "ci_hi": 0.9745959123594913,
+      "mean_risk": 0.10991654407201602,
+      "numerator_mean_abs_diff": 0.11350078484354512,
+      "denominator_mean_abs_diff": 0.12560656900321776
+    },
+    "location_distribution": {
+      "ratio": 0.71519971003386,
+      "ci_lo": 0.662485307047522,
+      "ci_hi": 0.8096569388589677,
+      "mean_risk": 0.10991654407201602,
+      "numerator_mean_abs_diff": 0.08983378172944936,
+      "denominator_mean_abs_diff": 0.12560656900321776
+    },
+    "trajectory_shape": {
+      "ratio": 1.2325452145561788,
+      "ci_lo": 1.1428546766688956,
+      "ci_hi": 1.3792705212673866,
+      "mean_risk": 0.10991654407201602,
+      "numerator_mean_abs_diff": 0.1548157755417365,
+      "denominator_mean_abs_diff": 0.12560656900321776
+    },
+    "radius_of_gyration": {
+      "ratio": 1.1640776536738617,
+      "ci_lo": 1.083747420651537,
+      "ci_hi": 1.2707158546280393,
+      "mean_risk": 0.10991654407201602,
+      "numerator_mean_abs_diff": 0.14621580013128974,
+      "denominator_mean_abs_diff": 0.12560656900321776
+    }
+  },
+  "geolife_ed_soft_lambda1.0_10seed": {
+    "entropy": {
+      "ratio": 0.9000596712294893,
+      "ci_lo": 0.82446435247877,
+      "ci_hi": 0.988087330431833,
+      "mean_risk": 0.09618282248527645,
+      "numerator_mean_abs_diff": 0.09719960523700667,
+      "denominator_mean_abs_diff": 0.1079924013307153
+    },
+    "location_distribution": {
+      "ratio": 0.7358501954729044,
+      "ci_lo": 0.664910113513052,
+      "ci_hi": 0.9071564284440461,
+      "mean_risk": 0.09618282248527645,
+      "numerator_mean_abs_diff": 0.0794662296287952,
+      "denominator_mean_abs_diff": 0.1079924013307153
+    },
+    "trajectory_shape": {
+      "ratio": 1.2265813607491676,
+      "ci_lo": 1.0947659256037332,
+      "ci_hi": 1.395746921504277,
+      "mean_risk": 0.09618282248527645,
+      "numerator_mean_abs_diff": 0.13246146657479899,
+      "denominator_mean_abs_diff": 0.1079924013307153
+    },
+    "radius_of_gyration": {
+      "ratio": 1.1626579802424675,
+      "ci_lo": 1.054362741241652,
+      "ci_hi": 1.284751907014935,
+      "mean_risk": 0.09618282248527645,
+      "numerator_mean_abs_diff": 0.1255582272127034,
+      "denominator_mean_abs_diff": 0.1079924013307153
+    }
+  },
+  "geolife_ed_soft_lambda3.0_10seed": {
+    "entropy": {
+      "ratio": 0.8987951248404441,
+      "ci_lo": 0.8265911850266113,
+      "ci_hi": 0.9812526910638836,
+      "mean_risk": 0.0910003464284949,
+      "numerator_mean_abs_diff": 0.09371816883776633,
+      "denominator_mean_abs_diff": 0.10427089138295378
+    },
+    "location_distribution": {
+      "ratio": 0.7534831191821214,
+      "ci_lo": 0.6820761608804581,
+      "ci_hi": 0.8591177102901466,
+      "mean_risk": 0.0910003464284949,
+      "numerator_mean_abs_diff": 0.0785663564791282,
+      "denominator_mean_abs_diff": 0.10427089138295378
+    },
+    "trajectory_shape": {
+      "ratio": 1.2416556385318662,
+      "ci_lo": 1.1423565286558905,
+      "ci_hi": 1.3642437831696916,
+      "mean_risk": 0.0910003464284949,
+      "numerator_mean_abs_diff": 0.12946854022038834,
+      "denominator_mean_abs_diff": 0.10427089138295378
+    },
+    "radius_of_gyration": {
+      "ratio": 1.1634818425506699,
+      "ci_lo": 1.073205557128304,
+      "ci_hi": 1.291625246248476,
+      "mean_risk": 0.0910003464284949,
+      "numerator_mean_abs_diff": 0.12131728883063984,
+      "denominator_mean_abs_diff": 0.10427089138295378
+    }
+  },
+  "geolife_floor_lambda0.3": {
+    "entropy": {
+      "ratio": 0.8347331540705015,
+      "ci_lo": 0.7957620307109673,
+      "ci_hi": 0.9013993631805645,
+      "mean_risk": 0.13719485544491458,
+      "numerator_mean_abs_diff": 0.1412856045006996,
+      "denominator_mean_abs_diff": 0.16925840768601677
+    },
+    "location_distribution": {
+      "ratio": 0.6910985625681617,
+      "ci_lo": 0.6588310024152043,
+      "ci_hi": 0.7634856612097862,
+      "mean_risk": 0.13719485544491458,
+      "numerator_mean_abs_diff": 0.11697424225438208,
+      "denominator_mean_abs_diff": 0.16925840768601677
+    },
+    "trajectory_shape": {
+      "ratio": 1.341655826749174,
+      "ci_lo": 1.2743383229854213,
+      "ci_hi": 1.4152430863709102,
+      "mean_risk": 0.13719485544491458,
+      "numerator_mean_abs_diff": 0.22708652889823158,
+      "denominator_mean_abs_diff": 0.16925840768601677
+    },
+    "radius_of_gyration": {
+      "ratio": 1.227434214579188,
+      "ci_lo": 1.147530485869413,
+      "ci_hi": 1.3088949607752691,
+      "mean_risk": 0.13719485544491458,
+      "numerator_mean_abs_diff": 0.20775356069901002,
+      "denominator_mean_abs_diff": 0.16925840768601677
+    }
+  },
+  "geolife_floor_lambda1.0": {
+    "entropy": {
+      "ratio": 0.8576490715854015,
+      "ci_lo": 0.7974159696965747,
+      "ci_hi": 0.9485475404101773,
+      "mean_risk": 0.13356687723788035,
+      "numerator_mean_abs_diff": 0.1438844824999019,
+      "denominator_mean_abs_diff": 0.1677661496606359
+    },
+    "location_distribution": {
+      "ratio": 0.6821548663624243,
+      "ci_lo": 0.6473130854521546,
+      "ci_hi": 0.7469788496170625,
+      "mean_risk": 0.13356687723788035,
+      "numerator_mean_abs_diff": 0.11444249540188957,
+      "denominator_mean_abs_diff": 0.1677661496606359
+    },
+    "trajectory_shape": {
+      "ratio": 1.3248245672146655,
+      "ci_lo": 1.248775162973565,
+      "ci_hi": 1.4259967256190291,
+      "mean_risk": 0.13356687723788035,
+      "numerator_mean_abs_diff": 0.22226071661742278,
+      "denominator_mean_abs_diff": 0.1677661496606359
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2271106063089632,
+      "ci_lo": 1.1508952467944595,
+      "ci_hi": 1.31592177340712,
+      "mean_risk": 0.13356687723788035,
+      "numerator_mean_abs_diff": 0.2058676216281832,
+      "denominator_mean_abs_diff": 0.1677661496606359
+    }
+  },
+  "geolife_floor_lambda3.0": {
+    "entropy": {
+      "ratio": 0.842704110019973,
+      "ci_lo": 0.7960511997401096,
+      "ci_hi": 0.9127789419045874,
+      "mean_risk": 0.13512022084232123,
+      "numerator_mean_abs_diff": 0.14034628373889066,
+      "denominator_mean_abs_diff": 0.16654277826598507
+    },
+    "location_distribution": {
+      "ratio": 0.6948828869384868,
+      "ci_lo": 0.6470952839402616,
+      "ci_hi": 0.770832970937185,
+      "mean_risk": 0.13512022084232123,
+      "numerator_mean_abs_diff": 0.11572772656022398,
+      "denominator_mean_abs_diff": 0.16654277826598507
+    },
+    "trajectory_shape": {
+      "ratio": 1.3725559060878658,
+      "ci_lo": 1.2866452483858088,
+      "ci_hi": 1.4441255701136704,
+      "mean_risk": 0.13512022084232123,
+      "numerator_mean_abs_diff": 0.22858927392525966,
+      "denominator_mean_abs_diff": 0.16654277826598507
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2498991070226397,
+      "ci_lo": 1.1607661506686928,
+      "ci_hi": 1.3196772205025706,
+      "mean_risk": 0.13512022084232123,
+      "numerator_mean_abs_diff": 0.20816166983572423,
+      "denominator_mean_abs_diff": 0.16654277826598507
+    }
+  },
+  "geolife_group_adversarial_lambda0.3_1seed": {
+    "entropy": {
+      "ratio": 0.8022844758957086,
+      "ci_lo": 0.7518290304368284,
+      "ci_hi": 0.8545871273768054,
+      "mean_risk": 0.10880393921345302,
+      "numerator_mean_abs_diff": 0.11383244991621802,
+      "denominator_mean_abs_diff": 0.14188539518869545
+    },
+    "location_distribution": {
+      "ratio": 0.7489981149188399,
+      "ci_lo": 0.7012826466143389,
+      "ci_hi": 0.7992176435429408,
+      "mean_risk": 0.10880393921345302,
+      "numerator_mean_abs_diff": 0.10627189353084752,
+      "denominator_mean_abs_diff": 0.14188539518869545
+    },
+    "trajectory_shape": {
+      "ratio": 1.3390845092529058,
+      "ci_lo": 1.260654912453184,
+      "ci_hi": 1.42912064727338,
+      "mean_risk": 0.10880393921345302,
+      "numerator_mean_abs_diff": 0.18999653478640885,
+      "denominator_mean_abs_diff": 0.14188539518869545
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2020366668898337,
+      "ci_lo": 1.1155879493950733,
+      "ci_hi": 1.281396660494047,
+      "mean_risk": 0.10880393921345302,
+      "numerator_mean_abs_diff": 0.1705514475129663,
+      "denominator_mean_abs_diff": 0.14188539518869545
+    }
+  },
+  "geolife_group_adversarial_lambda1.0_1seed": {
+    "entropy": {
+      "ratio": 0.7356474726751494,
+      "ci_lo": 0.6793978458800831,
+      "ci_hi": 0.7948034043879846,
+      "mean_risk": 0.1031477194635218,
+      "numerator_mean_abs_diff": 0.10318200927878184,
+      "denominator_mean_abs_diff": 0.1402601288135539
+    },
+    "location_distribution": {
+      "ratio": 0.7591783218571908,
+      "ci_lo": 0.6992404509946613,
+      "ci_hi": 0.8223057377258678,
+      "mean_risk": 0.1031477194635218,
+      "numerator_mean_abs_diff": 0.10648244921614726,
+      "denominator_mean_abs_diff": 0.1402601288135539
+    },
+    "trajectory_shape": {
+      "ratio": 1.4708388491260689,
+      "ci_lo": 1.374744570967783,
+      "ci_hi": 1.578606551039619,
+      "mean_risk": 0.1031477194635218,
+      "numerator_mean_abs_diff": 0.2063000464424018,
+      "denominator_mean_abs_diff": 0.1402601288135539
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2965824374383816,
+      "ci_lo": 1.201377010518311,
+      "ci_hi": 1.3740527901378488,
+      "mean_risk": 0.1031477194635218,
+      "numerator_mean_abs_diff": 0.1818588196924991,
+      "denominator_mean_abs_diff": 0.1402601288135539
+    }
+  },
+  "geolife_group_adversarial_lambda3.0_1seed": {
+    "entropy": {
+      "ratio": 0.7514379093115596,
+      "ci_lo": 0.7020590246357974,
+      "ci_hi": 0.8041705956155275,
+      "mean_risk": 0.11049604734531443,
+      "numerator_mean_abs_diff": 0.11162886473725712,
+      "denominator_mean_abs_diff": 0.14855367736174965
+    },
+    "location_distribution": {
+      "ratio": 0.799512774698103,
+      "ci_lo": 0.7400748464828707,
+      "ci_hi": 0.8685594730179645,
+      "mean_risk": 0.11049604734531443,
+      "numerator_mean_abs_diff": 0.11877056277909924,
+      "denominator_mean_abs_diff": 0.14855367736174965
+    },
+    "trajectory_shape": {
+      "ratio": 1.4788537354718803,
+      "ci_lo": 1.3867075645498435,
+      "ci_hi": 1.5737230677037768,
+      "mean_risk": 0.11049604734531443,
+      "numerator_mean_abs_diff": 0.21968916068450797,
+      "denominator_mean_abs_diff": 0.14855367736174965
+    },
+    "radius_of_gyration": {
+      "ratio": 1.298334027374487,
+      "ci_lo": 1.2030020503279426,
+      "ci_hi": 1.3821918475475625,
+      "mean_risk": 0.11049604734531443,
+      "numerator_mean_abs_diff": 0.19287229421037058,
+      "denominator_mean_abs_diff": 0.14855367736174965
+    }
+  },
+  "geolife_group_dro_lambda0.3_1seed": {
+    "entropy": {
+      "ratio": 0.8076360095516781,
+      "ci_lo": 0.7607283056913626,
+      "ci_hi": 0.8589774246435964,
+      "mean_risk": 0.12880455348431394,
+      "numerator_mean_abs_diff": 0.13814508812235937,
+      "denominator_mean_abs_diff": 0.1710486982855609
+    },
+    "location_distribution": {
+      "ratio": 0.7968418094261251,
+      "ci_lo": 0.7411182599901689,
+      "ci_hi": 0.8577983457626527,
+      "mean_risk": 0.12880455348431394,
+      "numerator_mean_abs_diff": 0.1362987542418497,
+      "denominator_mean_abs_diff": 0.1710486982855609
+    },
+    "trajectory_shape": {
+      "ratio": 1.357047759682303,
+      "ci_lo": 1.2829951127308985,
+      "ci_hi": 1.4327150321791864,
+      "mean_risk": 0.12880455348431394,
+      "numerator_mean_abs_diff": 0.2321212528049946,
+      "denominator_mean_abs_diff": 0.1710486982855609
+    },
+    "radius_of_gyration": {
+      "ratio": 1.236943072995421,
+      "ci_lo": 1.1594776729823266,
+      "ci_hi": 1.3079028491849616,
+      "mean_risk": 0.12880455348431394,
+      "numerator_mean_abs_diff": 0.21157750248920829,
+      "denominator_mean_abs_diff": 0.1710486982855609
+    }
+  },
+  "geolife_group_dro_lambda1.0_1seed": {
+    "entropy": {
+      "ratio": 0.8714036185140794,
+      "ci_lo": 0.825515594924717,
+      "ci_hi": 0.914189644309957,
+      "mean_risk": 0.1395749782944579,
+      "numerator_mean_abs_diff": 0.15189688855232228,
+      "denominator_mean_abs_diff": 0.1743128962573479
+    },
+    "location_distribution": {
+      "ratio": 0.6778257580710638,
+      "ci_lo": 0.6360492634469374,
+      "ci_hi": 0.7198840583677599,
+      "mean_risk": 0.1395749782944579,
+      "numerator_mean_abs_diff": 0.11815377104719953,
+      "denominator_mean_abs_diff": 0.1743128962573479
+    },
+    "trajectory_shape": {
+      "ratio": 1.317236525333741,
+      "ci_lo": 1.2381409796608784,
+      "ci_hi": 1.3895869140535975,
+      "mean_risk": 0.1395749782944579,
+      "numerator_mean_abs_diff": 0.22961131378688981,
+      "denominator_mean_abs_diff": 0.1743128962573479
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2511722372234046,
+      "ci_lo": 1.1687228729923096,
+      "ci_hi": 1.319003161985193,
+      "mean_risk": 0.1395749782944579,
+      "numerator_mean_abs_diff": 0.2180954563871972,
+      "denominator_mean_abs_diff": 0.1743128962573479
+    }
+  },
+  "geolife_group_dro_lambda3.0_1seed": {
+    "entropy": {
+      "ratio": 0.8525172827703185,
+      "ci_lo": 0.8063496042517598,
+      "ci_hi": 0.8956129165394614,
+      "mean_risk": 0.13544345654003068,
+      "numerator_mean_abs_diff": 0.14611885676852296,
+      "denominator_mean_abs_diff": 0.1713969437589568
+    },
+    "location_distribution": {
+      "ratio": 0.6647677185488192,
+      "ci_lo": 0.6237924034783501,
+      "ci_hi": 0.7082937686449959,
+      "mean_risk": 0.13544345654003068,
+      "numerator_mean_abs_diff": 0.113939155268882,
+      "denominator_mean_abs_diff": 0.1713969437589568
+    },
+    "trajectory_shape": {
+      "ratio": 1.335631860990842,
+      "ci_lo": 1.2595639036955573,
+      "ci_hi": 1.4095510309522656,
+      "mean_risk": 0.13544345654003068,
+      "numerator_mean_abs_diff": 0.22892321896091816,
+      "denominator_mean_abs_diff": 0.1713969437589568
+    },
+    "radius_of_gyration": {
+      "ratio": 1.255469092874293,
+      "ci_lo": 1.1799979762593393,
+      "ci_hi": 1.325447983703642,
+      "mean_risk": 0.13544345654003068,
+      "numerator_mean_abs_diff": 0.21518356550248374,
+      "denominator_mean_abs_diff": 0.1713969437589568
+    }
+  },
+  "geolife_lipschitz_lambda0.3_1seed": {
+    "entropy": {
+      "ratio": 0.8554799590253388,
+      "ci_lo": 0.812001725659315,
+      "ci_hi": 0.9036870471715638,
+      "mean_risk": 0.1372086551364804,
+      "numerator_mean_abs_diff": 0.1461524057523126,
+      "denominator_mean_abs_diff": 0.17084258282195905
+    },
+    "location_distribution": {
+      "ratio": 0.6939256680835902,
+      "ci_lo": 0.6503557563388735,
+      "ci_hi": 0.7327923149786306,
+      "mean_risk": 0.1372086551364804,
+      "numerator_mean_abs_diff": 0.11855205342185403,
+      "denominator_mean_abs_diff": 0.17084258282195905
+    },
+    "trajectory_shape": {
+      "ratio": 1.3063267693914442,
+      "ci_lo": 1.238932595933258,
+      "ci_hi": 1.3811380119876173,
+      "mean_risk": 0.1372086551364804,
+      "numerator_mean_abs_diff": 0.2231762392923,
+      "denominator_mean_abs_diff": 0.17084258282195905
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2316131996277013,
+      "ci_lo": 1.1596864097847344,
+      "ci_hi": 1.299731539386884,
+      "mean_risk": 0.1372086551364804,
+      "numerator_mean_abs_diff": 0.21041198006201356,
+      "denominator_mean_abs_diff": 0.17084258282195905
+    }
+  },
+  "geolife_lipschitz_lambda1.0_1seed": {
+    "entropy": {
+      "ratio": 0.8337377988077515,
+      "ci_lo": 0.7876056236807859,
+      "ci_hi": 0.8815051755135614,
+      "mean_risk": 0.14230523447432875,
+      "numerator_mean_abs_diff": 0.14839838380141865,
+      "denominator_mean_abs_diff": 0.17799167077902545
+    },
+    "location_distribution": {
+      "ratio": 0.7723555140176909,
+      "ci_lo": 0.7250080177198759,
+      "ci_hi": 0.8217098317806597,
+      "mean_risk": 0.14230523447432875,
+      "numerator_mean_abs_diff": 0.1374728483754018,
+      "denominator_mean_abs_diff": 0.17799167077902545
+    },
+    "trajectory_shape": {
+      "ratio": 1.3246207158732102,
+      "ci_lo": 1.259643007005785,
+      "ci_hi": 1.3958132196581576,
+      "mean_risk": 0.14230523447432875,
+      "numerator_mean_abs_diff": 0.23577145436678143,
+      "denominator_mean_abs_diff": 0.17799167077902545
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2078989000669507,
+      "ci_lo": 1.1334032207041806,
+      "ci_hi": 1.2683296523220708,
+      "mean_risk": 0.14230523447432875,
+      "numerator_mean_abs_diff": 0.21499594335506364,
+      "denominator_mean_abs_diff": 0.17799167077902545
+    }
+  },
+  "geolife_lipschitz_lambda3.0_1seed": {
+    "entropy": {
+      "ratio": 0.7923451349053708,
+      "ci_lo": 0.7473787534880436,
+      "ci_hi": 0.836170217342123,
+      "mean_risk": 0.1396230601234717,
+      "numerator_mean_abs_diff": 0.14104780423877733,
+      "denominator_mean_abs_diff": 0.1780130880157705
+    },
+    "location_distribution": {
+      "ratio": 0.8076884275161756,
+      "ci_lo": 0.755479709285232,
+      "ci_hi": 0.860147087409545,
+      "mean_risk": 0.1396230601234717,
+      "numerator_mean_abs_diff": 0.14377911113675626,
+      "denominator_mean_abs_diff": 0.1780130880157705
+    },
+    "trajectory_shape": {
+      "ratio": 1.3709485918374138,
+      "ci_lo": 1.299029336127186,
+      "ci_hi": 1.450039289892318,
+      "mean_risk": 0.1396230601234717,
+      "numerator_mean_abs_diff": 0.24404679234385018,
+      "denominator_mean_abs_diff": 0.1780130880157705
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2045022690825722,
+      "ci_lo": 1.1240061093829599,
+      "ci_hi": 1.2699828093161198,
+      "mean_risk": 0.1396230601234717,
+      "numerator_mean_abs_diff": 0.21441716844139122,
+      "denominator_mean_abs_diff": 0.1780130880157705
+    }
+  },
+  "geolife_no_privacy": {
+    "entropy": {
+      "ratio": 0.8743682283493778,
+      "ci_lo": 0.8232825362538723,
+      "ci_hi": 0.9349986821926258,
+      "mean_risk": 0.142477747596005,
+      "numerator_mean_abs_diff": 0.15378130595417566,
+      "denominator_mean_abs_diff": 0.1758770515306603
+    },
+    "location_distribution": {
+      "ratio": 0.6722108821380075,
+      "ci_lo": 0.6184275769351774,
+      "ci_hi": 0.7402537911270093,
+      "mean_risk": 0.142477747596005,
+      "numerator_mean_abs_diff": 0.11822646795725697,
+      "denominator_mean_abs_diff": 0.1758770515306603
+    },
+    "trajectory_shape": {
+      "ratio": 1.3406159029329712,
+      "ci_lo": 1.2642046920209373,
+      "ci_hi": 1.4192130998127988,
+      "mean_risk": 0.142477747596005,
+      "numerator_mean_abs_diff": 0.23578357224296487,
+      "denominator_mean_abs_diff": 0.1758770515306603
+    },
+    "radius_of_gyration": {
+      "ratio": 1.232815121386343,
+      "ci_lo": 1.1602601612996128,
+      "ci_hi": 1.304155462557804,
+      "mean_risk": 0.142477747596005,
+      "numerator_mean_abs_diff": 0.21682388863184307,
+      "denominator_mean_abs_diff": 0.1758770515306603
+    }
+  },
+  "geolife_per_user_minimax_lambda0.3_1seed": {
+    "entropy": {
+      "ratio": 0.8418298535689748,
+      "ci_lo": 0.7961647584291243,
+      "ci_hi": 0.8892716163261284,
+      "mean_risk": 0.13334946918479174,
+      "numerator_mean_abs_diff": 0.1405564214651074,
+      "denominator_mean_abs_diff": 0.166965356323742
+    },
+    "location_distribution": {
+      "ratio": 0.6717823588249757,
+      "ci_lo": 0.6331519774035945,
+      "ci_hi": 0.7160201322608938,
+      "mean_risk": 0.13334946918479174,
+      "numerator_mean_abs_diff": 0.11216438091321597,
+      "denominator_mean_abs_diff": 0.166965356323742
+    },
+    "trajectory_shape": {
+      "ratio": 1.3241862926575807,
+      "ci_lo": 1.2428584440358383,
+      "ci_hi": 1.4086222741143466,
+      "mean_risk": 0.13334946918479174,
+      "numerator_mean_abs_diff": 0.22109323619258783,
+      "denominator_mean_abs_diff": 0.166965356323742
+    },
+    "radius_of_gyration": {
+      "ratio": 1.228409229231,
+      "ci_lo": 1.145360706494944,
+      "ci_hi": 1.301359593071678,
+      "mean_risk": 0.13334946918479174,
+      "numerator_mean_abs_diff": 0.20510178466992718,
+      "denominator_mean_abs_diff": 0.166965356323742
+    }
+  },
+  "geolife_per_user_minimax_lambda1.0_1seed": {
+    "entropy": {
+      "ratio": 0.820998183547711,
+      "ci_lo": 0.7772984642883027,
+      "ci_hi": 0.8681416362262655,
+      "mean_risk": 0.1328791437210159,
+      "numerator_mean_abs_diff": 0.1405509465702233,
+      "denominator_mean_abs_diff": 0.17119519797580088
+    },
+    "location_distribution": {
+      "ratio": 0.76627481205746,
+      "ci_lo": 0.715362485300627,
+      "ci_hi": 0.8207979342506996,
+      "mean_risk": 0.1328791437210159,
+      "numerator_mean_abs_diff": 0.13118256815404647,
+      "denominator_mean_abs_diff": 0.17119519797580088
+    },
+    "trajectory_shape": {
+      "ratio": 1.3636990187273665,
+      "ci_lo": 1.2921252150930154,
+      "ci_hi": 1.4381630329902966,
+      "mean_risk": 0.1328791437210159,
+      "numerator_mean_abs_diff": 0.2334587234904369,
+      "denominator_mean_abs_diff": 0.17119519797580088
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2483491148073436,
+      "ci_lo": 1.1692908811043865,
+      "ci_hi": 1.3151475444835918,
+      "mean_risk": 0.1328791437210159,
+      "numerator_mean_abs_diff": 0.21371137385235894,
+      "denominator_mean_abs_diff": 0.17119519797580088
+    }
+  },
+  "geolife_per_user_minimax_lambda3.0_1seed": {
+    "entropy": {
+      "ratio": 0.7848669760137376,
+      "ci_lo": 0.7359168339819967,
+      "ci_hi": 0.8336850793145516,
+      "mean_risk": 0.11626154445948891,
+      "numerator_mean_abs_diff": 0.11782741635056243,
+      "denominator_mean_abs_diff": 0.15012405917369123
+    },
+    "location_distribution": {
+      "ratio": 0.7360937279420599,
+      "ci_lo": 0.6878388876877867,
+      "ci_hi": 0.7873499193057891,
+      "mean_risk": 0.11626154445948891,
+      "numerator_mean_abs_diff": 0.11050537837095677,
+      "denominator_mean_abs_diff": 0.15012405917369123
+    },
+    "trajectory_shape": {
+      "ratio": 1.3903558410207344,
+      "ci_lo": 1.3063510312755782,
+      "ci_hi": 1.4777535186220723,
+      "mean_risk": 0.11626154445948891,
+      "numerator_mean_abs_diff": 0.20872586254988396,
+      "denominator_mean_abs_diff": 0.15012405917369123
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2663792508284935,
+      "ci_lo": 1.186827510558828,
+      "ci_hi": 1.3404233135663404,
+      "mean_risk": 0.11626154445948891,
+      "numerator_mean_abs_diff": 0.19011399358771153,
+      "denominator_mean_abs_diff": 0.15012405917369123
+    }
+  },
+  "geolife_plain_lambda0.0_10seed": {
+    "entropy": {
+      "ratio": 0.8244150055427527,
+      "ci_lo": 0.775963981600123,
+      "ci_hi": 0.9111433909351281,
+      "mean_risk": 0.13273823907567456,
+      "numerator_mean_abs_diff": 0.1340369763717765,
+      "denominator_mean_abs_diff": 0.1625843482598105
+    },
+    "location_distribution": {
+      "ratio": 0.7009407654537869,
+      "ci_lo": 0.6500589094580869,
+      "ci_hi": 0.7951166420937462,
+      "mean_risk": 0.13273823907567456,
+      "numerator_mean_abs_diff": 0.11396199752003663,
+      "denominator_mean_abs_diff": 0.1625843482598105
+    },
+    "trajectory_shape": {
+      "ratio": 1.3569963552977422,
+      "ci_lo": 1.2645409239287462,
+      "ci_hi": 1.4558847261299912,
+      "mean_risk": 0.13273823907567456,
+      "numerator_mean_abs_diff": 0.22062636801702165,
+      "denominator_mean_abs_diff": 0.1625843482598105
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2393070530402106,
+      "ci_lo": 1.129846013268028,
+      "ci_hi": 1.3325168637659341,
+      "mean_risk": 0.13273823907567456,
+      "numerator_mean_abs_diff": 0.20149192951232905,
+      "denominator_mean_abs_diff": 0.1625843482598105
+    }
+  },
+  "geolife_plain_lp0.02": {
+    "entropy": {
+      "ratio": 0.8640651781455062,
+      "ci_lo": 0.8005898590523414,
+      "ci_hi": 0.9276903273422166,
+      "mean_risk": 0.14425247829505117,
+      "numerator_mean_abs_diff": 0.15519674782029222,
+      "denominator_mean_abs_diff": 0.179612315998409
+    },
+    "location_distribution": {
+      "ratio": 0.6878103561445559,
+      "ci_lo": 0.6517551908777852,
+      "ci_hi": 0.7617105961503833,
+      "mean_risk": 0.14425247829505117,
+      "numerator_mean_abs_diff": 0.1235392110348142,
+      "denominator_mean_abs_diff": 0.179612315998409
+    },
+    "trajectory_shape": {
+      "ratio": 1.3485049456816685,
+      "ci_lo": 1.2770786723102456,
+      "ci_hi": 1.445899203424822,
+      "mean_risk": 0.14425247829505117,
+      "numerator_mean_abs_diff": 0.2422080964291932,
+      "denominator_mean_abs_diff": 0.179612315998409
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2339756003581759,
+      "ci_lo": 1.1433667756787713,
+      "ci_hi": 1.3030284445430558,
+      "mean_risk": 0.14425247829505117,
+      "numerator_mean_abs_diff": 0.22163721546585913,
+      "denominator_mean_abs_diff": 0.179612315998409
+    }
+  },
+  "geolife_plain_lp0.1": {
+    "entropy": {
+      "ratio": 0.8552297917838585,
+      "ci_lo": 0.7978088303132812,
+      "ci_hi": 0.9197540223670613,
+      "mean_risk": 0.13648180478786143,
+      "numerator_mean_abs_diff": 0.1455681371752705,
+      "denominator_mean_abs_diff": 0.1702093853298083
+    },
+    "location_distribution": {
+      "ratio": 0.6766887820149905,
+      "ci_lo": 0.5898009467693769,
+      "ci_hi": 0.8100588619615662,
+      "mean_risk": 0.13648180478786143,
+      "numerator_mean_abs_diff": 0.11517878164634818,
+      "denominator_mean_abs_diff": 0.1702093853298083
+    },
+    "trajectory_shape": {
+      "ratio": 1.3422233019411796,
+      "ci_lo": 1.2301670275628585,
+      "ci_hi": 1.4418726510277597,
+      "mean_risk": 0.13648180478786143,
+      "numerator_mean_abs_diff": 0.2284590031987539,
+      "denominator_mean_abs_diff": 0.1702093853298083
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2278761539779321,
+      "ci_lo": 1.1397770194743382,
+      "ci_hi": 1.3121030185234008,
+      "mean_risk": 0.13648180478786143,
+      "numerator_mean_abs_diff": 0.2089960454297129,
+      "denominator_mean_abs_diff": 0.1702093853298083
+    }
+  },
+  "geolife_plain_lp0.2": {
+    "entropy": {
+      "ratio": 0.8300619748771032,
+      "ci_lo": 0.7696385842231047,
+      "ci_hi": 0.9003893810684225,
+      "mean_risk": 0.1304644277200716,
+      "numerator_mean_abs_diff": 0.1352325974277876,
+      "denominator_mean_abs_diff": 0.16291867537699192
+    },
+    "location_distribution": {
+      "ratio": 0.7288510647410309,
+      "ci_lo": 0.6852227891657825,
+      "ci_hi": 0.795809045631384,
+      "mean_risk": 0.1304644277200716,
+      "numerator_mean_abs_diff": 0.11874345001471893,
+      "denominator_mean_abs_diff": 0.16291867537699192
+    },
+    "trajectory_shape": {
+      "ratio": 1.3709991454937203,
+      "ci_lo": 1.2896674175257015,
+      "ci_hi": 1.4513216233945248,
+      "mean_risk": 0.1304644277200716,
+      "numerator_mean_abs_diff": 0.22336136472682475,
+      "denominator_mean_abs_diff": 0.16291867537699192
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2504997897278893,
+      "ci_lo": 1.1618353120763576,
+      "ci_hi": 1.3196815406410387,
+      "mean_risk": 0.1304644277200716,
+      "numerator_mean_abs_diff": 0.20372976930167466,
+      "denominator_mean_abs_diff": 0.16291867537699192
+    }
+  },
+  "geolife_plain_lp0.3": {
+    "entropy": {
+      "ratio": 0.8483502322373061,
+      "ci_lo": 0.7912923558417252,
+      "ci_hi": 0.9449617581834495,
+      "mean_risk": 0.13357393797382375,
+      "numerator_mean_abs_diff": 0.14246149449357912,
+      "denominator_mean_abs_diff": 0.1679276896263392
+    },
+    "location_distribution": {
+      "ratio": 0.6963505014522183,
+      "ci_lo": 0.6566162063680736,
+      "ci_hi": 0.7619739072327203,
+      "mean_risk": 0.13357393797382375,
+      "numerator_mean_abs_diff": 0.11693653087901378,
+      "denominator_mean_abs_diff": 0.1679276896263392
+    },
+    "trajectory_shape": {
+      "ratio": 1.350210189032505,
+      "ci_lo": 1.263381660661665,
+      "ci_hi": 1.4314552414101087,
+      "mean_risk": 0.13357393797382375,
+      "numerator_mean_abs_diff": 0.22673767755417126,
+      "denominator_mean_abs_diff": 0.1679276896263392
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2510399738177336,
+      "ci_lo": 1.1577526317667328,
+      "ci_hi": 1.3331698277062891,
+      "mean_risk": 0.13357393797382375,
+      "numerator_mean_abs_diff": 0.2100842524334079,
+      "denominator_mean_abs_diff": 0.1679276896263392
+    }
+  },
+  "geolife_plain_lp0.5": {
+    "entropy": {
+      "ratio": 0.8417513867130072,
+      "ci_lo": 0.7960058337702174,
+      "ci_hi": 0.9017776938565418,
+      "mean_risk": 0.1348572632123468,
+      "numerator_mean_abs_diff": 0.1384410696607576,
+      "denominator_mean_abs_diff": 0.16446788427799608
+    },
+    "location_distribution": {
+      "ratio": 0.7151166155742721,
+      "ci_lo": 0.6653679593157873,
+      "ci_hi": 0.7777373116666565,
+      "mean_risk": 0.1348572632123468,
+      "numerator_mean_abs_diff": 0.11761371677554158,
+      "denominator_mean_abs_diff": 0.16446788427799608
+    },
+    "trajectory_shape": {
+      "ratio": 1.308190746085657,
+      "ci_lo": 1.2295709847643945,
+      "ci_hi": 1.392509563758023,
+      "mean_risk": 0.1348572632123468,
+      "numerator_mean_abs_diff": 0.21515536424076118,
+      "denominator_mean_abs_diff": 0.16446788427799608
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2364300783796007,
+      "ci_lo": 1.14603887442047,
+      "ci_hi": 1.3174625635568231,
+      "mean_risk": 0.1348572632123468,
+      "numerator_mean_abs_diff": 0.20335303904876978,
+      "denominator_mean_abs_diff": 0.16446788427799608
+    }
+  },
+  "geolife_plain_lp0.8": {
+    "entropy": {
+      "ratio": 0.8416242480498627,
+      "ci_lo": 0.7925357582803846,
+      "ci_hi": 0.9009329982349007,
+      "mean_risk": 0.13303631864774143,
+      "numerator_mean_abs_diff": 0.1363246950381411,
+      "denominator_mean_abs_diff": 0.16197809812873218
+    },
+    "location_distribution": {
+      "ratio": 0.696093582057931,
+      "ci_lo": 0.6475260458270706,
+      "ci_hi": 0.7697203877805548,
+      "mean_risk": 0.13303631864774143,
+      "numerator_mean_abs_diff": 0.11275191454136024,
+      "denominator_mean_abs_diff": 0.16197809812873218
+    },
+    "trajectory_shape": {
+      "ratio": 1.37180954091148,
+      "ci_lo": 1.2843660570265427,
+      "ci_hi": 1.4484323286947582,
+      "mean_risk": 0.13303631864774143,
+      "numerator_mean_abs_diff": 0.22220310043169078,
+      "denominator_mean_abs_diff": 0.16197809812873218
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2628468589173023,
+      "ci_lo": 1.165057120495719,
+      "ci_hi": 1.3309815159765677,
+      "mean_risk": 0.13303631864774143,
+      "numerator_mean_abs_diff": 0.204553532435268,
+      "denominator_mean_abs_diff": 0.16197809812873218
+    }
+  },
+  "geolife_plain_lp1.2_10seed": {
+    "entropy": {
+      "ratio": 0.8037612766093565,
+      "ci_lo": 0.7451714750129345,
+      "ci_hi": 0.8912702271160926,
+      "mean_risk": 0.1321789807085905,
+      "numerator_mean_abs_diff": 0.12963824527476708,
+      "denominator_mean_abs_diff": 0.1612894886173694
+    },
+    "location_distribution": {
+      "ratio": 0.7403299164346744,
+      "ci_lo": 0.6826667345970795,
+      "ci_hi": 0.8413684911123952,
+      "mean_risk": 0.1321789807085905,
+      "numerator_mean_abs_diff": 0.11940743362988844,
+      "denominator_mean_abs_diff": 0.1612894886173694
+    },
+    "trajectory_shape": {
+      "ratio": 1.3446483014895583,
+      "ci_lo": 1.2512825336445847,
+      "ci_hi": 1.4770764541723505,
+      "mean_risk": 0.1321789807085905,
+      "numerator_mean_abs_diff": 0.21687763691746517,
+      "denominator_mean_abs_diff": 0.1612894886173694
+    },
+    "radius_of_gyration": {
+      "ratio": 1.220026506442122,
+      "ci_lo": 1.1541326867686266,
+      "ci_hi": 1.306318231964006,
+      "mean_risk": 0.1321789807085905,
+      "numerator_mean_abs_diff": 0.19677745132368557,
+      "denominator_mean_abs_diff": 0.1612894886173694
+    }
+  },
+  "geolife_plain_lp2_10seed_corrected": {
+    "entropy": {
+      "ratio": 0.7757965088613886,
+      "ci_lo": 0.739292330478319,
+      "ci_hi": 0.8548819904684296,
+      "mean_risk": 0.11650765926467885,
+      "numerator_mean_abs_diff": 0.11078850328254619,
+      "denominator_mean_abs_diff": 0.14280613797185926
+    },
+    "location_distribution": {
+      "ratio": 0.7979935814357592,
+      "ci_lo": 0.7386810017734975,
+      "ci_hi": 0.910803749862137,
+      "mean_risk": 0.11650765926467885,
+      "numerator_mean_abs_diff": 0.11395838149117313,
+      "denominator_mean_abs_diff": 0.14280613797185926
+    },
+    "trajectory_shape": {
+      "ratio": 1.3669176539506132,
+      "ci_lo": 1.2548249166532113,
+      "ci_hi": 1.4910700365303664,
+      "mean_risk": 0.11650765926467885,
+      "numerator_mean_abs_diff": 0.19520423108624144,
+      "denominator_mean_abs_diff": 0.14280613797185926
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2257922643618742,
+      "ci_lo": 1.1353248731177785,
+      "ci_hi": 1.3209083583464762,
+      "mean_risk": 0.11650765926467885,
+      "numerator_mean_abs_diff": 0.17505065922929958,
+      "denominator_mean_abs_diff": 0.14280613797185926
+    }
+  },
+  "geolife_plain_lp3_10seed_corrected": {
+    "entropy": {
+      "ratio": 0.7689366451383305,
+      "ci_lo": 0.7261089741396172,
+      "ci_hi": 0.8600480066967312,
+      "mean_risk": 0.09646414680656189,
+      "numerator_mean_abs_diff": 0.09222263335094806,
+      "denominator_mean_abs_diff": 0.11993528196898114
+    },
+    "location_distribution": {
+      "ratio": 0.814246448051475,
+      "ci_lo": 0.7668785731054112,
+      "ci_hi": 0.9300260787163935,
+      "mean_risk": 0.09646414680656189,
+      "numerator_mean_abs_diff": 0.097656877339295,
+      "denominator_mean_abs_diff": 0.11993528196898114
+    },
+    "trajectory_shape": {
+      "ratio": 1.3915689888365927,
+      "ci_lo": 1.2875494562512482,
+      "ci_hi": 1.508799671696858,
+      "mean_risk": 0.09646414680656189,
+      "numerator_mean_abs_diff": 0.16689821905540672,
+      "denominator_mean_abs_diff": 0.11993528196898114
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2479664089282732,
+      "ci_lo": 1.1461761690639898,
+      "ci_hi": 1.3478209846284104,
+      "mean_risk": 0.09646414680656189,
+      "numerator_mean_abs_diff": 0.14967520314262925,
+      "denominator_mean_abs_diff": 0.11993528196898114
+    }
+  },
+  "geolife_variance_lambda0.3_1seed": {
+    "entropy": {
+      "ratio": 0.8430918976123902,
+      "ci_lo": 0.8006670364135566,
+      "ci_hi": 0.894020883176,
+      "mean_risk": 0.1419202746666465,
+      "numerator_mean_abs_diff": 0.15287824773611058,
+      "denominator_mean_abs_diff": 0.18133046725873772
+    },
+    "location_distribution": {
+      "ratio": 0.7479505071443843,
+      "ci_lo": 0.6969652386479175,
+      "ci_hi": 0.799981118796258,
+      "mean_risk": 0.1419202746666465,
+      "numerator_mean_abs_diff": 0.13562621494690105,
+      "denominator_mean_abs_diff": 0.18133046725873772
+    },
+    "trajectory_shape": {
+      "ratio": 1.3420018124091797,
+      "ci_lo": 1.2738644894701532,
+      "ci_hi": 1.4211146971259958,
+      "mean_risk": 0.1419202746666465,
+      "numerator_mean_abs_diff": 0.24334581570622943,
+      "denominator_mean_abs_diff": 0.18133046725873772
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2237086262436259,
+      "ci_lo": 1.1451902763863453,
+      "ci_hi": 1.2871074838743808,
+      "mean_risk": 0.1419202746666465,
+      "numerator_mean_abs_diff": 0.2218956569853047,
+      "denominator_mean_abs_diff": 0.18133046725873772
+    }
+  },
+  "geolife_variance_lambda1.0_1seed": {
+    "entropy": {
+      "ratio": 0.8490167237470764,
+      "ci_lo": 0.8021069362953613,
+      "ci_hi": 0.8978704056627658,
+      "mean_risk": 0.13566373034139692,
+      "numerator_mean_abs_diff": 0.1478106262067717,
+      "denominator_mean_abs_diff": 0.1740962481332756
+    },
+    "location_distribution": {
+      "ratio": 0.6960751573361077,
+      "ci_lo": 0.6514424482340866,
+      "ci_hi": 0.7427095977010243,
+      "mean_risk": 0.13566373034139692,
+      "numerator_mean_abs_diff": 0.12118407331099586,
+      "denominator_mean_abs_diff": 0.1740962481332756
+    },
+    "trajectory_shape": {
+      "ratio": 1.3729819187342693,
+      "ci_lo": 1.3001401698832207,
+      "ci_hi": 1.4484572879356201,
+      "mean_risk": 0.13566373034139692,
+      "numerator_mean_abs_diff": 0.2390310008064622,
+      "denominator_mean_abs_diff": 0.1740962481332756
+    },
+    "radius_of_gyration": {
+      "ratio": 1.2568878253182008,
+      "ci_lo": 1.1834475126429052,
+      "ci_hi": 1.3289961661548986,
+      "mean_risk": 0.13566373034139692,
+      "numerator_mean_abs_diff": 0.21881945471229064,
+      "denominator_mean_abs_diff": 0.1740962481332756
+    }
+  },
+  "geolife_variance_lambda3.0_1seed": {
+    "entropy": {
+      "ratio": 0.8226986183200662,
+      "ci_lo": 0.7775549487166936,
+      "ci_hi": 0.8724603592122812,
+      "mean_risk": 0.14037553386218593,
+      "numerator_mean_abs_diff": 0.14021738551616195,
+      "denominator_mean_abs_diff": 0.17043590738304992
+    },
+    "location_distribution": {
+      "ratio": 0.7010573266002315,
+      "ci_lo": 0.6617923911809294,
+      "ci_hi": 0.7387115194513055,
+      "mean_risk": 0.14037553386218593,
+      "numerator_mean_abs_diff": 0.11948534158664563,
+      "denominator_mean_abs_diff": 0.17043590738304992
+    },
+    "trajectory_shape": {
+      "ratio": 1.2648119883136295,
+      "ci_lo": 1.2025928113805084,
+      "ci_hi": 1.3323941424075494,
+      "mean_risk": 0.14037553386218593,
+      "numerator_mean_abs_diff": 0.21556937889719296,
+      "denominator_mean_abs_diff": 0.17043590738304992
+    },
+    "radius_of_gyration": {
+      "ratio": 1.1862380108977006,
+      "ci_lo": 1.110950223806016,
+      "ci_hi": 1.246355887786544,
+      "mean_risk": 0.14037553386218593,
+      "numerator_mean_abs_diff": 0.20217755175961388,
+      "denominator_mean_abs_diff": 0.17043590738304992
+    }
+  }
+}
