@@ -54,14 +54,32 @@ evaluation.
 import argparse
 import copy
 import json
+import os
 import pathlib
 import subprocess
 import sys
 import time
 
+# Thread-cap BEFORE numpy/torch import: this script's single most common
+# failure mode in practice (2026-11-03/04) was NOT GPU contention but CPU
+# thread oversubscription -- two concurrently-running jobs (GPU0 + GPU1,
+# the normal case) each spawned 120+ OS threads (PyTorch intra-op +
+# OpenBLAS/MKL, uncapped by default) on a 40-core box, and the resulting
+# thrashing turned ~20-70 minute jobs into 9-13 HOUR ones (observed
+# directly: YJMob100K's no_privacy and plain_lp0.02 jobs). Capped here,
+# not just at the orchestrator level, so this protects every caller
+# including ad-hoc/manual invocations, not only the launch_*.py scripts.
+_N_THREADS = int(os.environ.get("PUFFIN_NUM_THREADS", "8"))
+os.environ.setdefault("OMP_NUM_THREADS", str(_N_THREADS))
+os.environ.setdefault("MKL_NUM_THREADS", str(_N_THREADS))
+os.environ.setdefault("OPENBLAS_NUM_THREADS", str(_N_THREADS))
+os.environ.setdefault("NUMEXPR_NUM_THREADS", str(_N_THREADS))
+
 import numpy as np
 import pandas as pd
 import torch
+
+torch.set_num_threads(_N_THREADS)
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
