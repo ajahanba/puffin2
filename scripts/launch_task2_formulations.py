@@ -100,6 +100,11 @@ def main():
         for l4 in (0.3, 1.0, 3.0):
             jobs.append((f"gowalla_sf_bay_lipschitz_{basis}_lambda{l4}_3seed",
                           "gowalla_sf_bay", "lipschitz", l4, basis, 3))
+    # 4.5. GeoLife group-DRO, 3 seeds (PI's instruction, 2026-11-04): group-fairness
+    # comparison baseline, scheduled here (after Gowalla-SF-Bay, before Foursquare)
+    for l4 in (0.3, 1.0):
+        jobs.append((f"geolife_group_dro_lambda{l4}_3seed",
+                      "geolife", "group_dro", l4, "entropy", 3))
     # 5. Foursquare lipschitz, both bases
     for basis in ("entropy", "location_distribution"):
         for l4 in (0.3, 1.0, 3.0):
