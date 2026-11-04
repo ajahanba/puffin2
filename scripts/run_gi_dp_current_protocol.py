@@ -64,12 +64,17 @@ def _git_commit():
         return None
 
 
-def train_predictor(perturbed_tr, true_next_cell_tr, total_locations, device, seed,
+def train_predictor(perturbed_tr, true_next_cell_tr, embedding_vocab, output_vocab, device, seed,
                      max_epochs=80, patience=8, min_epochs=20, val_frac=0.1, batch_size=512, lr=3e-4):
+    """embedding_vocab sizes the INPUT location embedding (must cover the
+    perturbed release's extended cell ids); output_vocab sizes the next-
+    location classification head (must match the TRUE label space, i.e.
+    the ORIGINAL unperturbed vocabulary -- true next-location labels never
+    exceed it, so the head must not either)."""
     torch.manual_seed(seed)
     sl = perturbed_tr["cell"].shape[1]
-    encoder = FixedEncoder(sl, total_locations).to(device)
-    head = MLPHead(total_locations).to(device)
+    encoder = FixedEncoder(sl, embedding_vocab).to(device)
+    head = MLPHead(output_vocab).to(device)
     opt = torch.optim.Adam(list(encoder.parameters()) + list(head.parameters()), lr=lr)
 
     n = len(perturbed_tr["user"])
@@ -162,8 +167,8 @@ def main():
     total_users = int(df["user_id"].max())
     df = assign_grid_cells(df, resolution_deg=0.01)
     original_mapping = df.attrs["grid_cell_mapping"]
-    total_locations = max(original_mapping.values())
-    print(f"{tag} total_locations={total_locations}, building ORIGINAL windows...", flush=True)
+    original_total_locations = max(original_mapping.values())
+    print(f"{tag} total_locations={original_total_locations}, building ORIGINAL windows...", flush=True)
 
     original_windows = build_sl_windows(df, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
                                          respect_traj_boundary=False)
@@ -175,8 +180,9 @@ def main():
     # extends the reused mapping with NEW ids beyond the original's max for
     # those, so the embedding layer must be sized for whatever the
     # PERTURBED release actually uses, not just the original's footprint.
-    total_locations = max(total_locations, int(perturbed_df["cell_id"].max()))
-    print(f"{tag} total_locations after perturbation: {total_locations}", flush=True)
+    embedding_vocab = max(original_total_locations, int(perturbed_df["cell_id"].max()))
+    print(f"{tag} embedding vocab after perturbation: {embedding_vocab} "
+          f"(output vocab stays at the original {original_total_locations})", flush=True)
     perturbed_windows = build_sl_windows(perturbed_df, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
                                          respect_traj_boundary=False)
 
@@ -202,7 +208,8 @@ def main():
         t0 = time.time()
         print(f"{tag} encoder seed {enc_seed}: training predictor...", flush=True)
         encoder, head, actual_epochs = train_predictor(
-            perturbed_windows["train"], original_windows["train"]["next_cell"], total_locations, device, enc_seed,
+            perturbed_windows["train"], original_windows["train"]["next_cell"],
+            embedding_vocab, original_total_locations, device, enc_seed,
             max_epochs=args.max_epochs, patience=args.patience, min_epochs=args.min_epochs, val_frac=args.val_frac)
         utility = eval_utility(encoder, head, perturbed_windows["test"], original_windows["test"]["next_cell"], device)
         utilities.append(utility)
@@ -211,7 +218,7 @@ def main():
               f"post attacker ({len(attacker_seeds)} seeds) on perturbed release...", flush=True)
 
         post_df, _ = train_raw_attacker_strongest_per_user(
-            perturbed_windows, total_locations, total_users, device, seeds=attacker_seeds,
+            perturbed_windows, embedding_vocab, total_users, device, seeds=attacker_seeds,
             max_epochs=args.attack_epochs, patience=6)
         post_df = post_df.rename(columns={"raw_top1": f"post_top1_encseed{enc_seed}"})
         per_encoder_seed_post.append(post_df[["user_id", f"post_top1_encseed{enc_seed}"]])
@@ -244,6 +251,7 @@ def main():
         utility_mean=float(np.mean(utilities)), utility_std=float(np.std(utilities)),
         utility_per_encoder_seed=utilities,
         n_users_before_filter=n_total, n_users_after_filter=len(merged),
+        output_vocab_size=original_total_locations, embedding_vocab_size=embedding_vocab,
     )
     (out_dir / "summary.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result, indent=2))

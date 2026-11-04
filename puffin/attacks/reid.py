@@ -378,17 +378,27 @@ def train_raw_attacker_strongest_per_user(windows: dict, total_locations: int, t
     context = windows["train"]["cell"].shape[1]
     arch_names = ["mlp", "gru"] + (["gbt"] if include_gbt else [])
 
+    import time as _time
     per_seed_frames = []
     arch_win_log = []
+    phase_timing = {a: 0.0 for a in arch_names}
     for seed in seeds:
         per_arch_df = {}
         for arch in ("mlp", "gru"):
+            _t0 = _time.time()
             _, test_per_user, _ = _train_sequence_attacker(
                 ENCODER_CLASSES[arch], context, total_locations, total_users, windows, device, seed,
                 max_epochs=max_epochs, patience=patience, chronological_val=chronological_val)
+            _elapsed = _time.time() - _t0
+            phase_timing[arch] += _elapsed
+            print(f"  [raw attacker] seed {seed} {arch}: {_elapsed:.1f}s", flush=True)
             per_arch_df[arch] = pd.DataFrame(test_per_user)[["user_id", "n_windows", "top1", "top5"]]
         if include_gbt:
+            _t0 = _time.time()
             _, test_per_user = _train_gbt_attacker(windows, total_users, seed)
+            _elapsed = _time.time() - _t0
+            phase_timing["gbt"] += _elapsed
+            print(f"  [raw attacker] seed {seed} gbt: {_elapsed:.1f}s", flush=True)
             per_arch_df["gbt"] = pd.DataFrame(test_per_user)[["user_id", "n_windows", "top1", "top5"]]
 
         merged = per_arch_df[arch_names[0]][["user_id", "n_windows"]].copy()
@@ -414,6 +424,8 @@ def train_raw_attacker_strongest_per_user(windows: dict, total_locations: int, t
     out["raw_top1"] = out[top1_cols].mean(axis=1)
     out["raw_top1_std"] = out[top1_cols].std(axis=1)
     out["raw_top5"] = out[top5_cols].mean(axis=1)
+    print(f"  [raw attacker] total per-arch time across {len(seeds)} seeds: "
+          + ", ".join(f"{a}={t:.1f}s" for a, t in phase_timing.items()), flush=True)
     return out.fillna(0.0), arch_win_log
 
 
@@ -483,11 +495,14 @@ def train_attacker_on_frozen_encoder_strongest_per_user(encoder: nn.Module, wind
         y, te_y = y.to(attacker_device), te_y.to(attacker_device)
     device = attacker_device
 
+    import time as _time
     arch_names = ["mlp"] + (["gbt"] if include_gbt else [])
     per_seed_frames = []
     arch_win_log = []
+    phase_timing = {a: 0.0 for a in arch_names}
     n = len(all_feat)
     for seed in seeds:
+        _t0_mlp = _time.time()
         torch.manual_seed(seed)
         rng = np.random.default_rng(seed)
         if chronological_val and "ts" in tr and len(tr["ts"]) == n:
@@ -526,11 +541,18 @@ def train_attacker_on_frozen_encoder_strongest_per_user(encoder: nn.Module, wind
             mlp_logits = _batched_forward(lambda f: head(f), te_feat)
         mlp_per_user = pd.DataFrame(_per_user_topk(mlp_logits, te_y))[["user_id", "n_windows", "top1", "top5"]]
         per_arch_df = {"mlp": mlp_per_user}
+        _elapsed_mlp = _time.time() - _t0_mlp
+        phase_timing["mlp"] += _elapsed_mlp
+        print(f"  [post attacker] seed {seed} mlp: {_elapsed_mlp:.1f}s", flush=True)
 
         if include_gbt:
+            _t0_gbt = _time.time()
             gbt_per_user = _train_gbt_on_frozen_features(
                 all_feat.cpu().numpy().astype(np.float64), tr["user"],
                 te_feat.cpu().numpy().astype(np.float64), te_y, total_users, seed)
+            _elapsed_gbt = _time.time() - _t0_gbt
+            phase_timing["gbt"] += _elapsed_gbt
+            print(f"  [post attacker] seed {seed} gbt: {_elapsed_gbt:.1f}s", flush=True)
             per_arch_df["gbt"] = pd.DataFrame(gbt_per_user)[["user_id", "n_windows", "top1", "top5"]]
 
         merged = per_arch_df[arch_names[0]][["user_id", "n_windows"]].copy()
@@ -552,6 +574,8 @@ def train_attacker_on_frozen_encoder_strongest_per_user(encoder: nn.Module, wind
         out = out.merge(frame[["user_id"] + s], on="user_id", how="outer")
     top1_cols = [c for c in out.columns if c.startswith("top1_seed")]
     top5_cols = [c for c in out.columns if c.startswith("top5_seed")]
+    print(f"  [post attacker] total per-arch time across {len(seeds)} seeds: "
+          + ", ".join(f"{a}={t:.1f}s" for a, t in phase_timing.items()), flush=True)
     out["post_top1"] = out[top1_cols].mean(axis=1)
     out["post_top1_std"] = out[top1_cols].std(axis=1)
     out["post_top5"] = out[top5_cols].mean(axis=1)
