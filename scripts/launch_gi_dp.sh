@@ -1,4 +1,6 @@
 #!/bin/bash
+# Moved to GPU1 2026-11-06 once Task 2 finished and freed it; see
+# run commentary in orchestrator.log / groupdro_watcher.log for the handoff.
 # GI-DP baseline, current protocol, per the PI's instruction (2026-11-03/04).
 # CPU-only, thread-capped (also capped inside run_gi_dp_current_protocol.py
 # itself, so this is belt-and-suspenders), fault-tolerant: no set -e, each
@@ -28,7 +30,7 @@ for ds in geolife foursquare gowalla_sf_bay; do
       --dataset "$ds" --parquet "${PARQUET[$ds]}" --epsilon "$eps" --out-dir "$out" \
       --no-privacy-run-dir "reports/figures/retraining_to_convergence/${ds}_no_privacy" \
       --max-epochs 80 --patience 8 --min-epochs 20 --val-frac 0.1 --attack-epochs 25 \
-      --encoder-seeds 0,1,2 --attacker-seeds 0,1,2,3,4 --device cpu \
+      --encoder-seeds 0,1,2 --attacker-seeds 0,1,2,3,4 --device cuda:1 \
       > "logs/gi_dp/${ds}_eps${eps}.log" 2>&1
     rc=$?
     if [ $rc -ne 0 ]; then
