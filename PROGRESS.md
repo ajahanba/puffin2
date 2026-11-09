@@ -1,4 +1,118 @@
-## Current state (2026-11-08): all core baselines/datasets finished ahead of the Nov 9 hard stop; TrajGAN (GeoLife only) attempted same day, gated on a 10 PM start
+## Current state (2026-11-09): root cause of recurring slowdowns found and fixed; items 2-7 of the paper's remaining-work list done (item 2 corrected after a pairing bug); TrajGAN full runs in progress
+
+**Root cause of TrajGAN's original 7.2h/2-epoch slowdown found via a
+live py-spy stack dump, and almost certainly the explanation for
+other "unexplained" multi-hour slowdowns this project has hit
+(Gowalla-SF-Bay's 9h47m one-job incident, and plausibly the ~12x
+overnight slowdown noted earlier in this file -- not independently
+confirmed for those two since the jobs had already finished, but the
+same code path applies).** pandas 2.3.3's `NDFrame.__finalize__` deep-
+copies a DataFrame's `.attrs` dict on every slice/groupby operation
+when non-empty; `assign_grid_cells` attaches an 85k+-entry
+`grid_cell_mapping` dict via `.attrs`, and any heavy per-group pandas
+loop downstream (trajgan.py's per-trajectory chunking, windowing.py's
+per-user/per-trajectory window building) paid a full dict deepcopy on
+every iteration, thousands of times -- not GPU/CPU contention at all.
+Fixed by clearing `.attrs` on the local working copy before each hot
+loop (`puffin/baselines/trajgan.py`, `puffin/attacks/windowing.py`).
+Confirmed: the full GeoLife TrajGAN pipeline dropped from 7.2 hours to
+~5 minutes end to end.
+
+**TrajGAN's window-alignment bug, separately, also fixed** (the
+chunking-vs-truncation fix alone did not resolve it): `build_sl_windows`
+shares one sequentially-advancing rng across train+test, so the real
+test split's random per-user subsample draws happen AFTER consuming
+rng state from the entire train split's sampling, while the synthetic
+release is windowed in isolation (fresh rng) -- an apples-to-oranges
+comparison, confirmed via direct point-set comparison that the
+underlying data matched exactly and only the rng position differed.
+Fixed in `scripts/run_trajgan_current_protocol.py` by recomputing the
+true test windows the same isolated way.
+
+**A job watchdog is now live on every running and future job**
+(`scripts/job_watchdog.py`): if wall time exceeds 3x the expected
+duration, captures nvidia-smi (all GPUs, all processes), top, free -g,
+and a py-spy stack dump to `reports/diagnostics/`, without killing the
+job. Verified end-to-end (real py-spy dump captured against a live
+job). A fresh GPU0/1 + CPU snapshot, checked twice independently, found
+no external contention (another user's process, an orphaned job of
+ours, swap pressure) at the times checked.
+
+**TrajGAN epoch budget = 80**, chosen from a 150-epoch GeoLife loss-
+curve exploration: a stable plateau runs epochs ~30-98 (g_loss ~11-57,
+d_loss ~0.03-0.09), then a discriminator-dominance divergence starts at
+epoch 99 (d_loss crashes below 0.01, g_loss explodes to 1000-2000+ and
+never recovers). Saved: `reports/figures/paper/trajgan_loss_curve_geolife.{json,pdf,png}`.
+A per-generator-seed collapse check (same two criteria: d_loss<0.01 for
+5+ consecutive epochs, or g_loss >10x its own epoch-30-to-80 median,
+evaluated within that window so the normal higher loss of epochs 1-29
+isn't mistaken for divergence) now runs after every generator seed's
+GAN training, saving that seed's loss curve unconditionally and halting
+before the attacker phases if flagged -- never silently attacking a
+collapsed release. Full runs (3 generator seeds x GeoLife -> Foursquare
+-> Gowalla-SF-Bay, standard 3 predictor seeds, 5-seed x 3-architecture
+attacker) are running now on GPU0, watchdog-wrapped.
+
+**Item 2 (bootstrap CIs for every matched-utility comparison): done,
+then found broken, then corrected.** First pass drew an INDEPENDENT
+user-resample per Mo-PAE curve point instead of reusing the
+mechanism's draw, breaking the pairing the whole comparison depends on
+-- caught by the PI hand-deriving the correct GeoLife PUFFIN lambda4=1.0
+decile0 CI ([-0.20,-0.06]) against the broken pipeline's output
+([-0.313,+0.058]). Also wrong: the lambda3 bracket for interpolation
+was found by sorting curve points by their REALIZED utility, which
+breaks on GeoLife's near-flat, noisy-utility region at low lambda3
+(0.02-0.8) -- the corrected version walks the lambda3 sweep in its own
+order and finds the first utility crossing, which also fixed
+extrapolation detection (GI-DP's small-epsilon GeoLife points are now
+correctly excluded as unresolvable, previously silently "resolved").
+Corrected module: `scripts/paired_bootstrap_v2.py`; validated exactly
+against the PI's hand-derived reference (bracket, t=0.951, CI, and
+per-seed ranges all matched). 408 comparisons x metric rows (down from
+576; GI-DP points needing extrapolation now correctly dropped) in
+`reports/figures/paper/item2_bootstrap_cis_matched_utility.csv`.
+
+**Item 7 (group-aware attacker, GeoLife): corrected interpretation.**
+The first pass reported the group-restricted attacker's absolute risk
+as much higher than the standard attacker's at every decile and framed
+this as independently reconfirming the adaptive-attacker appendix's
+candidate-pool finding -- **that framing was wrong and is retracted.**
+The higher absolute risk is mostly mechanical: a decile group has ~18
+users vs. the full population's 178, so chance alone is ~10x higher
+(1/18 vs 1/178); it is not evidence about candidate-pool restriction
+one way or the other. What the corrected analysis (`scripts/run_item7_v2.py`,
+same corrected paired-bootstrap pairing as item 2) actually shows:
+comparing PUFFIN to Mo-PAE UNDER THE SAME group attacker, the gap
+between them shrinks sharply relative to the standard attacker -- at
+decile0, (PUFFIN - Mo-PAE) goes from about -0.127 under the standard
+(full-population) attacker to about -0.015 under the group attacker.
+Per-decile chance level, per-seed group-attacker risk for both arms,
+and paired bootstrap CIs for both attacker types are reported in
+`reports/figures/paper/item7_group_aware_attacker_v2.csv`; per-user
+CSVs for the group-restricted attacker are saved in the standard format
+under `reports/figures/paper/geolife_{mechanism}_decile{d}_group_attacker/`.
+
+**Items 3 (in-model vs. external attacker), 4 (lambda1/lambda2
+defaults), 5 (trade-off figure), 6 (location-loss gradient-matched
+rescale): done**, no corrections needed on these. Item 3 confirms the
+mechanistic story cleanly (in-model confidence stays far below the
+external attacker's real accuracy at every decile/dataset/mechanism).
+Item 4: lambda1=0.1 (reconstruction), lambda2=0.8 (utility), hardcoded
+at `scripts/run_phase4d_approved_batch.py:234`, matching
+`puffin/models/mopae_torch.py:133`'s FIXED_LAMBDAS. Item 5's figure was
+superseded by the PI's own version for the paper (`paper/figures/tradeoff.pdf`);
+this repo's copy (`reports/figures/paper/tradeoff_figure.pdf`) stays as
+the supporting script/output, not used directly. Item 6: rescale factor
+1.666341e7 (passed explicitly via `--fairness-rescale`, never a silent
+default), confirmed via per-epoch gradient logs that the rescaled term
+stays comparable to ed_soft's other loss terms throughout training at
+every lambda4, not just at initialization; cause confirmed as F.mse_loss
+averaging near-zero (~1/n_cells), ~85k-cell visitation-share residuals,
+suppressing the gradient by roughly 1/n_cells^2 relative to entropy-
+based ed_soft's O(1) scalar MSE.
+
+
+## Superseded (2026-11-08): all core baselines/datasets finished ahead of the Nov 9 hard stop; TrajGAN (GeoLife only) attempted same day, gated on a 10 PM start
 
 **CPU thread oversubscription, found and fixed (2026-11-04).** Every
 training process was spawning 120-131 OS threads on a 40-core box
