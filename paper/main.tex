@@ -199,7 +199,7 @@ Table~\ref{tab:base} and Figure~\ref{fig:decile} compare Mo-PAE with the no-priv
 
 \begin{table}[t]
 \centering
-\caption{Re-identification risk (top-1, external attacker) before (no-privacy reference) and after Mo-PAE ($\lambda_3=0.3$), for all users and for the most and least predictable entropy deciles. Point estimates; \pending{bootstrap CIs}.}
+\caption{Re-identification risk (top-1, external attacker) before (no-privacy reference) and after Mo-PAE ($\lambda_3=0.3$), for all users and for the most and least predictable entropy deciles. On GeoLife only the change in mean risk is distinguishable from zero (95\% paired bootstrap interval $[-0.018,-0.002]$). \pending{Intervals for the other datasets.}}
 \label{tab:base}
 \small
 \begin{tabular}{@{}lccc@{}}
@@ -240,24 +240,24 @@ $\lambda_4$ & $\Delta$ utility (Acc@1) & $\Delta$ risk, most predictable decile 
 
 \begin{table*}[t]
 \centering
-\caption{\puffin{} versus Mo-PAE at matched utility (Mo-PAE interpolated along its privacy-weight curve to \puffin's utility). Each cell: Mo-PAE $\to$ \puffin. Point estimates; \pending{bootstrap CIs}. $^\dagger$\puffin's utility lies slightly above Mo-PAE's curve; nearest Mo-PAE point ($\lambda_3=0.3$, utility 0.263) shown.}
+\caption{\puffin{} versus Mo-PAE at matched utility (Mo-PAE interpolated along its privacy-weight curve to \puffin's utility). Each cell: Mo-PAE $\to$ \puffin. $^*$95\% paired bootstrap interval of the difference excludes zero (users and encoder seeds resampled; Appendix~\ref{app:cis}). \pending{YJMob100K intervals.} $^\dagger$\puffin's utility lies slightly above Mo-PAE's curve; nearest Mo-PAE point ($\lambda_3=0.3$, utility 0.263) shown, no interval.}
 \label{tab:matched}
 \small
 \begin{tabular}{@{}llccc@{}}
 \toprule
  & $\lambda_4$ (Acc@1) & Mean risk & Most pred. & Least pred. \\
 \midrule
-GeoLife & 0.3 (0.735) & 0.133 $\to$ 0.110 & 0.334 $\to$ 0.225 & 0.035 $\to$ 0.055 \\
- & 1.0 (0.723) & 0.132 $\to$ 0.096 & 0.334 $\to$ 0.207 & 0.028 $\to$ 0.049 \\
- & 3.0 (0.708) & 0.129 $\to$ 0.091 & 0.332 $\to$ 0.200 & 0.027 $\to$ 0.044 \\
+GeoLife & 0.3 (0.735) & 0.133 $\to$ 0.110$^*$ & 0.334 $\to$ 0.225$^*$ & 0.035 $\to$ 0.055$^*$ \\
+ & 1.0 (0.723) & 0.132 $\to$ 0.096$^*$ & 0.334 $\to$ 0.207$^*$ & 0.028 $\to$ 0.049$^*$ \\
+ & 3.0 (0.708) & 0.129 $\to$ 0.091$^*$ & 0.332 $\to$ 0.200$^*$ & 0.027 $\to$ 0.044$^*$ \\
 \addlinespace
-Foursquare & 0.3 (0.244) & 0.372 $\to$ 0.351 & 0.671 $\to$ 0.654 & 0.145 $\to$ 0.141 \\
+Foursquare & 0.3 (0.244) & 0.372 $\to$ 0.351$^*$ & 0.671 $\to$ 0.654 & 0.145 $\to$ 0.141 \\
  & 1.0 (0.245) & 0.376 $\to$ 0.384 & 0.675 $\to$ 0.689 & 0.147 $\to$ 0.154 \\
- & 3.0 (0.229) & 0.300 $\to$ 0.380 & 0.603 $\to$ 0.685 & 0.109 $\to$ 0.134 \\
+ & 3.0 (0.229) & 0.300 $\to$ 0.380$^*$ & 0.603 $\to$ 0.685$^*$ & 0.109 $\to$ 0.134 \\
 \addlinespace
 Gowalla & 0.3 (0.266)$^\dagger$ & 0.188 $\to$ 0.201 & 0.360 $\to$ 0.369 & 0.091 $\to$ 0.098 \\
- & 1.0 (0.245) & 0.162 $\to$ 0.223 & 0.322 $\to$ 0.391 & 0.072 $\to$ 0.119 \\
- & 3.0 (0.226) & 0.135 $\to$ 0.203 & 0.285 $\to$ 0.345 & 0.053 $\to$ 0.085 \\
+ & 1.0 (0.245) & 0.162 $\to$ 0.223$^*$ & 0.322 $\to$ 0.391$^*$ & 0.072 $\to$ 0.119$^*$ \\
+ & 3.0 (0.226) & 0.135 $\to$ 0.203$^*$ & 0.285 $\to$ 0.345 & 0.053 $\to$ 0.085$^*$ \\
 \addlinespace
 YJMob100K & 0.3 (0.183) & 0.578 $\to$ 0.581 & 0.901 $\to$ 0.915 & 0.154 $\to$ 0.148 \\
  & 1.0 (0.183) & 0.577 $\to$ 0.569 & 0.901 $\to$ 0.915 & 0.154 $\to$ 0.116 \\
@@ -280,20 +280,20 @@ Is the GeoLife result specific to \puffin's objective, or would any fairness ter
 
 \begin{table*}[t]
 \centering
-\caption{Alternative fairness objectives at matched utility, each cell Mo-PAE (interpolated along its privacy-weight curve) $\to$ method. $D_{\mathrm{abs}}$ over the 10\% most similar pairs. $^\dagger$Utility slightly above Mo-PAE's curve; nearest Mo-PAE point ($\lambda_3=0.3$, utility 0.263) shown. Other weights are reported in the text.}
+\caption{Alternative fairness objectives at matched utility, each cell Mo-PAE (interpolated along its privacy-weight curve) $\to$ method. $D_{\mathrm{abs}}$ over the 10\% most similar pairs. $^*$95\% paired bootstrap interval of the difference excludes zero (Appendix~\ref{app:cis}). $^\dagger$Utility slightly above Mo-PAE's curve; nearest Mo-PAE point ($\lambda_3=0.3$, utility 0.263) shown, no interval. Other weights are reported in the text.}
 \label{tab:alternatives}
 \small
 \begin{tabular}{@{}llccccc@{}}
 \toprule
  & Objective ($\lambda_4$) & Acc@1 & Mean risk & Most pred. & $D_{\mathrm{abs}}$ (entropy) & $D_{\mathrm{abs}}$ (location) \\
 \midrule
-GeoLife & \puffin, entropy (1.0) & 0.723 & 0.132 $\to$ 0.096 & 0.334 $\to$ 0.207 & 0.130 $\to$ 0.097 & 0.119 $\to$ 0.079 \\
- & \puffin, location (0.3) & 0.736 & 0.133 $\to$ 0.127 & 0.334 $\to$ 0.202 & 0.132 $\to$ 0.146 & 0.117 $\to$ 0.106 \\
+GeoLife & \puffin, entropy (1.0) & 0.723 & 0.132 $\to$ 0.096$^*$ & 0.334 $\to$ 0.207$^*$ & 0.130 $\to$ 0.097$^*$ & 0.119 $\to$ 0.079$^*$ \\
+ & \puffin, location (0.3) & 0.736 & 0.133 $\to$ 0.127 & 0.334 $\to$ 0.202$^*$ & 0.132 $\to$ 0.146$^*$ & 0.117 $\to$ 0.106 \\
  & Lipschitz, entropy (1.0) & 0.737 & 0.133 $\to$ 0.133 & 0.334 $\to$ 0.322 & 0.133 $\to$ 0.131 & 0.116 $\to$ 0.116 \\
  & Lipschitz, location (1.0) & 0.738 & 0.133 $\to$ 0.136 & 0.334 $\to$ 0.340 & 0.133 $\to$ 0.132 & 0.116 $\to$ 0.122 \\
  & Group DRO (1.0) & 0.743 & 0.133 $\to$ 0.135 & 0.334 $\to$ 0.317 & 0.134 $\to$ 0.137 & 0.115 $\to$ 0.117 \\
 \addlinespace
-Foursquare & \puffin, entropy (0.3) & 0.244 & 0.372 $\to$ 0.351 & 0.671 $\to$ 0.654 & 0.337 $\to$ 0.323 & 0.214 $\to$ 0.196 \\
+Foursquare & \puffin, entropy (0.3) & 0.244 & 0.372 $\to$ 0.351$^*$ & 0.671 $\to$ 0.654 & 0.337 $\to$ 0.323 & 0.214 $\to$ 0.196$^*$ \\
  & Lipschitz, entropy (0.3) & 0.226 & 0.293 $\to$ 0.282 & 0.593 $\to$ 0.589 & 0.283 $\to$ 0.276 & 0.154 $\to$ 0.145 \\
  & Lipschitz, location (0.3) & 0.228 & 0.297 $\to$ 0.293 & 0.598 $\to$ 0.604 & 0.287 $\to$ 0.286 & 0.156 $\to$ 0.155 \\
 \addlinespace
@@ -332,7 +332,7 @@ The fairness module adds no measurable training cost. Per epoch, \puffin{} and M
 %=====================================================================
 \puffin{} helps where the base model's own privacy mechanism provides little signal. On GeoLife it reaches operating points the base model cannot, protecting the most predictable users substantially better and making protection more even among similar users. Two generic individual- and group-fairness objectives, a Lipschitz penalty and group DRO, do not reach those operating points even on GeoLife, so the gain is specific to how \puffin's term uses the adversary's posterior. On the check-in datasets, where the adversarial privacy term is already effective, the benefit is small and limited to low fairness weights, and higher weights weaken privacy. On YJMob100K, where the most predictable users stay re-identifiable about nine times in ten under every model, \puffin{} lowers mean risk but by protecting the already best-protected users, and does not improve individual fairness. Practitioners should therefore choose $\lambda_4$ per dataset against the base model's privacy--utility curve rather than at a single configuration, and should evaluate fairness with measures that do not reward a uniformly lower risk.
 
-Our approach has several limitations. First, entropy captures only one dimension of trajectory similarity, ignoring spatial structure, temporal patterns, and semantic context; we evaluate three further definitions, but learned trajectory embeddings may reveal different fairness properties. Second, \puffin{} optimizes individual fairness without explicit group-fairness constraints, which may not address systemic disparities if mobility regularity correlates with demographic attributes; routine mobility is often a product of constraint (fixed work shifts, reliance on fixed transit routes) rather than choice. A concrete next step is to link users' inferred home locations to census tracts and test whether the users \puffin{} protects more are disproportionately from disadvantaged groups, and to combine individual and group terms in a hybrid objective. Third, our attackers predate foundation-model trajectory linkers~\cite{gong2024mobilityllm}, so measured protection may be optimistic against such attackers; applying a fairness term inside foundation-model fine-tuning is a natural extension. Fourth, the fairness gain to the least protected users comes with a small, measurable cost to the best protected and to utility; we make this trade-off explicit rather than resolve it. Finally, adversaries aware of the fairness criterion could attempt to exploit it; we report a group-aware attacker analysis \pending{in an appendix, or remove}.
+Our approach has several limitations. First, entropy captures only one dimension of trajectory similarity, ignoring spatial structure, temporal patterns, and semantic context; we evaluate three further definitions, but learned trajectory embeddings may reveal different fairness properties. Second, \puffin{} optimizes individual fairness without explicit group-fairness constraints, which may not address systemic disparities if mobility regularity correlates with demographic attributes; routine mobility is often a product of constraint (fixed work shifts, reliance on fixed transit routes) rather than choice. A concrete next step is to link users' inferred home locations to census tracts and test whether the users \puffin{} protects more are disproportionately from disadvantaged groups, and to combine individual and group terms in a hybrid objective. Third, our attackers predate foundation-model trajectory linkers~\cite{gong2024mobilityllm}, so measured protection may be optimistic against such attackers; applying a fairness term inside foundation-model fine-tuning is a natural extension. Fourth, the fairness gain to the least protected users comes with a small, measurable cost to the best protected and to utility; we make this trade-off explicit rather than resolve it. Finally, \puffin's protection of the most predictable users does not hold against a stronger attacker who knows which entropy decile a target belongs to and trains only on that decile's users: on GeoLife, \puffin's advantage over Mo-PAE for the most predictable decile shrinks from 0.128 to 0.017 and is no longer distinguishable from zero, although it persists for most other deciles (Appendix~\ref{app:groupaware}). Protection that holds against such side information is an open problem.
 
 %=====================================================================
 \section{Conclusion}
@@ -353,5 +353,83 @@ AI tools were used to assist with debugging code and polishing the writing of th
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references}
+
+
+\appendix
+\section{Bootstrap intervals}
+\label{app:cis}
+Table~\ref{tab:cis} gives the 95\% paired bootstrap intervals behind the markers in Tables~\ref{tab:matched} and~\ref{tab:alternatives}. Each of 2{,}000 replicates draws one vector of users, applied to both the method and Mo-PAE, and resamples encoder seeds within each run (with the same draw for both endpoints of Mo-PAE's interpolation). Differences are computed per user and then averaged; decile membership is fixed. Entries are method minus interpolated Mo-PAE, as bootstrap mean and 95\% interval; negative risk and $D_{\mathrm{abs}}$ differences favor the method. \pending{YJMob100K rows.}
+
+\begin{table*}[h]
+\centering
+\caption{Differences (method $-$ Mo-PAE) at matched utility with 95\% paired bootstrap intervals. $^*$Interval excludes zero.}
+\label{tab:cis}
+\scriptsize
+\resizebox{\textwidth}{!}{\begin{tabular}{@{}llccccc@{}}
+\toprule
+ & Method, $\lambda_4$ & Mean risk & Most pred. & Least pred. & $D_{\mathrm{abs}}$ (entropy) & $D_{\mathrm{abs}}$ (location) \\
+\midrule
+GeoLife & \puffin{} ent., 0.3 & $-$0.022 [$-$0.034, $-$0.011]$^*$ & $-$0.109 [$-$0.174, $-$0.048]$^*$ & $+$0.020 [$+$0.009, $+$0.033]$^*$ & $-$0.019 [$-$0.026, $-$0.012]$^*$ & $-$0.025 [$-$0.031, $-$0.019]$^*$ \\
+GeoLife & \puffin{} ent., 1.0 & $-$0.035 [$-$0.048, $-$0.022]$^*$ & $-$0.128 [$-$0.215, $-$0.058]$^*$ & $+$0.021 [$+$0.012, $+$0.032]$^*$ & $-$0.032 [$-$0.039, $-$0.026]$^*$ & $-$0.036 [$-$0.044, $-$0.029]$^*$ \\
+GeoLife & \puffin{} ent., 3.0 & $-$0.037 [$-$0.052, $-$0.024]$^*$ & $-$0.132 [$-$0.213, $-$0.064]$^*$ & $+$0.017 [$+$0.008, $+$0.028]$^*$ & $-$0.032 [$-$0.039, $-$0.026]$^*$ & $-$0.037 [$-$0.044, $-$0.030]$^*$ \\
+GeoLife & \puffin{} loc., 0.3 & $-$0.004 [$-$0.018, $+$0.010] & $-$0.123 [$-$0.210, $-$0.056]$^*$ & $-$0.002 [$-$0.010, $+$0.007] & $+$0.015 [$+$0.007, $+$0.024]$^*$ & $-$0.007 [$-$0.015, $+$0.002] \\
+GeoLife & \puffin{} loc., 1.0 & $-$0.002 [$-$0.017, $+$0.012] & $-$0.117 [$-$0.200, $-$0.053]$^*$ & $-$0.002 [$-$0.009, $+$0.006] & $+$0.024 [$+$0.017, $+$0.032]$^*$ & $-$0.013 [$-$0.021, $-$0.005]$^*$ \\
+GeoLife & \puffin{} loc., 3.0 & $+$0.006 [$-$0.010, $+$0.022] & $-$0.103 [$-$0.214, $-$0.005]$^*$ & $-$0.004 [$-$0.012, $+$0.004] & $+$0.032 [$+$0.024, $+$0.042]$^*$ & $-$0.009 [$-$0.017, $+$0.001] \\
+GeoLife & Lipschitz ent., 0.3 & $+$0.000 [$-$0.006, $+$0.006] & $-$0.011 [$-$0.044, $+$0.020] & $-$0.003 [$-$0.009, $+$0.003] & $-$0.003 [$-$0.008, $+$0.003] & $-$0.001 [$-$0.008, $+$0.005] \\
+GeoLife & Lipschitz ent., 1.0 & $-$0.000 [$-$0.007, $+$0.007] & $-$0.011 [$-$0.049, $+$0.030] & $-$0.005 [$-$0.013, $+$0.002] & $-$0.002 [$-$0.007, $+$0.004] & $-$0.001 [$-$0.008, $+$0.005] \\
+GeoLife & Lipschitz ent., 3.0 & $-$0.001 [$-$0.008, $+$0.006] & $-$0.008 [$-$0.041, $+$0.028] & $-$0.006 [$-$0.013, $+$0.001] & $-$0.004 [$-$0.011, $+$0.003] & $-$0.002 [$-$0.009, $+$0.004] \\
+GeoLife & Lipschitz loc., 0.3 & $-$0.001 [$-$0.007, $+$0.006] & $+$0.000 [$-$0.038, $+$0.041] & $-$0.004 [$-$0.012, $+$0.005] & $-$0.004 [$-$0.011, $+$0.002] & $+$0.003 [$-$0.003, $+$0.010] \\
+GeoLife & Lipschitz loc., 1.0 & $+$0.003 [$-$0.004, $+$0.010] & $+$0.010 [$-$0.037, $+$0.061] & $-$0.008 [$-$0.016, $-$0.000]$^*$ & $-$0.001 [$-$0.007, $+$0.005] & $+$0.005 [$-$0.001, $+$0.011] \\
+GeoLife & Lipschitz loc., 3.0 & $-$0.000 [$-$0.007, $+$0.007] & $+$0.003 [$-$0.040, $+$0.052] & $-$0.007 [$-$0.014, $-$0.000]$^*$ & $-$0.002 [$-$0.009, $+$0.005] & $+$0.004 [$-$0.002, $+$0.011] \\
+GeoLife & Group DRO, 0.3 & $-$0.000 [$-$0.009, $+$0.010] & $-$0.020 [$-$0.050, $+$0.012] & $-$0.010 [$-$0.021, $+$0.001] & $+$0.002 [$-$0.007, $+$0.015] & $+$0.001 [$-$0.006, $+$0.012] \\
+GeoLife & Group DRO, 1.0 & $+$0.002 [$-$0.008, $+$0.012] & $-$0.014 [$-$0.081, $+$0.054] & $-$0.010 [$-$0.021, $+$0.001] & $+$0.004 [$-$0.004, $+$0.016] & $+$0.003 [$-$0.009, $+$0.021] \\
+Foursquare & \puffin{} ent., 0.3 & $-$0.020 [$-$0.037, $-$0.005]$^*$ & $-$0.017 [$-$0.042, $+$0.006] & $-$0.004 [$-$0.032, $+$0.021] & $-$0.014 [$-$0.028, $+$0.004] & $-$0.019 [$-$0.034, $-$0.001]$^*$ \\
+Foursquare & \puffin{} ent., 1.0 & $+$0.009 [$-$0.001, $+$0.018] & $+$0.014 [$-$0.012, $+$0.041] & $+$0.007 [$-$0.014, $+$0.030] & $+$0.005 [$-$0.007, $+$0.019] & $+$0.003 [$-$0.008, $+$0.017] \\
+Foursquare & \puffin{} ent., 3.0 & $+$0.081 [$+$0.046, $+$0.126]$^*$ & $+$0.082 [$+$0.044, $+$0.118]$^*$ & $+$0.025 [$-$0.011, $+$0.067] & $+$0.056 [$+$0.019, $+$0.088]$^*$ & $+$0.062 [$+$0.037, $+$0.088]$^*$ \\
+Foursquare & Lipschitz ent., 0.3 & $-$0.011 [$-$0.046, $+$0.036] & $-$0.003 [$-$0.038, $+$0.030] & $-$0.011 [$-$0.047, $+$0.028] & $-$0.008 [$-$0.045, $+$0.025] & $-$0.009 [$-$0.035, $+$0.015] \\
+Foursquare & Lipschitz ent., 1.0 & $+$0.001 [$-$0.040, $+$0.047] & $+$0.003 [$-$0.039, $+$0.043] & $-$0.004 [$-$0.039, $+$0.035] & $+$0.005 [$-$0.033, $+$0.037] & $+$0.000 [$-$0.028, $+$0.030] \\
+Foursquare & Lipschitz ent., 3.0 & $+$0.011 [$-$0.050, $+$0.069] & $+$0.037 [$-$0.015, $+$0.083] & $-$0.006 [$-$0.053, $+$0.041] & $+$0.007 [$-$0.043, $+$0.060] & $+$0.011 [$-$0.029, $+$0.051] \\
+Foursquare & Lipschitz loc., 0.3 & $-$0.003 [$-$0.043, $+$0.042] & $+$0.005 [$-$0.034, $+$0.046] & $-$0.011 [$-$0.046, $+$0.027] & $-$0.000 [$-$0.037, $+$0.038] & $-$0.000 [$-$0.028, $+$0.029] \\
+Foursquare & Lipschitz loc., 1.0 & $+$0.006 [$-$0.080, $+$0.082] & $+$0.031 [$-$0.039, $+$0.095] & $-$0.002 [$-$0.060, $+$0.049] & $+$0.000 [$-$0.075, $+$0.071] & $+$0.005 [$-$0.046, $+$0.050] \\
+Foursquare & Lipschitz loc., 3.0 & $+$0.022 [$-$0.007, $+$0.060] & $+$0.084 [$+$0.050, $+$0.119]$^*$ & $-$0.009 [$-$0.037, $+$0.020] & $+$0.028 [$+$0.000, $+$0.055]$^*$ & $+$0.011 [$-$0.008, $+$0.032] \\
+Gowalla & \puffin{} ent., 0.3 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
+Gowalla & \puffin{} ent., 1.0 & $+$0.062 [$+$0.045, $+$0.079]$^*$ & $+$0.069 [$+$0.017, $+$0.119]$^*$ & $+$0.047 [$+$0.030, $+$0.066]$^*$ & $+$0.055 [$+$0.032, $+$0.078]$^*$ & $+$0.061 [$+$0.041, $+$0.085]$^*$ \\
+Gowalla & \puffin{} ent., 3.0 & $+$0.068 [$+$0.047, $+$0.090]$^*$ & $+$0.060 [$-$0.001, $+$0.121] & $+$0.032 [$+$0.014, $+$0.049]$^*$ & $+$0.066 [$+$0.044, $+$0.087]$^*$ & $+$0.066 [$+$0.046, $+$0.086]$^*$ \\
+Gowalla & Lipschitz ent., 0.3 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
+Gowalla & Lipschitz ent., 1.0 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
+Gowalla & Lipschitz ent., 3.0 & $-$0.075 [$-$0.088, $-$0.062]$^*$ & $-$0.055 [$-$0.095, $-$0.016]$^*$ & $-$0.062 [$-$0.081, $-$0.042]$^*$ & $-$0.071 [$-$0.085, $-$0.056]$^*$ & $-$0.066 [$-$0.075, $-$0.055]$^*$ \\
+Gowalla & Lipschitz loc., 0.3 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
+Gowalla & Lipschitz loc., 1.0 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
+Gowalla & Lipschitz loc., 3.0 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
+\bottomrule
+\end{tabular}}
+\end{table*}
+
+\section{Group-aware attacker}
+\label{app:groupaware}
+The external attacker in the main text chooses among all users. Here, the attacker also knows which entropy decile the target belongs to, and one attacker is trained per decile on that decile's users only (same architectures and seeds). We evaluate it on GeoLife for \puffin{} ($\lambda_4=1$) and for Mo-PAE at matched utility ($\lambda_3=1.2$). Absolute risk is much higher under this attacker for both mechanisms, largely because it chooses among about 18 users rather than 178 (chance level about 0.055 rather than 0.006). The informative quantity is the difference between the two mechanisms under the same attacker (Table~\ref{tab:groupaware}). For the two most predictable deciles, \puffin's advantage disappears ($-0.017$ and $-0.001$, intervals spanning zero, against $-0.128$ and $-0.108$ under the standard attacker). For deciles 2--9 \puffin{} remains lower by 0.03--0.08, with intervals excluding zero for deciles 4, 5, and 7. \puffin{} thus protects the most predictable users largely by making them harder to tell apart from less predictable users, which an attacker with knowledge of a target's predictability can undo.
+
+\begin{table*}[h]
+\centering
+\caption{GeoLife, group-aware attacker. Risk ranges are over seeds; differences are \puffin{} $-$ Mo-PAE with 95\% paired bootstrap intervals. Decile membership for the standard attacker follows the main analysis (16 users in decile 0). $^*$Interval excludes zero.}
+\label{tab:groupaware}
+\scriptsize
+\begin{tabular}{@{}rrccccc@{}}
+\toprule
+Decile & Users & Chance & Mo-PAE (group) & \puffin{} (group) & $\Delta$, group attacker & $\Delta$, standard attacker \\
+\midrule
+0 & 19 & 0.053 & 0.46--0.51 & 0.46--0.49 & $-$0.017 [$-$0.155, $+$0.104] & $-$0.128 [$-$0.207, $-$0.056]$^*$ \\
+1 & 18 & 0.056 & 0.49--0.52 & 0.46--0.53 & $-$0.001 [$-$0.074, $+$0.082] & $-$0.108 [$-$0.181, $-$0.044]$^*$ \\
+2 & 18 & 0.056 & 0.41--0.46 & 0.36--0.41 & $-$0.047 [$-$0.097, $+$0.004] & $-$0.054 [$-$0.110, $-$0.009]$^*$ \\
+3 & 18 & 0.056 & 0.35--0.39 & 0.30--0.34 & $-$0.049 [$-$0.112, $+$0.013] & $-$0.032 [$-$0.056, $-$0.011]$^*$ \\
+4 & 18 & 0.056 & 0.37--0.39 & 0.26--0.32 & $-$0.081 [$-$0.141, $-$0.032]$^*$ & $-$0.029 [$-$0.054, $-$0.008]$^*$ \\
+5 & 18 & 0.056 & 0.47--0.49 & 0.39--0.44 & $-$0.060 [$-$0.106, $-$0.019]$^*$ & $-$0.003 [$-$0.031, $+$0.022] \\
+6 & 17 & 0.059 & 0.30--0.33 & 0.27--0.30 & $-$0.028 [$-$0.067, $+$0.015] & $-$0.010 [$-$0.027, $+$0.004] \\
+7 & 19 & 0.053 & 0.31--0.35 & 0.26--0.27 & $-$0.054 [$-$0.109, $-$0.007]$^*$ & $-$0.018 [$-$0.046, $+$0.002] \\
+8 & 18 & 0.056 & 0.24--0.27 & 0.20--0.23 & $-$0.040 [$-$0.091, $+$0.004] & $+$0.001 [$-$0.012, $+$0.015] \\
+9 & 18 & 0.056 & 0.19--0.22 & 0.15--0.17 & $-$0.044 [$-$0.098, $+$0.015] & $+$0.022 [$+$0.013, $+$0.033]$^*$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
 \end{document}
