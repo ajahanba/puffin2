@@ -188,7 +188,14 @@ All models use windows of 10 consecutive visits, mini-batches of 128, and the Ad
 %=====================================================================
 \subsection{Fairness of the base PUT model}
 \label{sec:results-base}
-Table~\ref{tab:base} compares Mo-PAE with the no-privacy reference. Mo-PAE reduces risk for the least predictable users far more than for the most predictable: in relative terms, the least predictable decile's risk falls by 21--54\% while the most predictable decile's falls by 1--15\%. After the mechanism, the most predictable users carry 4--10$\times$ the risk of the least predictable. On GeoLife, Mo-PAE gives the most predictable decile essentially no protection (0.334 to 0.331); on YJMob100K that decile stays re-identifiable about nine times in ten (0.927 to 0.887).
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/decile_risk.pdf}
+\caption{Re-identification risk by the external attacker, per entropy decile (0 = most predictable users), without privacy and under Mo-PAE ($\lambda_3=0.3$). Error bars: 95\% intervals over users in the decile. Protection shrinks toward the most predictable users on every dataset; on GeoLife Mo-PAE barely changes risk at all.}
+\label{fig:decile}
+\end{figure*}
+
+Table~\ref{tab:base} and Figure~\ref{fig:decile} compare Mo-PAE with the no-privacy reference. Mo-PAE reduces risk for the least predictable users far more than for the most predictable: in relative terms, the least predictable decile's risk falls by 21--54\% while the most predictable decile's falls by 1--15\%. After the mechanism, the most predictable users carry 4--10$\times$ the risk of the least predictable. On GeoLife, Mo-PAE gives the most predictable decile essentially no protection (0.334 to 0.331); on YJMob100K that decile stays re-identifiable about nine times in ten (0.927 to 0.887).
 
 \begin{table}[t]
 \centering
