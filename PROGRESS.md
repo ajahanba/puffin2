@@ -132,6 +132,42 @@ by the PI's 10 PM gate; if not, this is recorded as not evaluated for
 this submission, per the PI's explicit instruction, and no Foursquare/
 Gowalla TrajGAN was attempted.]
 
+**TrajGAN: NOT EVALUATED for this submission (2026-11-09), per the PI's
+explicit contingency.** Caching the trajectory-grouping step to disk
+(`puffin/baselines/trajgan.py`'s `_cached_trajectory_groups`, keyed by
+`cache_dir`/`cache_key`) was implemented and works, but a 2-epoch,
+1-encoder-seed smoke test on GeoLife revealed the real blocker: **GAN
+training itself took 7.18 hours for 2 epochs** (`final_d_loss=0.0427`,
+`final_g_loss=820.67`, well short of convergence). At that rate a real
+run (default 60 epochs) would take on the order of 9 days, not hours --
+infeasible regardless of caching, and the PI's 10 PM/2026-11-08 gate for
+starting the full run (generator + standard 5-seed x 3-architecture
+attacker) on GPU passed without it starting. Separately, the same smoke
+test surfaced a real bug in the driver's protocol design: the window-
+alignment assertion between the real test split and the synthetic
+release failed (`run_trajgan` truncates every trajectory to its first
+150 points before generating a synthetic counterpart, which can make
+the set of SL=10 windows built from the synthetic release diverge from
+the real test split's own window set for any user with a longer
+trajectory -- not yet root-caused further, since the GAN wall-clock cost
+alone already rules out a full run in the remaining time). Per the PI's
+instruction, no Foursquare or Gowalla-SF-Bay TrajGAN was attempted.
+`scripts/run_trajgan_current_protocol.py` and the caching fix are
+committed for future work but produced no usable result this round.
+
+**Gowalla-SF-Bay Lipschitz, seeds 3-4 added (2026-11-08/09), on the GPU
+freed up once GeoLife's current-protocol Lipschitz runs were confirmed
+to already exist (10-seed, superseding the requested 3-seed ask).**
+Both similarity bases, lambda4 in {0.3,1.0,3.0}, encoder-seeds "3,4"
+(additive, not replacing the existing 0,1,2 seeds) --
+`scripts/launch_gowalla_seeds34.sh`, output dirs suffixed `_seeds34`.
+5 of 6 done as of this entry, last one (location_distribution,
+lambda4=3.0) in progress, ETA ~10:30 AM. Note for whoever uses these:
+they are a SEPARATE 2-seed set, not yet merged with the existing 3-seed
+(`_3seed`) runs into a combined 5-seed aggregate -- that merge is not
+done.
+
+
 ## Superseded (2026-11-04): paper reframed around individual fairness; Task 1 done (with a major correction), Task 2 in progress, target Nov 12
 
 

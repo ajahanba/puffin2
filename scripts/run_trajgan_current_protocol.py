@@ -179,9 +179,11 @@ def main():
 
     print(f"{tag} training LSTM-TrajGAN (seed={args.trajgan_seed}, {args.trajgan_epochs} epochs)...", flush=True)
     t0 = time.time()
+    cache_dir = pathlib.Path(args.out_dir).parent / "_trajgan_groups_cache"
     synthetic_df, trajgan_summary = run_trajgan(
         df, device, max_traj_len=150, min_traj_len=args.sl + 1,
-        max_epochs=args.trajgan_epochs, seed=args.trajgan_seed)
+        max_epochs=args.trajgan_epochs, seed=args.trajgan_seed,
+        cache_dir=cache_dir, cache_key=args.dataset)
     print(f"{tag} GAN trained in {time.time() - t0:.1f}s, final_d_loss={trajgan_summary['final_d_loss']:.4f}, "
           f"final_g_loss={trajgan_summary['final_g_loss']:.4f}, "
           f"weekday_acc={trajgan_summary['weekday_argmax_accuracy']:.4f}, "

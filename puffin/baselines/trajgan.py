@@ -331,11 +331,37 @@ def _traj_loss(mask, lengths, real_latlon, gen_latlon, real_weekday_oh, gen_week
 # Main entry point
 # --------------------------------------------------------------------------
 
+def _cached_trajectory_groups(df, max_traj_len, min_traj_len, cache_dir, cache_key):
+    """_trajectory_groups is a Python-level groupby loop over every
+    (user_id, traj_id) trajectory -- slow on a full-size dataset (minutes,
+    paid twice: once for train, once for test) and identical every time
+    run_trajgan is called again for the SAME dataset/windowing params, e.g.
+    once per encoder/attacker seed. Caches the two group lists to disk
+    (pickle) keyed by `cache_key` (caller's responsibility to make this
+    unique per dataset + max_traj_len/min_traj_len combination) so the
+    prep cost is paid once per cache_key, not once per call."""
+    import pathlib
+    import pickle
+    if cache_dir is not None:
+        cache_dir = pathlib.Path(cache_dir)
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_path = cache_dir / f"trajgan_groups_{cache_key}_{max_traj_len}_{min_traj_len}.pkl"
+        if cache_path.exists():
+            with open(cache_path, "rb") as f:
+                return pickle.load(f)
+    train_groups = _trajectory_groups(df, "train", max_traj_len, min_traj_len)
+    test_groups = _trajectory_groups(df, "test", max_traj_len, min_traj_len)
+    if cache_dir is not None:
+        with open(cache_path, "wb") as f:
+            pickle.dump((train_groups, test_groups), f)
+    return train_groups, test_groups
+
+
 def run_trajgan(df: pd.DataFrame, device: torch.device, max_traj_len: int = 150,
                  min_traj_len: int = 5, latent_dim: int = 100, lstm_units: int = 100,
                  batch_size: int = 64, max_epochs: int = 60, lr: float = 1e-3,
                  p_bce: float = 1.0, p_latlon: float = 10.0, p_weekday: float = 1.0,
-                 p_hour: float = 1.0, seed: int = 0):
+                 p_hour: float = 1.0, seed: int = 0, cache_dir=None, cache_key: str = ""):
     """Trains LSTM-TrajGAN on `df[df.split=="train"]`, then generates one
     synthetic counterpart of every `df[df.split=="test"]` trajectory
     (fresh noise draw each). Returns `(synthetic_df, summary)`:
@@ -365,8 +391,8 @@ def run_trajgan(df: pd.DataFrame, device: torch.device, max_traj_len: int = 150,
     if missing:
         raise ValueError(f"run_trajgan: missing required columns: {missing}")
 
-    train_groups = _trajectory_groups(df, "train", max_traj_len, min_traj_len)
-    test_groups = _trajectory_groups(df, "test", max_traj_len, min_traj_len)
+    train_groups, test_groups = _cached_trajectory_groups(
+        df, max_traj_len, min_traj_len, cache_dir, cache_key)
     if len(train_groups) == 0 or len(test_groups) == 0:
         raise ValueError("run_trajgan: need at least one usable trajectory in each split")
 
