@@ -53,6 +53,7 @@ evaluation.
 """
 import argparse
 import copy
+import functools
 import json
 import os
 import pathlib
@@ -78,6 +79,7 @@ os.environ.setdefault("NUMEXPR_NUM_THREADS", str(_N_THREADS))
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn.functional as F
 
 torch.set_num_threads(_N_THREADS)
 
@@ -167,7 +169,8 @@ def _val_utility(encoder, next_predictor, cell, wd, hr, y_next_idx, val_idx_t, b
 
 
 def _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size,
-                              train_one_epoch_fn, val_eval_fn, state_modules: dict, min_epochs=20):
+                              train_one_epoch_fn, val_eval_fn, state_modules: dict, min_epochs=20,
+                              epoch_callback=None):
     """Generic early-stopping loop shared by every mechanism: calls
     `train_one_epoch_fn(batch_idx)` once per mini-batch for one epoch
     over a fresh permutation of `fit_idx_t`, evaluates `val_eval_fn()`
@@ -199,6 +202,8 @@ def _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size
         for start in range(0, n_fit, batch_size):
             train_one_epoch_fn(perm[start:start + batch_size])
         actual_epochs = epoch + 1
+        if epoch_callback is not None:
+            epoch_callback(actual_epochs)
         val_acc = val_eval_fn()
         if val_acc > best_val:
             best_val, best_state, bad_epochs = val_acc, _state_of(state_modules), 0
@@ -320,7 +325,7 @@ def train_group_adversarial_mechanism(windows, total_locations, total_users, ent
 def train_mechanism(windows, total_locations, total_users, entropy_table, mechanism, lambda4, device,
                      max_epochs, lambda_priv=0.3, batch_size=512, lr=3e-4, seed=0,
                      loss_variant=None, refit_every_k_epochs=None, patience=8, val_frac=0.1,
-                     min_epochs=20, fairness_fn_override=None):
+                     min_epochs=20, fairness_fn_override=None, gradient_log=None):
     if mechanism == "attacker_in_the_loop":
         return train_attacker_in_the_loop_mechanism(
             windows, total_locations, total_users, entropy_table, lambda4, loss_variant,
@@ -379,8 +384,42 @@ def train_mechanism(windows, total_locations, total_users, entropy_table, mechan
     def val_eval():
         return _val_utility(bundle.encoder, bundle.next_predictor, cell, wd, hr, y_next_idx, val_idx_t)
 
+    epoch_callback = None
+    if gradient_log is not None and fairness_fn is not None:
+        # PI instruction (2026-11-09): log the encoder-gradient norm of each
+        # loss term (recon, util, priv, fairness) at specific epochs, on a
+        # FIXED probe batch (the first batch_size fit-indices) so every
+        # epoch's measurement uses the same input -- a fresh, independent
+        # forward+backward via torch.autograd.grad, never touching the
+        # optimizers or .grad attributes the real training step uses.
+        probe_idx = fit_idx_t[:min(batch_size, len(fit_idx_t))]
+
+        def epoch_callback(epoch_num):
+            pc, pw, ph = cell[probe_idx], wd[probe_idx], hr[probe_idx]
+            py, pz, pcoord = y_next_idx[probe_idx], user_idx[probe_idx], coord_target[probe_idx]
+            enc = bundle.encoder(pc, pw, ph)
+            recon = bundle.decoder(enc)
+            p_loss_recon = F.mse_loss(recon, pcoord)
+            p_loss_util = F.cross_entropy(bundle.next_predictor(enc), py)
+            id_logits = bundle.id_recognizer(enc)
+            p_loss_priv = F.cross_entropy(id_logits, pz)
+            p_loss_fair = fairness_fn(id_logits, pz, entropy_table)
+
+            def gnorm(loss, retain=True):
+                grads = torch.autograd.grad(loss, list(bundle.encoder.parameters()),
+                                             retain_graph=retain, allow_unused=True)
+                flat = torch.cat([g.flatten() for g in grads if g is not None])
+                return float(flat.norm().item())
+
+            gradient_log.append(dict(
+                epoch=epoch_num,
+                grad_norm_recon=gnorm(p_loss_recon), grad_norm_util=gnorm(p_loss_util),
+                grad_norm_priv=gnorm(p_loss_priv), grad_norm_fair=gnorm(p_loss_fair, retain=False),
+            ))
+
     actual_epochs = _run_with_early_stopping(max_epochs, patience, fit_idx_t, device, batch_size,
-                                              train_batch, val_eval, state, min_epochs=min_epochs)
+                                              train_batch, val_eval, state, min_epochs=min_epochs,
+                                              epoch_callback=epoch_callback)
     return bundle, actual_epochs
 
 
@@ -484,6 +523,16 @@ def main():
                           "since this step, called once per encoder seed, was measured dominating "
                           "wall time under concurrent-job GPU contention -- see reid.py's comment. "
                           "Pass the same value as --device to restore the old GPU-only behavior.")
+    ap.add_argument("--fairness-rescale", type=float, default=None,
+                     help="explicit multiplicative rescale applied to ed_soft_location's loss "
+                          "before lambda4 (PI instruction 2026-11-09: must be passed explicitly, "
+                          "not rely on the function's own default, so it is auditable from the "
+                          "launch command and recorded in summary.json). No effect on other "
+                          "mechanisms/similarity bases.")
+    ap.add_argument("--log-gradients", action="store_true",
+                     help="log the encoder-gradient norm of each loss term (recon, util, priv, "
+                          "fairness) every epoch, for encoder-seed 0 only, saved into summary.json "
+                          "(PI instruction 2026-11-09)")
     args = ap.parse_args()
     device = torch.device(args.device)
     encoder_seeds = tuple(int(s) for s in args.encoder_seeds.split(","))
@@ -506,7 +555,8 @@ def main():
         hist_by_user = ifm.per_user_cell_histogram(train_df, total_locations)
         if args.mechanism == "ed_soft":
             fairness_table = build_histogram_table(hist_by_user, total_users, total_locations, device=device)
-            fairness_fn_override = ed_soft_location
+            fairness_fn_override = (functools.partial(ed_soft_location, rescale=args.fairness_rescale)
+                                     if args.fairness_rescale is not None else ed_soft_location)
         else:
             user_ids = sorted(hist_by_user.keys())
             sim_matrix = ifm.sim_location_distribution(hist_by_user, user_ids)
@@ -530,16 +580,21 @@ def main():
     utilities = []
     train_wall_times = []
     actual_epochs_list = []
+    gradient_log_seed0 = None
     for enc_seed in encoder_seeds:
         print(f"[{tag}] encoder seed {enc_seed}: training mechanism (max {args.mopae_epochs} epochs, "
               f"patience {args.patience})...", flush=True)
         _t0 = time.time()
+        this_gradient_log = [] if (args.log_gradients and enc_seed == encoder_seeds[0]) else None
         bundle, actual_epochs = train_mechanism(
             windows, total_locations, total_users, fairness_table, args.mechanism,
             args.lambda4, device, max_epochs=args.mopae_epochs, lambda_priv=args.lambda_priv,
             seed=enc_seed, loss_variant=args.loss_variant,
             refit_every_k_epochs=args.refit_every_k_epochs, patience=args.patience, val_frac=args.val_frac,
-            min_epochs=args.min_epochs, fairness_fn_override=fairness_fn_override)
+            min_epochs=args.min_epochs, fairness_fn_override=fairness_fn_override,
+            gradient_log=this_gradient_log)
+        if this_gradient_log is not None:
+            gradient_log_seed0 = this_gradient_log
         train_wall_times.append(time.time() - _t0)
         actual_epochs_list.append(actual_epochs)
         utility = eval_utility(bundle, windows, device)
@@ -603,6 +658,8 @@ def main():
         n_users_before_filter=len(merged), n_users_after_filter=len(filtered), n_excluded=n_excluded,
         chance_level=chance_level,
         raw_decile_ci=raw_ci, post_decile_ci=post_ci, inmodel_confidence_decile_ci=inmodel_ci,
+        fairness_rescale=args.fairness_rescale,
+        gradient_log_seed0=gradient_log_seed0,
     )
 
     out_dir = pathlib.Path(args.out_dir)

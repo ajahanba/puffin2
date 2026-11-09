@@ -92,6 +92,18 @@ def build_sl_windows(df: pd.DataFrame, sl: int = 10, max_windows_per_user: int |
     out = {}
     for split_name in ("train", "test"):
         split_df = df[df["split"] == split_name]
+        # PI-caught performance bug (2026-11-09, found via a live py-spy
+        # stack trace on a stuck TrajGAN job): pandas' NDFrame.__finalize__
+        # deepcopies a non-empty .attrs dict on every slice/groupby
+        # operation. Callers routinely pass a df carrying
+        # assign_grid_cells's grid_cell_mapping (tens of thousands of
+        # entries) in .attrs, and _windows_from_frame's nested per-user/
+        # per-trajectory groupby loop below pays a full deepcopy of that
+        # dict on every group -- this (not genuine windowing work) is
+        # almost certainly the real explanation for several "unexplained"
+        # multi-hour slowdowns across this project's history. Clearing
+        # attrs here makes every downstream groupby a no-op check instead.
+        split_df.attrs = {}
         out[split_name] = _windows_from_frame(split_df, sl, max_windows_per_user, rng, respect_traj_boundary)
     return out
 
@@ -155,7 +167,15 @@ def build_sl_windows_contemporaneous(df: pd.DataFrame, sl: int = 10, max_windows
     attacker val/test gap was genuine behavioral drift over time vs. just
     the general difficulty of predicting held-out windows at all."""
     rng = np.random.default_rng(seed)
-    all_windows = _windows_from_frame(df, sl, None, rng, respect_traj_boundary)  # no cap yet -- cap after split
+    # Same attrs-deepcopy fix as build_sl_windows (see its comment) -- here
+    # _windows_from_frame runs on `df` directly (no filter/copy step gives
+    # us a safe-to-mutate object), so save/restore the caller's attrs
+    # rather than clearing them permanently.
+    _saved_attrs, df.attrs = df.attrs, {}
+    try:
+        all_windows = _windows_from_frame(df, sl, None, rng, respect_traj_boundary)  # no cap yet -- cap after split
+    finally:
+        df.attrs = _saved_attrs
 
     n = len(all_windows["user"])
     perm = rng.permutation(n)

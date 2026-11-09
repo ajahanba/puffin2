@@ -164,8 +164,24 @@ def lipschitz_soft_pairtable(id_logits: torch.Tensor, z_user_idx: torch.Tensor,
     return (w * risk_diff ** 2).mean()
 
 
+# PI gradient check, 2026-11-09 (scripts/gradient_check_location_puffin.py,
+# GeoLife, 10 batches, batch_size=512, lambda4=1.0): ed_soft_location's raw
+# per-batch gradient norm on the encoder is ~1.67e7x SMALLER than ed_soft's
+# (entropy vs. location-distribution similarity bases), because MSE over an
+# 85,075-entry near-uniform histogram vector produces far smaller per-
+# element gradients than MSE over a single entropy scalar at the same
+# loss-function scale -- the location term was providing essentially no
+# training signal as originally scaled. Measured ratio (ed_soft's mean
+# encoder-gradient norm / ed_soft_location's) was 1.666341e7; rescaling by
+# that factor brings ed_soft_location's gradient magnitude in line with
+# ed_soft's at the same lambda4, without changing lambda4's external
+# interface or ed_soft_location's optimum (MSE's minimizer is unaffected by
+# a positive multiplicative constant).
+ED_SOFT_LOCATION_RESCALE = 1.666341e7
+
+
 def ed_soft_location(id_logits: torch.Tensor, z_user_idx: torch.Tensor,
-                      histogram_table: torch.Tensor) -> torch.Tensor:
+                      histogram_table: torch.Tensor, rescale: float = 1.0) -> torch.Tensor:
     """PUFFIN/ed_soft generalized from entropy to location-distribution
     similarity, to show the fairness objective is not entropy-specific:
     same structural pattern as ed_soft (expected value of the similarity
@@ -175,11 +191,17 @@ def ed_soft_location(id_logits: torch.Tensor, z_user_idx: torch.Tensor,
     scalar MSE becomes an MSE over histogram vectors (an L2 surrogate for
     distribution closeness -- JS/KL distance itself is not a convenient
     loss term to backprop through here, unlike at evaluation time in
-    puffin.metrics.individual_fairness)."""
+    puffin.metrics.individual_fairness). `rescale` multiplies the loss;
+    defaults to 1.0 (unscaled, original behavior) -- PI instruction
+    (2026-11-09): the gradient-matching factor (ED_SOFT_LOCATION_RESCALE
+    above) must be passed EXPLICITLY by the caller (run_phase4d_approved_
+    batch.py's --fairness-rescale), never silently applied by default, so
+    every run's summary.json/launch command makes clear whether it was
+    used."""
     probs = F.softmax(id_logits, dim=-1)
     pred_hist = probs @ histogram_table  # (B, n_cells+1) expected histogram under predicted distribution
     true_hist = histogram_table[z_user_idx]  # (B, n_cells+1)
-    return F.mse_loss(pred_hist, true_hist)
+    return rescale * F.mse_loss(pred_hist, true_hist)
 
 
 def lipschitz_soft(id_logits: torch.Tensor, z_user_idx: torch.Tensor, entropy_table: torch.Tensor,

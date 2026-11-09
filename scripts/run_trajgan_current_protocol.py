@@ -160,12 +160,17 @@ def main():
     ap.add_argument("--encoder-seeds", type=str, default="0,1,2")
     ap.add_argument("--attacker-seeds", type=str, default="0,1,2,3,4")
     ap.add_argument("--device", default="cpu")
+    ap.add_argument("--profiled-epoch-seconds", type=float, default=None,
+                     help="isolated-profile epoch time for this dataset; if the real "
+                          "mean epoch time exceeds 10x this, stop and report instead "
+                          "of continuing into the (expensive) attacker phases")
     args = ap.parse_args()
     device = torch.device(args.device)
     encoder_seeds = tuple(int(s) for s in args.encoder_seeds.split(","))
     attacker_seeds = tuple(int(s) for s in args.attacker_seeds.split(","))
     tag = f"[{args.dataset} trajgan]"
 
+    _stage_t0 = time.time()
     df = pd.read_parquet(args.parquet)
     df = df[df["lat"].notna() & df["lon"].notna()].copy()
     total_users = int(df["user_id"].max())
@@ -176,6 +181,23 @@ def main():
 
     original_windows = build_sl_windows(df, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
                                          respect_traj_boundary=False)
+    # PI-caught bug (2026-11-09, confirmed via diagnostic): build_sl_windows
+    # shares ONE sequentially-advancing rng across train+test, so
+    # original_windows["test"]'s random per-user subsample draws happen
+    # AFTER consuming rng state from the entire train split's sampling --
+    # while the synthetic release below is windowed in ISOLATION (a
+    # single-split call, fresh rng). That rng-position mismatch (not
+    # chunking, not ordering -- the underlying point sets matched exactly,
+    # confirmed by set comparison) is what broke the alignment assertion.
+    # Recompute the TRUE test windows the same isolated way so both sides
+    # start from equivalent rng state.
+    _test_only = df[df["split"] == "test"].copy()
+    _test_only["split"] = "train"
+    original_windows["test"] = build_sl_windows(
+        _test_only, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
+        respect_traj_boundary=False)["train"]
+    prep_stage_seconds = time.time() - _stage_t0
+    print(f"{tag} STAGE windowing/prep: {prep_stage_seconds:.1f}s", flush=True)
 
     print(f"{tag} training LSTM-TrajGAN (seed={args.trajgan_seed}, {args.trajgan_epochs} epochs)...", flush=True)
     t0 = time.time()
@@ -184,10 +206,22 @@ def main():
         df, device, max_traj_len=150, min_traj_len=args.sl + 1,
         max_epochs=args.trajgan_epochs, seed=args.trajgan_seed,
         cache_dir=cache_dir, cache_key=args.dataset)
-    print(f"{tag} GAN trained in {time.time() - t0:.1f}s, final_d_loss={trajgan_summary['final_d_loss']:.4f}, "
-          f"final_g_loss={trajgan_summary['final_g_loss']:.4f}, "
+    gan_stage_seconds = time.time() - t0
+    mean_epoch_s = trajgan_summary["mean_epoch_time_seconds"]
+    print(f"{tag} STAGE generator training: {gan_stage_seconds:.1f}s total, "
+          f"{mean_epoch_s:.2f}s/epoch mean over {len(trajgan_summary['epoch_times_seconds'])} epochs, "
+          f"n_train_chunks={trajgan_summary['n_train_chunks']}, n_test_chunks={trajgan_summary['n_test_chunks']}, "
+          f"final_d_loss={trajgan_summary['final_d_loss']:.4f}, final_g_loss={trajgan_summary['final_g_loss']:.4f}, "
           f"weekday_acc={trajgan_summary['weekday_argmax_accuracy']:.4f}, "
           f"hour_acc={trajgan_summary['hour_argmax_accuracy']:.4f}", flush=True)
+    print(f"{tag} STAGE synthetic generation: {trajgan_summary['generation_time_seconds']:.1f}s", flush=True)
+
+    if args.profiled_epoch_seconds is not None and mean_epoch_s > 10 * args.profiled_epoch_seconds:
+        raise RuntimeError(
+            f"{tag} STOP: mean epoch time {mean_epoch_s:.2f}s is more than 10x the profiled "
+            f"rate ({args.profiled_epoch_seconds:.2f}s) -- per the PI's instruction (2026-11-09), "
+            f"halting before the attacker phases rather than continuing into what caused the "
+            f"original 7.2h/2-epoch slowdown. Report this and investigate before relaunching.")
 
     # Re-tessellate with the ORIGINAL mapping, extended for any new cells --
     # run_trajgan's own internal assign_grid_cells call builds an independent
