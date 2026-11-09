@@ -1,6 +1,143 @@
+## Current state (2026-11-08): all core baselines/datasets finished ahead of the Nov 9 hard stop; TrajGAN (GeoLife only) attempted same day, gated on a 10 PM start
+
+**CPU thread oversubscription, found and fixed (2026-11-04).** Every
+training process was spawning 120-131 OS threads on a 40-core box
+(PyTorch/OpenBLAS/MKL default to uncapped pools); two concurrent jobs
+caused catastrophic slowdowns (GPU at 0% utilization, CPU at
+1000-1700%). Fixed by capping `OMP_NUM_THREADS`/`MKL_NUM_THREADS`/
+`OPENBLAS_NUM_THREADS`/`NUMEXPR_NUM_THREADS` and calling
+`torch.set_num_threads()`, all BEFORE numpy/torch import (env vars set
+after import have no effect) -- applied to
+`scripts/run_phase4d_approved_batch.py` and
+`scripts/run_gi_dp_current_protocol.py`. Confirmed working (threads
+dropped to 35-47 per job); the apparent continued slowness on
+YJMob100K/Gowalla-SF-Bay afterward turned out to be real compute cost
+(see per-phase timing below), not a residual oversubscription bug.
+
+**GI-DP baseline (Geo-Indistinguishability, Planar Laplace), current
+protocol: all 15 jobs done** (3 datasets x 5 epsilon in
+{0.0005,0.001,0.002,0.005,0.01}, 3 encoder seeds, 5 attacker seeds each,
+same strongest-per-user attacker as every other mechanism).
+`scripts/run_gi_dp_current_protocol.py`. Three real bugs found and
+fixed before/during this run:
+- `assign_grid_cells` built an independent fresh cell-id mapping per
+  call -- comparing original vs. perturbed `cell_id` was meaningless
+  without reusing the mapping. Fixed via an `existing_mapping` param
+  (`puffin/data/tessellation.py`), regression test added.
+- GI-DP's output never carried the `split` column through, crashing
+  window-building. Fixed in `puffin/baselines/gi_dp.py`.
+- **Output-vocabulary bug (2026-11-06, PI-caught)**: the next-location
+  predictor's classification head was sized to the perturbed release's
+  EXTENDED cell vocabulary (which can be 6x+ larger than the original
+  at small epsilon, e.g. GeoLife eps=0.0005: 85,074 -> 544,552 cells),
+  but true next-location labels only ever range over the ORIGINAL
+  vocabulary. Fixed by splitting `embedding_vocab` (input, extended --
+  must cover the perturbed release's cell ids) from `output_vocab`
+  (head, stays at the original size). **Confirmed**: `output_vocab_size`
+  in every one of the 15 summary.json files equals the dataset's fixed
+  original vocabulary at every epsilon (GeoLife 85074, Foursquare 1668,
+  Gowalla-SF-Bay 2070), identical across the whole epsilon sweep;
+  `embedding_vocab_size` correctly shrinks as epsilon grows (less
+  noise, fewer new cells).
+- Zero dropped points confirmed at every (dataset, epsilon): grid
+  extension is used throughout, never clamping/dropping, per the PI's
+  instruction. Bounds/new-cell report:
+  `reports/figures/gi_dp_analysis/bounds_and_new_cells_report.json`.
+
+**GI-DP moved from CPU to GPU1 mid-run (2026-11-06), per the PI's own
+prior contingency** ("move remaining jobs to a GPU once one frees up
+and CPU pace risks missing Nov 8"): GPU1 had been idle for 23+ hours
+after Task 2 finished, and newly-added per-architecture timing (below)
+showed GRU -- not GBT, which stays on CPU/numpy regardless of
+`--device` -- dominated Foursquare's cost (1640s/seed vs. GBT's 102s).
+Moving to GPU1 was a 6-12x speedup: remaining jobs dropped from
+6-9.6h/job (CPU) to 39min-1h16min/job (GPU). All 15 jobs finished
+2026-11-07, 5:08 AM, comfortably inside the Nov 8 deadline.
+
+**Per-architecture attacker timing, new instrumentation**
+(`puffin/attacks/reid.py`, both `train_raw_attacker_strongest_per_user`
+and `train_attacker_on_frozen_encoder_strongest_per_user`): print-only,
+no return-signature change. Revealed the real driver of YJMob100K's
+slow pace (never a thread-oversubscription bug): for one YJMob100K job
+(`ed_soft_lambda0.3`, 707 min total), encoder/MoPAE training was only
+~19 min (2.7%); **GBT (gradient-boosted trees) alone was ~84%** (raw
+attacker GBT ~32 min + 3x post-attacker GBT ~187 min each). For
+Foursquare's GI-DP jobs the pattern inverted -- GRU dominated, GBT was
+cheap -- confirming the bottleneck architecture is dataset-dependent,
+not a fixed property of the pipeline.
+
+**YJMob100K: all 10 jobs done** (2026-11-08, 9:28 AM), reordered mid-run
+per the PI's instruction (2026-11-04): after `plain_lp0.1`, ran
+`ed_soft lambda4=1.0` next, then only the plain lambda3 points needed
+to bracket its utility against the known grid (sequential search,
+stopping the instant crossed, never extrapolated -- needed exactly 1
+extra point, `lp0.2`, utility 0.1805 <= target 0.1826 <= lp0.1's 0.1975),
+then `ed_soft lambda4={0.3,3.0}`, then the 3 leftover plain points
+(`{0.3,0.5,0.8}`, "if time allows") -- all of which ended up fitting.
+Implemented as `scripts/launch_yjmob100k_phase2.py`, handed off from the
+original orchestrator via a watcher that killed it the instant
+`plain_lp0.1`'s summary.json appeared (`scripts/yjmob_phase2_watcher.sh`).
+One flagged seed (`plain_lp0.8`, seed 2: naive 0.0695 -> audited 0.0976,
+`artifact_fixed`); `_corrected` copy written per the standard plateau-
+audit procedure.
+
+**Group-DRO (GeoLife, 3 seeds, lambda4 in {0.3,1.0}): done**
+(2026-11-05), inserted into the Task2/GPU1 queue between Gowalla-SF-Bay
+and Foursquare Lipschitz via the same watcher-handoff pattern
+(`scripts/task2_groupdro_watcher.sh`). utility_mean 0.742 (lambda4=0.3),
+0.743 (lambda4=1.0).
+
+**Task2 Lipschitz queue: Foursquare (both similarity bases, 3 seeds)
+and the remaining Gowalla-SF-Bay location-distribution points: all
+done** (2026-11-05). GeoLife's 10-seed Lipschitz runs (both bases)
+already existed from the original Task2 pass.
+
+**Protocol tags backfilled for every new directory, including GI-DP**
+(`scripts/backfill_protocol_tags.py`, extended to also scan
+`reports/figures/gi_dp/` -- it previously covered only
+`retraining_to_convergence/` and `task2_formulations/`). Verified: all
+35 of this session's new run directories (10 YJMob100K incl.
+`_corrected`, 15 GI-DP, 2 Group-DRO, 9 Foursquare/Gowalla Lipschitz) tag
+`protocol_ok: true` (patience=8, val_frac=0.1, min_epochs=20, >=1
+encoder seed, descendant of the min_epochs-burn-in-fix commit).
+`yjmob100k_plain_lp0.8_auditseed2` (the raw plateau-audit rerun
+artifact, min_epochs=40 by design) correctly flags `protocol_ok: false`
+-- it is superseded by `_corrected` and was never meant to be read
+directly. Did NOT additionally run the separate contamination-audit
+`usable`/`usable_note` merge step from earlier phases for these new
+directories -- it predates this round's plateau-audit machinery and its
+applicability to these runs wasn't established; flagging this gap
+rather than silently applying or skipping it.
+
+**TrajGAN (GeoLife only), current protocol: attempted 2026-11-08,
+gated on a 10 PM start.** Utility/risk protocol decided with the PI
+given a structural asymmetry in the existing `run_trajgan()`
+(`puffin/baselines/trajgan.py`): the generator trains once on the REAL
+train split and synthesizes only a counterpart of the test split (no
+synthetic train exists). Predictor trains on the real train windows,
+evaluated on the synthetic test release against true labels; the
+strongest-per-user attacker gets an internal 50/50 chronological split
+carved from the synthetic release itself (no synthetic train to use
+instead). New driver: `scripts/run_trajgan_current_protocol.py`, reusing
+the same cell-mapping-reuse fix as GI-DP (the module's own internal
+`assign_grid_cells` call does not reuse the original mapping) and the
+same window-alignment assertion. Smoke test surfaced that the existing
+module's trajectory-grouping prep step (`_trajectory_groups`, a
+Python-level `groupby` loop, pre-existing code) is far slower than
+expected on GeoLife's full dataset -- a fixed cost paid once per
+invocation regardless of epoch count. [STATUS AT TIME OF WRITING: see
+the next report for whether caching this to disk got the full run
+(generator + standard 5-seed x 3-architecture attacker) started on GPU
+by the PI's 10 PM gate; if not, this is recorded as not evaluated for
+this submission, per the PI's explicit instruction, and no Foursquare/
+Gowalla TrajGAN was attempted.]
+
+## Superseded (2026-11-04): paper reframed around individual fairness; Task 1 done (with a major correction), Task 2 in progress, target Nov 12
+
+
 # PUFFIN v2 — Progress
 
-## Current state (read this first): paper reframed around individual fairness; Task 1 done (with a major correction), Task 2 in progress, target Nov 12
+## Superseded (2026-11-04): paper reframed around individual fairness; Task 1 done (with a major correction), Task 2 in progress, target Nov 12
 
 **The paper's focus changed (2026-11-02, PI instruction).** This is now a
 paper about individual fairness of privacy protection: do users with

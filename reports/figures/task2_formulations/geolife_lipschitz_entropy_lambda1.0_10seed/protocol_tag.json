@@ -5,7 +5,5 @@
   "val_frac": 0.1,
   "min_epochs": 20,
   "n_encoder_seeds": 10,
-  "protocol_ok": true,
-  "usable": true,
-  "usable_note": "trained under full current protocol"
+  "protocol_ok": true
 }

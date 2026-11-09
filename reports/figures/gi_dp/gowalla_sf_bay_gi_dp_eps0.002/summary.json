@@ -1,0 +1,38 @@
+{
+  "dataset": "gowalla_sf_bay",
+  "mechanism": "gi_dp",
+  "epsilon": 0.002,
+  "encoder_seeds": [
+    0,
+    1,
+    2
+  ],
+  "attacker_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "max_epochs": 80,
+  "patience": 8,
+  "min_epochs": 20,
+  "val_frac": 0.1,
+  "git_commit": "a89828b56078524bba41a99c100ec818528bd128",
+  "actual_epochs_per_encoder_seed": [
+    26,
+    22,
+    26
+  ],
+  "utility_mean": 0.15943736281439416,
+  "utility_std": 0.0005325935341202217,
+  "utility_per_encoder_seed": [
+    0.1601220322600133,
+    0.15882317404700055,
+    0.15936688213616867
+  ],
+  "n_users_before_filter": 2797,
+  "n_users_after_filter": 1346,
+  "output_vocab_size": 2070,
+  "embedding_vocab_size": 3692
+}

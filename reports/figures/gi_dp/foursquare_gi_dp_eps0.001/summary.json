@@ -1,0 +1,38 @@
+{
+  "dataset": "foursquare",
+  "mechanism": "gi_dp",
+  "epsilon": 0.001,
+  "encoder_seeds": [
+    0,
+    1,
+    2
+  ],
+  "attacker_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "max_epochs": 80,
+  "patience": 8,
+  "min_epochs": 20,
+  "val_frac": 0.1,
+  "git_commit": "a89828b56078524bba41a99c100ec818528bd128",
+  "actual_epochs_per_encoder_seed": [
+    29,
+    29,
+    26
+  ],
+  "utility_mean": 0.1123632877462777,
+  "utility_std": 0.0024538221406621825,
+  "utility_per_encoder_seed": [
+    0.11477959734695076,
+    0.1133122028526149,
+    0.10899806303926747
+  ],
+  "n_users_before_filter": 1083,
+  "n_users_after_filter": 1083,
+  "output_vocab_size": 1668,
+  "embedding_vocab_size": 2655
+}

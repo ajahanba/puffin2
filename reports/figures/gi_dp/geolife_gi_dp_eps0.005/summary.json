@@ -1,0 +1,38 @@
+{
+  "dataset": "geolife",
+  "mechanism": "gi_dp",
+  "epsilon": 0.005,
+  "encoder_seeds": [
+    0,
+    1,
+    2
+  ],
+  "attacker_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "max_epochs": 80,
+  "patience": 8,
+  "min_epochs": 20,
+  "val_frac": 0.1,
+  "git_commit": "2d20764887dc50b116d290c972e1c1a80ea37dc7",
+  "actual_epochs_per_encoder_seed": [
+    60,
+    77,
+    80
+  ],
+  "utility_mean": 0.5149136421521808,
+  "utility_std": 0.009698706587573701,
+  "utility_per_encoder_seed": [
+    0.5177292263610315,
+    0.5251313276026743,
+    0.5018803724928367
+  ],
+  "n_users_before_filter": 181,
+  "n_users_after_filter": 181,
+  "output_vocab_size": 85074,
+  "embedding_vocab_size": 151429
+}

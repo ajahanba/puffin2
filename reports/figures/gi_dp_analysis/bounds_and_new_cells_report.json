@@ -1,0 +1,113 @@
+{
+  "geolife": {
+    "0.0005": {
+      "fraction_outside_original_bbox": 7.5e-06,
+      "fraction_in_previously_unvisited_cell": 0.1840045,
+      "n_new_cells_created": 147894,
+      "n_original_cells": 48273,
+      "dropped_points": 0
+    },
+    "0.001": {
+      "fraction_outside_original_bbox": 5.5e-06,
+      "fraction_in_previously_unvisited_cell": 0.1347375,
+      "n_new_cells_created": 99692,
+      "n_original_cells": 48273,
+      "dropped_points": 0
+    },
+    "0.002": {
+      "fraction_outside_original_bbox": 4e-06,
+      "fraction_in_previously_unvisited_cell": 0.083921,
+      "n_new_cells_created": 60640,
+      "n_original_cells": 48273,
+      "dropped_points": 0
+    },
+    "0.005": {
+      "fraction_outside_original_bbox": 3.5e-06,
+      "fraction_in_previously_unvisited_cell": 0.0305665,
+      "n_new_cells_created": 25662,
+      "n_original_cells": 48273,
+      "dropped_points": 0
+    },
+    "0.01": {
+      "fraction_outside_original_bbox": 3e-06,
+      "fraction_in_previously_unvisited_cell": 0.011576,
+      "n_new_cells_created": 11908,
+      "n_original_cells": 48273,
+      "dropped_points": 0
+    }
+  },
+  "foursquare": {
+    "0.0005": {
+      "fraction_outside_original_bbox": 0.012667745396345216,
+      "fraction_in_previously_unvisited_cell": 0.10084510262588599,
+      "n_new_cells_created": 1763,
+      "n_original_cells": 1668,
+      "dropped_points": 0
+    },
+    "0.001": {
+      "fraction_outside_original_bbox": 0.0033944808906555043,
+      "fraction_in_previously_unvisited_cell": 0.05827338762157694,
+      "n_new_cells_created": 987,
+      "n_original_cells": 1668,
+      "dropped_points": 0
+    },
+    "0.002": {
+      "fraction_outside_original_bbox": 0.0007606803032168423,
+      "fraction_in_previously_unvisited_cell": 0.031121937492305258,
+      "n_new_cells_created": 611,
+      "n_original_cells": 1668,
+      "dropped_points": 0
+    },
+    "0.005": {
+      "fraction_outside_original_bbox": 0.0001538948590323091,
+      "fraction_in_previously_unvisited_cell": 0.010561584325588758,
+      "n_new_cells_created": 335,
+      "n_original_cells": 1668,
+      "dropped_points": 0
+    },
+    "0.01": {
+      "fraction_outside_original_bbox": 7.474893152997872e-05,
+      "fraction_in_previously_unvisited_cell": 0.0038253864959459697,
+      "n_new_cells_created": 171,
+      "n_original_cells": 1668,
+      "dropped_points": 0
+    }
+  },
+  "gowalla_sf_bay": {
+    "0.0005": {
+      "fraction_outside_original_bbox": 0.008632891878634995,
+      "fraction_in_previously_unvisited_cell": 0.2633207203419522,
+      "n_new_cells_created": 4226,
+      "n_original_cells": 2070,
+      "dropped_points": 0
+    },
+    "0.001": {
+      "fraction_outside_original_bbox": 0.0026977787120734354,
+      "fraction_in_previously_unvisited_cell": 0.12860696517412934,
+      "n_new_cells_created": 2748,
+      "n_original_cells": 2070,
+      "dropped_points": 0
+    },
+    "0.002": {
+      "fraction_outside_original_bbox": 0.0010370681802256323,
+      "fraction_in_previously_unvisited_cell": 0.05627145960339149,
+      "n_new_cells_created": 1622,
+      "n_original_cells": 2070,
+      "dropped_points": 0
+    },
+    "0.005": {
+      "fraction_outside_original_bbox": 0.0003363464368299348,
+      "fraction_in_previously_unvisited_cell": 0.016225211968327376,
+      "n_new_cells_created": 762,
+      "n_original_cells": 2070,
+      "dropped_points": 0
+    },
+    "0.01": {
+      "fraction_outside_original_bbox": 0.00014014434867913952,
+      "fraction_in_previously_unvisited_cell": 0.00627846682082545,
+      "n_new_cells_created": 411,
+      "n_original_cells": 2070,
+      "dropped_points": 0
+    }
+  }
+}
