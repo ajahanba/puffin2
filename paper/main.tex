@@ -149,7 +149,7 @@ $\Delta H_u$ captures how far the anonymization moves a user, as seen by the adv
 \begin{equation}
 \mathcal{L}_F = \frac{1}{|B|}\sum_{u\in B} \big(\Delta H_u\big)^2 ,
 \end{equation}
-over each mini-batch $B$. This implies the pairwise condition $|\Delta H_i-\Delta H_j|\approx 0$ for every pair, avoids explicit pair enumeration, and is differentiable through the URU posterior. An earlier formulation computed $\hat H$ from the URU's single most likely identity (an $\arg\max$), which provides no gradient; the expectation above is its differentiable relaxation. \note{Afra: confirm you are happy to state this correction to the earlier formulation explicitly.}
+over each mini-batch $B$. This implies the pairwise condition $|\Delta H_i-\Delta H_j|\approx 0$ for every pair, avoids explicit pair enumeration, and is differentiable through the URU posterior.
 
 \paragraph{Other similarity definitions.} The construction does not depend on entropy. Replacing the scalar $H(T_u)$ by any per-user mobility descriptor yields a fairness loss for a different notion of similarity; we evaluate a location-distribution variant that uses each user's visitation histogram over grid cells (Section~\ref{sec:results-similarity}). We also evaluate a Lipschitz-style alternative that directly penalizes differences in re-identification confidence between users, weighted by a kernel on their similarity.
 
