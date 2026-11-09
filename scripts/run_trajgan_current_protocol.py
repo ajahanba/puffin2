@@ -72,6 +72,41 @@ def _git_commit():
         return None
 
 
+def check_gan_collapse(d_loss_history, g_loss_history):
+    """PI instruction (2026-11-09): flag a generator-seed's GAN run as
+    collapsed if the discriminator loss stays below 0.01 for 5+
+    consecutive epochs (discriminator has started trivially winning,
+    providing no useful gradient to the generator) OR the generator
+    loss exceeds 10x its own epoch-30-to-80 median (a divergence spike
+    relative to this run's own established baseline) -- never silently
+    attack a collapsed release."""
+    d = np.array(d_loss_history)
+    g = np.array(g_loss_history)
+    n = len(d)
+    below = d < 0.01
+    max_consecutive, cur = 0, 0
+    for b in below:
+        cur = cur + 1 if b else 0
+        max_consecutive = max(max_consecutive, cur)
+    flag_d = max_consecutive >= 5
+
+    # The 10x-median divergence check is evaluated WITHIN the epoch-30-to-80
+    # window itself (where the median is also computed) -- epochs 1-29's
+    # naturally higher loss during normal initial descent is not a
+    # divergence and must not be compared against a later, lower median.
+    lo, hi = 30, min(80, n)
+    window = g[lo - 1:hi] if n >= lo else g
+    median_g = float(np.median(window)) if len(window) else float(np.median(g)) if n else float("nan")
+    flag_g = bool((window > 10 * median_g).any()) if median_g == median_g and median_g > 0 else False
+
+    return dict(
+        flagged=bool(flag_d or flag_g),
+        flag_d_loss_collapse=bool(flag_d), max_consecutive_low_d_loss=int(max_consecutive),
+        flag_g_loss_divergence=bool(flag_g), median_g_loss_epoch30_80=median_g,
+        max_g_loss=float(g.max()) if n else float("nan"),
+    )
+
+
 def train_predictor(real_train, true_next_cell_tr, embedding_vocab, output_vocab, device, seed,
                      max_epochs=80, patience=8, min_epochs=20, val_frac=0.1, batch_size=512, lr=3e-4):
     torch.manual_seed(seed)
@@ -215,6 +250,21 @@ def main():
           f"weekday_acc={trajgan_summary['weekday_argmax_accuracy']:.4f}, "
           f"hour_acc={trajgan_summary['hour_argmax_accuracy']:.4f}", flush=True)
     print(f"{tag} STAGE synthetic generation: {trajgan_summary['generation_time_seconds']:.1f}s", flush=True)
+
+    out_dir = pathlib.Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    collapse_check = check_gan_collapse(trajgan_summary["d_loss_history"], trajgan_summary["g_loss_history"])
+    (out_dir / "loss_curve.json").write_text(json.dumps(dict(
+        trajgan_seed=args.trajgan_seed,
+        d_loss_history=trajgan_summary["d_loss_history"], g_loss_history=trajgan_summary["g_loss_history"],
+        collapse_check=collapse_check,
+    ), indent=2, default=float))
+    if collapse_check["flagged"]:
+        print(f"{tag} GENERATOR COLLAPSE FLAGGED (seed={args.trajgan_seed}): {collapse_check}", flush=True)
+        raise RuntimeError(
+            f"{tag} generator seed {args.trajgan_seed} flagged as collapsed "
+            f"(see {out_dir}/loss_curve.json) -- per the PI's instruction, not attacking "
+            f"a collapsed release. Report before continuing.")
 
     if args.profiled_epoch_seconds is not None and mean_epoch_s > 10 * args.profiled_epoch_seconds:
         raise RuntimeError(
