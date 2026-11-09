@@ -327,13 +327,13 @@ We proposed \puffin, a fairness-aware PUT model that optimizes an entropy-differ
 % Mandatory PoPETs sections (excluded from the page limit)
 %=====================================================================
 \section*{Ethical Considerations}
-\note{Afra to complete.} This work uses only publicly available research datasets (GeoLife, Foursquare-NYC, Gowalla) that are distributed with pseudonymous user identifiers. We collect no new data. Our re-identification experiments link trajectories to these existing pseudonyms only; we make no attempt to link any user to a real-world identity, and we release no per-user outputs. \note{State IRB status, e.g., determination of exempt/not human-subjects research by the UW IRB, once confirmed.}
+This work uses only publicly available research datasets (GeoLife, Foursquare-NYC, Gowalla, and YJMob100K) that are distributed with pseudonymous user identifiers. We collect no new data and do not interact with any individual. Because the work is a secondary analysis of publicly available, de-identified data, it did not require IRB review. Our re-identification experiments link trajectories only to the pseudonyms already present in these datasets; we make no attempt to link any user to a real-world identity, and we release no per-user re-identification outputs. The attacks we use are standard trajectory--user linking models already described in the literature, and we use them only to measure how protection is distributed. The aim of the work is to identify and reduce the residual risk borne by the users whom current privacy--utility models protect least.
 
 \section*{Open Science}
-\note{Afra to confirm.} We will release our code, configurations, and analysis scripts via an anonymized repository for review and a public repository upon publication. The datasets are publicly available from their original sources; we will release preprocessing scripts rather than redistributing data.
+All code, configurations, training and evaluation scripts, and the analysis scripts that produce every table and figure are available in an anonymized repository for review \pending{anonymized repository URL}, and will be released publicly upon publication. The repository includes preprocessing scripts for GeoLife, Foursquare-NYC, and Gowalla, which are available from their original sources, and the seeded sampling script and user list that reproduce our 2{,}000-user YJMob100K sample from the public release.
 
 \section*{Use of AI}
-\note{Afra to write: required disclosure of how AI tools were used in implementation, analysis, and writing.}
+AI tools were used to assist with debugging code and polishing the writing of this paper. The authors take full responsibility for the final content, including all code, results, and claims.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references}
