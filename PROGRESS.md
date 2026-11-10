@@ -1,4 +1,118 @@
-## Current state (2026-11-09): root cause of recurring slowdowns found and fixed; items 2-7 of the paper's remaining-work list done (item 2 corrected after a pairing bug); TrajGAN full runs in progress
+## Current state (2026-11-10): item 2 gap-filled (YJMob100K + base-table rows), item 7 corrected again (v3), TrajGAN rework (checkpointing/week-grouping/attacker-split) deployed -- GeoLife done, Foursquare/Gowalla in progress against the Nov 16 hard stop
+
+**Item 2: two gaps closed.** (1) YJMob100K had no comparisons at all --
+added ed_soft entropy lambda4 in {0.3,1.0,3.0} vs. its own plain
+lambda3 curve, same corrected paired-bootstrap procedure as the other
+three datasets. (2) The base-table comparison (no-privacy vs. plain
+lambda3=0.3) existed only for GeoLife -- added for Foursquare, Gowalla-
+SF-Bay, and YJMob100K, as a DIRECT two-point comparison (not curve-
+interpolated, unlike the matched-utility comparisons). Required
+recomputing YJMob100K's similarity bases from scratch
+(`scripts/compute_yjmob_missing_sims.py`): the cached `similarities.npz`
+was built by the original sampling script against PRE-REMAP user ids,
+while every training run and this fix's own base-table comparison use
+the REMAPPED dense 1..2000 ids -- mixing the two threw a bare `KeyError`.
+`scripts/run_item2_v2_gap_fill.py` appended 66 rows to
+`reports/figures/paper/item2_bootstrap_cis_matched_utility.csv` (474
+rows total). The recomputed `similarities.npz` (128MB, up from 24MB
+after adding the two missing similarity bases) exceeds GitHub's 100MB
+limit and is no longer git-tracked (`.gitignore`) -- regenerate via
+the script above if needed; it lives on disk at
+`reports/figures/yjmob100k_sample/similarities.npz` and is not deleted.
+
+**Item 7 corrected a second time (v3), re-scoring only, no retraining.**
+v2's table had two remaining issues, both caught by the PI: (a) it
+scored every decile candidate (anyone with >=1 test window) instead of
+applying the project's standard >=10-test-window reporting floor --
+decile 0 was scoring users 73 and 179 at 7 test windows each; (b) its
+standard-attacker column pulled directly from the two pre-existing
+10-seed runs (`geolife_plain_lp1.2_10seed`, `geolife_ed_soft_lambda1.0_10seed`),
+which were launched separately three days apart under different git
+commits and disagree on their raw population size before any filtering
+(`n_users_before_filter`: 180 vs. 181) even though the underlying
+`unified.parquet` (unchanged since Oct 16) and `puffin/attacks/windowing.py`
+(unchanged across that commit range) rule out a data or windowing-code
+cause -- the mismatch traces to how the two standalone runs were each
+individually launched (a CLI flag difference neither run's logs
+recorded). Net effect: user 88 (21 test windows, a candidate in BOTH
+mechanisms' freshly-trained decile-0 group attacker -- confirmed
+identical candidate sets there) has a row in the plain/Mo-PAE standard
+run but none in the ed_soft/PUFFIN one. Checked both standard runs'
+full populations end to end: user 88 is the ONLY such discrepancy
+(179 vs. 178 users, symmetric difference = exactly {88}) -- no other
+run drops a user relative to its counterpart.
+
+Fix (`scripts/fix_item7_table_v3.py`, reading v2's already-saved
+per-user CSVs, no retraining): decile membership stays exactly as v2
+computed it (once, globally, from training-split entropy over all
+GeoLife users, shared by both mechanisms -- this was already correct
+in v2). Candidates per decile unchanged. **Targets** per decile:
+candidates with >=10 test windows AND present in both standard runs;
+only targets are scored, under both the group-restricted and the
+standard attacker. The paired bootstrap now draws ONE shared user-
+resample per replicate and reuses it for both the group-attacker delta
+and the standard-attacker delta (seed axes still resampled
+independently per arm -- the group attacker's 5 attacker seeds and the
+standard run's 10 encoder seeds are different seed spaces). Validated
+against the PI's own independent check: decile 0, 16 common targets,
+group_delta=-0.0088 [-0.165,+0.136] vs. their -0.007 [-0.16,+0.13];
+standard_delta=-0.1277 [-0.214,-0.054] vs. their -0.127 -- matches
+closely. Output: `reports/figures/paper/item7_group_aware_attacker_v3.csv`.
+
+**TrajGAN rework, per the PI's decisions on the first full-run
+attempt's results** (GeoLife 2/3 converged correctly, 1/3 correctly
+flagged collapsed; Foursquare collapsed on all 3 seeds; Gowalla crashed
+on all 3 seeds -- see the superseded section below for that attempt):
+
+- *Checkpointing + onset-aware collapse handling* (`puffin/baselines/trajgan.py`,
+  `scripts/run_trajgan_current_protocol.py`): a generator checkpoint is
+  now saved every 5 epochs; `check_gan_collapse` now also reports
+  `onset_epoch` (first epoch of whichever collapse condition fired). If
+  flagged, the driver regenerates the synthetic release from the latest
+  checkpoint at epoch <= onset-5 AND >= 30 (via the new, retrain-free
+  `generate_from_generator`); if none qualifies, the seed is marked
+  `non_converged` and halted before the attacker phases -- never
+  retried under a different seed number. GeoLife genseed2, rerun under
+  this rule, confirmed non-converged exactly as predicted from its
+  saved loss curve (onset=29, so no checkpoint at epoch<=24 can also be
+  >=30). GeoLife tally stands at 2/3 converged, 1/3 non-converged.
+  `geolife_trajgan_genseed{0,1,2}` all committed.
+
+- *Check-in trajectory redefinition for Foursquare/Gowalla*
+  (`_trajectory_chunks(..., group_by="week")`): these datasets' own
+  `traj_id` is a same-calendar-day grouping with almost no real trip
+  length (Foursquare: 1,465 train chunks under the old grouping).
+  Re-grouping by (user_id, ISO-year, ISO-week), following the original
+  LSTM-TrajGAN paper's per-user weekly trajectory definition (Rao et
+  al. 2020), with `train_min_traj_len=2`: confirmed via a standalone
+  chunk-count-only check (no training) BEFORE committing to full runs,
+  per the PI's instruction -- Foursquare 1,465 -> 18,796 train chunks
+  (12.8x), Gowalla-SF-Bay 2,120 -> 22,430 (10.6x).
+  **This did not fix Foursquare's collapse**: genseed0 under the new
+  grouping still collapsed, and faster (onset_epoch=4 vs. the old
+  grouping's near-immediate collapse too) -- the much larger training
+  set ruled out "too little data" as the cause; whatever is driving
+  Foursquare's GAN instability is structural, not a data-volume
+  artifact. Foursquare genseed1/genseed2 and the full Gowalla-SF-Bay
+  run are in progress on GPU0 (`scripts/launch_trajgan_fq_gw.sh`); per
+  the PI's instruction, if all 3 seeds collapse on either dataset under
+  the checkpoint/onset rule, the orchestrator stops before moving on
+  and TrajGAN will be reported as non-converging on that dataset rather
+  than tuned further.
+
+- *Gowalla attacker-crash fix* (`split_attacker_windows_min4` in
+  `scripts/run_trajgan_current_protocol.py`): the attacker's internal
+  50/50 chronological split could leave a user with exactly 1 window in
+  a class, crashing sklearn's internal stratified early-stopping split.
+  Users with <4 total windows now go entirely into the attacker's
+  training half (remain candidate classes, never scored -- consistent
+  with the standard >=10-test-window reporting filter already applied
+  everywhere else); others split by `floor(n/2)` so each half gets >=2.
+  Not yet exercised against a real Gowalla run at time of writing (the
+  dataset is next in the orchestrator's queue).
+
+
+## Superseded (2026-11-09): root cause of recurring slowdowns found and fixed; items 2-7 of the paper's remaining-work list done (item 2 corrected after a pairing bug); TrajGAN full runs in progress
 
 **Root cause of TrajGAN's original 7.2h/2-epoch slowdown found via a
 live py-spy stack dump, and almost certainly the explanation for
