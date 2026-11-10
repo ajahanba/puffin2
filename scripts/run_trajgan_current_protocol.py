@@ -356,6 +356,24 @@ def main():
         checkpoint_epochs_available=sorted(checkpoints.keys()),
     ), indent=2, default=float))
 
+    try:
+        git_commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=pathlib.Path(__file__).resolve().parents[1]
+        ).decode().strip()
+    except Exception:
+        git_commit = None
+    (out_dir / "protocol_tag.json").write_text(json.dumps(dict(
+        git_commit=git_commit, git_commit_inferred=False,
+        trajgan_seed=args.trajgan_seed, trajgan_group_by=args.trajgan_group_by,
+        train_min_traj_len=train_min_traj_len, checkpoint_every=args.trajgan_checkpoint_every,
+        collapse_onset_epoch=collapse_check.get("onset_epoch"), checkpoint_used=checkpoint_used,
+        non_converged=non_converged, protocol_ok=not non_converged,
+        usable=not non_converged,
+        usable_note=("non-converged: collapse onset within 5 epochs of the earliest eligible "
+                     "checkpoint (epoch 30) -- no checkpoint satisfies the PI's recovery rule"
+                     if non_converged else "trained under the checkpoint-aware collapse protocol"),
+    ), indent=2))
+
     if non_converged:
         raise RuntimeError(
             f"{tag} generator seed {args.trajgan_seed} NON-CONVERGED (collapse onset={collapse_check['onset_epoch']}, "

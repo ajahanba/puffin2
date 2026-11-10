@@ -1,0 +1,14 @@
+{
+  "git_commit": "8f3738ec03a0443420c9fcfcbecc249d0c94b2a6",
+  "git_commit_inferred": true,
+  "trajgan_seed": 2,
+  "trajgan_group_by": "trajectory",
+  "train_min_traj_len": 11,
+  "checkpoint_every": 5,
+  "collapse_onset_epoch": 29,
+  "checkpoint_used": null,
+  "non_converged": true,
+  "protocol_ok": false,
+  "usable": false,
+  "usable_note": "non-converged: collapse onset within 5 epochs of the earliest eligible checkpoint (epoch 30) -- no checkpoint satisfies the PI's recovery rule"
+}
