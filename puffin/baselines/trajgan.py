@@ -178,35 +178,59 @@ def _trajectory_groups(df: pd.DataFrame, split_name: str, max_traj_len: int, min
     return out
 
 
-def _trajectory_chunks(df: pd.DataFrame, split_name: str, max_traj_len: int, min_traj_len: int = 1):
-    """Chunks every (user_id, traj_id) trajectory in the split into
-    consecutive pieces of AT MOST max_traj_len points -- never truncates
-    a trajectory's tail away. `min_traj_len` filters at the WHOLE-
-    TRAJECTORY level (same semantic as the old `_trajectory_groups`): a
-    trajectory shorter than this is dropped entirely before chunking,
-    not per-chunk. Called with `min_traj_len=1` (no filtering) for TEST,
-    so every real test point is covered by exactly one chunk (fixes the
-    PI-caught window-alignment bug, 2026-11-09: truncating to the first
+def _trajectory_chunks(df: pd.DataFrame, split_name: str, max_traj_len: int, min_traj_len: int = 1,
+                        group_by: str = "trajectory"):
+    """Chunks every trajectory-like group in the split into consecutive
+    pieces of AT MOST max_traj_len points -- never truncates a group's
+    tail away. `min_traj_len` filters at the WHOLE-GROUP level: a group
+    shorter than this is dropped entirely before chunking, not per-chunk.
+    Called with `min_traj_len=1` (no filtering) for TEST, so every real
+    test point is covered by exactly one chunk (fixes the PI-caught
+    window-alignment bug, 2026-11-09: truncating to the first
     max_traj_len points silently dropped everything past that for any
     longer trajectory). Called with the project's normal min_traj_len for
     TRAIN too (PI instruction, 2026-11-09): the generator must train on
     the same chunking it generates from, not truncated trajectory
-    openings -- a long trajectory now contributes multiple training
-    chunks instead of being truncated down to its first one.
-    Each chunk keeps the same (user_id, traj_id) as its parent trajectory
+    openings.
+
+    `group_by="trajectory"` (default, GeoLife): groups by the dataset's
+    own (user_id, traj_id) -- a real separate trip.
+    `group_by="week"` (Foursquare, Gowalla; PI instruction 2026-11-09,
+    following the original LSTM-TrajGAN paper's per-user weekly
+    trajectory definition, Rao et al. 2020): groups by (user_id,
+    ISO-year, ISO-week) instead -- these datasets' own `traj_id` is only
+    a same-calendar-day grouping invented for check-in data with no
+    native trajectory id, which leaves almost every "trajectory" shorter
+    than any reasonable min_traj_len (the same issue already fixed for
+    the rest of this project's windowing via respect_traj_boundary=False,
+    which TrajGAN's per-trajectory chunking design has no equivalent of).
+
+    Each chunk keeps the parent group's user_id/traj_id (week mode: the
+    FIRST real traj_id in that (user, week) group, for bookkeeping only)
     -- `ts` is enough to reconstruct point-for-point identity with the
     real data, chunk membership itself is never inspected downstream."""
-    sub = df[df["split"] == split_name].sort_values(["user_id", "traj_id", "ts"])
-    sub.attrs = {}  # see _trajectory_groups's comment above -- same fix, same root cause
+    sub = df[df["split"] == split_name].copy()
+    sub.attrs = {}  # see windowing.py's comment -- same fix, same root cause
+    if group_by == "week":
+        iso = pd.to_datetime(sub["ts"]).dt.isocalendar()
+        sub["_group_key"] = sub["user_id"].astype(str) + "_" + iso.year.astype(str) + "_W" + iso.week.astype(str)
+        sub = sub.sort_values(["user_id", "_group_key", "ts"])
+        group_cols = ["user_id", "_group_key"]
+    else:
+        sub = sub.sort_values(["user_id", "traj_id", "ts"])
+        group_cols = ["user_id", "traj_id"]
+
     out = []
-    for (user_id, traj_id), g in sub.groupby(["user_id", "traj_id"], sort=False):
+    for key, g in sub.groupby(group_cols, sort=False):
+        user_id = key[0]
+        traj_id = int(g["traj_id"].iloc[0])
         n = len(g)
         if n < min_traj_len:
             continue
         for chunk_start in range(0, n, max_traj_len):
             chunk = g.iloc[chunk_start:chunk_start + max_traj_len]
             out.append(dict(
-                user_id=int(user_id), traj_id=int(traj_id),
+                user_id=int(user_id), traj_id=traj_id,
                 lat=chunk["lat"].to_numpy(dtype=np.float64),
                 lon=chunk["lon"].to_numpy(dtype=np.float64),
                 weekday=chunk["weekday"].to_numpy(dtype=np.int64),
@@ -376,33 +400,97 @@ def _traj_loss(mask, lengths, real_latlon, gen_latlon, real_weekday_oh, gen_week
     return bce * p_bce + masked_latlon_mse * p_latlon + ce_weekday * p_weekday + ce_hour * p_hour
 
 
+def generate_from_generator(G, test_groups, max_traj_len, latent_dim, lat_c, lon_c, scale, device,
+                             batch_size=64):
+    """The generation half of run_trajgan, factored out so the driver can
+    call it again with a DIFFERENT G (e.g. rebuilt from an earlier
+    checkpoint, per the PI's collapse-handling instruction, 2026-11-09)
+    without retraining. Returns (synthetic_df, summary_fields_dict,
+    generation_time)."""
+    import time as _time
+    G.eval()
+    rows = []
+    abs_lat_errs, abs_lon_errs, weekday_correct, hour_correct, n_points = [], [], [], [], 0
+    _gen_t0 = _time.time()
+    with torch.no_grad():
+        for start in range(0, len(test_groups), batch_size):
+            idx = list(range(start, min(start + batch_size, len(test_groups))))
+            latlon, weekday_oh, hour_oh, mask, lengths = _pad_batch(
+                test_groups, idx, max_traj_len, lat_c, lon_c, scale)
+            latlon, weekday_oh, hour_oh, mask = (
+                latlon.to(device), weekday_oh.to(device), hour_oh.to(device), mask.to(device))
+            noise = torch.randn(len(idx), latent_dim, device=device)
+            gen_latlon, gen_weekday, gen_hour = G(latlon, weekday_oh, hour_oh, noise, scale)
+
+            gen_lat = (gen_latlon[..., 0] * scale + lat_c).cpu().numpy()
+            gen_lon = (gen_latlon[..., 1] * scale + lon_c).cpu().numpy()
+            gen_weekday_id = gen_weekday.argmax(dim=-1).cpu().numpy()
+            gen_hour_id = gen_hour.argmax(dim=-1).cpu().numpy()
+            mask_np = mask.cpu().numpy()
+
+            real_lat = (latlon[..., 0] * scale + lat_c).cpu().numpy()
+            real_lon = (latlon[..., 1] * scale + lon_c).cpu().numpy()
+            real_weekday_id = weekday_oh.argmax(dim=-1).cpu().numpy()
+            real_hour_id = hour_oh.argmax(dim=-1).cpu().numpy()
+
+            for b, i in enumerate(idx):
+                g = test_groups[i]
+                L = g["length"]
+                tail = slice(max_traj_len - L, max_traj_len)
+                rows.append(pd.DataFrame(dict(
+                    user_id=g["user_id"], traj_id=g["traj_id"], ts=g["ts"],
+                    lat=gen_lat[b, tail], lon=gen_lon[b, tail],
+                    weekday=gen_weekday_id[b, tail].astype(int),
+                    hour=gen_hour_id[b, tail].astype(int),
+                )))
+                m = mask_np[b, tail].astype(bool)
+                abs_lat_errs.append(np.abs(gen_lat[b, tail][m] - real_lat[b, tail][m]))
+                abs_lon_errs.append(np.abs(gen_lon[b, tail][m] - real_lon[b, tail][m]))
+                weekday_correct.append((gen_weekday_id[b, tail][m] == real_weekday_id[b, tail][m]))
+                hour_correct.append((gen_hour_id[b, tail][m] == real_hour_id[b, tail][m]))
+                n_points += int(m.sum())
+
+    generation_time = _time.time() - _gen_t0
+    synthetic_df = pd.concat(rows, ignore_index=True)
+    synthetic_df = assign_grid_cells(synthetic_df, resolution_deg=0.01)
+    synthetic_df = synthetic_df[["user_id", "traj_id", "ts", "lat", "lon", "cell_id", "weekday", "hour"]]
+    fields = dict(
+        n_points_generated=n_points,
+        mean_abs_lat_error=float(np.concatenate(abs_lat_errs).mean()) if abs_lat_errs else float("nan"),
+        mean_abs_lon_error=float(np.concatenate(abs_lon_errs).mean()) if abs_lon_errs else float("nan"),
+        weekday_argmax_accuracy=float(np.concatenate(weekday_correct).mean()) if weekday_correct else float("nan"),
+        hour_argmax_accuracy=float(np.concatenate(hour_correct).mean()) if hour_correct else float("nan"),
+    )
+    return synthetic_df, fields, generation_time
+
+
 # --------------------------------------------------------------------------
 # Main entry point
 # --------------------------------------------------------------------------
 
-def _cached_trajectory_chunks(df, max_traj_len, min_traj_len, cache_dir, cache_key):
+def _cached_trajectory_chunks(df, max_traj_len, min_traj_len, cache_dir, cache_key, group_by="trajectory"):
     """Chunking (`_trajectory_chunks`) is a Python-level groupby loop over
-    every (user_id, traj_id) trajectory -- slow on a full-size dataset
-    (minutes, paid twice: once for train, once for test) and identical
-    every time run_trajgan is called again for the SAME dataset/windowing
-    params, e.g. once per encoder/attacker seed. Caches the two chunk
-    lists to disk (pickle) keyed by `cache_key` (caller's responsibility
-    to make this unique per dataset + max_traj_len/min_traj_len
-    combination) so the prep cost is paid once per cache_key, not once
-    per call. Filename tagged "chunksv2" so this never collides with (or
-    silently loads) a stale pre-chunking "trajgan_groups_*" cache file
-    from before the 2026-11-09 chunking fix."""
+    every group -- slow on a full-size dataset (minutes, paid twice:
+    once for train, once for test) and identical every time run_trajgan
+    is called again for the SAME dataset/windowing params, e.g. once per
+    encoder/attacker seed. Caches the two chunk lists to disk (pickle)
+    keyed by `cache_key` (caller's responsibility to make this unique
+    per dataset + max_traj_len/min_traj_len/group_by combination) so the
+    prep cost is paid once per cache_key, not once per call. Filename
+    tagged "chunksv2" so this never collides with (or silently loads) a
+    stale pre-chunking "trajgan_groups_*" cache file from before the
+    2026-11-09 chunking fix."""
     import pathlib
     import pickle
     if cache_dir is not None:
         cache_dir = pathlib.Path(cache_dir)
         cache_dir.mkdir(parents=True, exist_ok=True)
-        cache_path = cache_dir / f"trajgan_chunksv2_{cache_key}_{max_traj_len}_{min_traj_len}.pkl"
+        cache_path = cache_dir / f"trajgan_chunksv2_{cache_key}_{max_traj_len}_{min_traj_len}_{group_by}.pkl"
         if cache_path.exists():
             with open(cache_path, "rb") as f:
                 return pickle.load(f)
-    train_chunks = _trajectory_chunks(df, "train", max_traj_len, min_traj_len)
-    test_chunks = _trajectory_chunks(df, "test", max_traj_len, min_traj_len=1)
+    train_chunks = _trajectory_chunks(df, "train", max_traj_len, min_traj_len, group_by=group_by)
+    test_chunks = _trajectory_chunks(df, "test", max_traj_len, min_traj_len=1, group_by=group_by)
     if cache_dir is not None:
         with open(cache_path, "wb") as f:
             pickle.dump((train_chunks, test_chunks), f)
@@ -413,7 +501,8 @@ def run_trajgan(df: pd.DataFrame, device: torch.device, max_traj_len: int = 150,
                  min_traj_len: int = 5, latent_dim: int = 100, lstm_units: int = 100,
                  batch_size: int = 64, max_epochs: int = 60, lr: float = 1e-3,
                  p_bce: float = 1.0, p_latlon: float = 10.0, p_weekday: float = 1.0,
-                 p_hour: float = 1.0, seed: int = 0, cache_dir=None, cache_key: str = ""):
+                 p_hour: float = 1.0, seed: int = 0, cache_dir=None, cache_key: str = "",
+                 group_by: str = "trajectory", checkpoint_every: int = 5):
     """Trains LSTM-TrajGAN on `df[df.split=="train"]`, then generates a
     synthetic counterpart of EVERY `df[df.split=="test"]` POINT (fresh
     noise draw per chunk) -- test trajectories longer than max_traj_len
@@ -450,7 +539,7 @@ def run_trajgan(df: pd.DataFrame, device: torch.device, max_traj_len: int = 150,
         raise ValueError(f"run_trajgan: missing required columns: {missing}")
 
     train_groups, test_groups = _cached_trajectory_chunks(
-        df, max_traj_len, min_traj_len, cache_dir, cache_key)
+        df, max_traj_len, min_traj_len, cache_dir, cache_key, group_by=group_by)
     if len(train_groups) == 0 or len(test_groups) == 0:
         raise ValueError("run_trajgan: need at least one usable trajectory in each split")
 
@@ -461,9 +550,11 @@ def run_trajgan(df: pd.DataFrame, device: torch.device, max_traj_len: int = 150,
     opt_g = torch.optim.Adam(G.parameters(), lr=lr, betas=(0.5, 0.999))
     opt_d = torch.optim.Adam(D.parameters(), lr=lr, betas=(0.5, 0.999))
 
+    import copy
     import time as _time
     n_train = len(train_groups)
     d_loss_history, g_loss_history, epoch_times = [], [], []
+    checkpoints = {}  # epoch (1-indexed) -> G.state_dict(), CPU tensors
 
     for epoch in range(max_epochs):
         _epoch_t0 = _time.time()
@@ -511,71 +602,31 @@ def run_trajgan(df: pd.DataFrame, device: torch.device, max_traj_len: int = 150,
         if device.type == "cuda":
             torch.cuda.synchronize()
         epoch_times.append(_time.time() - _epoch_t0)
+        actual_epoch_num = epoch + 1
+        if checkpoint_every and actual_epoch_num % checkpoint_every == 0:
+            checkpoints[actual_epoch_num] = {k: v.detach().cpu().clone() for k, v in G.state_dict().items()}
 
-    # --- generate synthetic counterparts of every test trajectory ---
-    _gen_t0 = _time.time()
-    G.eval()
-    rows = []
-    abs_lat_errs, abs_lon_errs, weekday_correct, hour_correct, n_points = [], [], [], [], 0
-    with torch.no_grad():
-        for start in range(0, len(test_groups), batch_size):
-            idx = list(range(start, min(start + batch_size, len(test_groups))))
-            latlon, weekday_oh, hour_oh, mask, lengths = _pad_batch(
-                test_groups, idx, max_traj_len, lat_c, lon_c, scale)
-            latlon, weekday_oh, hour_oh, mask = (
-                latlon.to(device), weekday_oh.to(device), hour_oh.to(device), mask.to(device))
-            noise = torch.randn(len(idx), latent_dim, device=device)
-            gen_latlon, gen_weekday, gen_hour = G(latlon, weekday_oh, hour_oh, noise, scale)
-
-            gen_lat = (gen_latlon[..., 0] * scale + lat_c).cpu().numpy()
-            gen_lon = (gen_latlon[..., 1] * scale + lon_c).cpu().numpy()
-            gen_weekday_id = gen_weekday.argmax(dim=-1).cpu().numpy()
-            gen_hour_id = gen_hour.argmax(dim=-1).cpu().numpy()
-            mask_np = mask.cpu().numpy()
-
-            real_lat = (latlon[..., 0] * scale + lat_c).cpu().numpy()
-            real_lon = (latlon[..., 1] * scale + lon_c).cpu().numpy()
-            real_weekday_id = weekday_oh.argmax(dim=-1).cpu().numpy()
-            real_hour_id = hour_oh.argmax(dim=-1).cpu().numpy()
-
-            for b, i in enumerate(idx):
-                g = test_groups[i]
-                L = g["length"]
-                tail = slice(max_traj_len - L, max_traj_len)
-                rows.append(pd.DataFrame(dict(
-                    user_id=g["user_id"], traj_id=g["traj_id"], ts=g["ts"],
-                    lat=gen_lat[b, tail], lon=gen_lon[b, tail],
-                    weekday=gen_weekday_id[b, tail].astype(int),
-                    hour=gen_hour_id[b, tail].astype(int),
-                )))
-                m = mask_np[b, tail].astype(bool)
-                abs_lat_errs.append(np.abs(gen_lat[b, tail][m] - real_lat[b, tail][m]))
-                abs_lon_errs.append(np.abs(gen_lon[b, tail][m] - real_lon[b, tail][m]))
-                weekday_correct.append((gen_weekday_id[b, tail][m] == real_weekday_id[b, tail][m]))
-                hour_correct.append((gen_hour_id[b, tail][m] == real_hour_id[b, tail][m]))
-                n_points += int(m.sum())
-
-    generation_time = _time.time() - _gen_t0
-
-    synthetic_df = pd.concat(rows, ignore_index=True)
-    synthetic_df = assign_grid_cells(synthetic_df, resolution_deg=0.01)
-    synthetic_df = synthetic_df[["user_id", "traj_id", "ts", "lat", "lon", "cell_id", "weekday", "hour"]]
+    # --- generate synthetic counterparts of every test trajectory, using
+    # the FINAL-epoch G by default; the driver can call
+    # generate_from_generator() again with a checkpoint-restored G
+    # instead, if the collapse check below flags this run. ---
+    synthetic_df, gen_fields, generation_time = generate_from_generator(
+        G, test_groups, max_traj_len, latent_dim, lat_c, lon_c, scale, device, batch_size)
 
     summary = dict(
         n_train_chunks=len(train_groups),
         n_test_chunks=len(test_groups),
-        n_points_generated=n_points,
         d_loss_history=d_loss_history,
         g_loss_history=g_loss_history,
+        checkpoints=checkpoints,
+        regen_state=dict(test_groups=test_groups, max_traj_len=max_traj_len, latent_dim=latent_dim,
+                          lstm_units=lstm_units, lat_c=lat_c, lon_c=lon_c, scale=scale),
+        **gen_fields,
         final_d_loss=d_loss_history[-1] if d_loss_history else float("nan"),
         final_g_loss=g_loss_history[-1] if g_loss_history else float("nan"),
         epoch_times_seconds=epoch_times,
         mean_epoch_time_seconds=float(np.mean(epoch_times)) if epoch_times else float("nan"),
         generation_time_seconds=generation_time,
-        mean_abs_lat_error=float(np.concatenate(abs_lat_errs).mean()) if abs_lat_errs else float("nan"),
-        mean_abs_lon_error=float(np.concatenate(abs_lon_errs).mean()) if abs_lon_errs else float("nan"),
-        weekday_argmax_accuracy=float(np.concatenate(weekday_correct).mean()) if weekday_correct else float("nan"),
-        hour_argmax_accuracy=float(np.concatenate(hour_correct).mean()) if hour_correct else float("nan"),
         lat_centroid=lat_c, lon_centroid=lon_c, scale_factor=scale,
     )
     return synthetic_df, summary

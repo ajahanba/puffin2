@@ -57,7 +57,7 @@ import torch.nn.functional as F
 torch.set_num_threads(_N_THREADS)
 
 sys.path.insert(0, ".")
-from puffin.baselines.trajgan import run_trajgan
+from puffin.baselines.trajgan import run_trajgan, generate_from_generator, TrajGANGenerator
 from puffin.data.tessellation import assign_grid_cells
 from puffin.features.mobility import compute_mobility_features
 from puffin.attacks.windowing import build_sl_windows
@@ -84,10 +84,18 @@ def check_gan_collapse(d_loss_history, g_loss_history):
     g = np.array(g_loss_history)
     n = len(d)
     below = d < 0.01
-    max_consecutive, cur = 0, 0
-    for b in below:
-        cur = cur + 1 if b else 0
-        max_consecutive = max(max_consecutive, cur)
+    max_consecutive, cur, run_start, d_onset = 0, 0, None, None
+    for i, b in enumerate(below):
+        if b:
+            if cur == 0:
+                run_start = i
+            cur += 1
+            if cur > max_consecutive:
+                max_consecutive = cur
+            if cur == 5 and d_onset is None:
+                d_onset = run_start + 1  # 1-indexed epoch where this 5-run STARTS
+        else:
+            cur = 0
     flag_d = max_consecutive >= 5
 
     # The 10x-median divergence check is evaluated WITHIN the epoch-30-to-80
@@ -97,13 +105,24 @@ def check_gan_collapse(d_loss_history, g_loss_history):
     lo, hi = 30, min(80, n)
     window = g[lo - 1:hi] if n >= lo else g
     median_g = float(np.median(window)) if len(window) else float(np.median(g)) if n else float("nan")
-    flag_g = bool((window > 10 * median_g).any()) if median_g == median_g and median_g > 0 else False
+    g_onset = None
+    if median_g == median_g and median_g > 0:
+        over = np.where(window > 10 * median_g)[0]
+        flag_g = len(over) > 0
+        if flag_g:
+            g_onset = int(over[0]) + lo  # 1-indexed epoch (window starts at epoch `lo`)
+    else:
+        flag_g = False
+
+    onsets = [e for e in (d_onset, g_onset) if e is not None]
+    onset_epoch = min(onsets) if onsets else None
 
     return dict(
         flagged=bool(flag_d or flag_g),
         flag_d_loss_collapse=bool(flag_d), max_consecutive_low_d_loss=int(max_consecutive),
         flag_g_loss_divergence=bool(flag_g), median_g_loss_epoch30_80=median_g,
         max_g_loss=float(g.max()) if n else float("nan"),
+        onset_epoch=onset_epoch,
     )
 
 
@@ -160,6 +179,33 @@ def train_predictor(real_train, true_next_cell_tr, embedding_vocab, output_vocab
     return encoder, head, actual_epochs
 
 
+def split_attacker_windows_min4(ts, user, rng):
+    """PI instruction (2026-11-09), Gowalla attacker crash fix: any user
+    with FEWER THAN 4 total windows in the synthetic release goes
+    ENTIRELY into the attacker's training half -- they remain candidate
+    classes for the classifier (total_users unchanged) but get no test
+    windows, so they are never scored (same as every other mechanism's
+    standard >=10-test-window reporting filter already excludes very
+    low-window users). Users with >=4 windows are split by floor(n/2)
+    so EACH half gets >=2 -- the generic round(0.5*n) formula used
+    elsewhere in this project can leave as few as 1 in a half for
+    n in {2,3}, which is what crashed sklearn's internal stratified
+    early-stopping split (a class with only 1 member)."""
+    train_idx, test_idx = [], []
+    tie_break = rng.random(len(ts))
+    for u in np.unique(user):
+        idx = np.where(user == u)[0]
+        n = len(idx)
+        if n < 4:
+            train_idx.extend(idx.tolist())
+            continue
+        order = idx[np.lexsort((tie_break[idx], ts[idx]))]
+        n_test = n // 2
+        test_idx.extend(order[-n_test:].tolist())
+        train_idx.extend(order[:-n_test].tolist())
+    return np.array(sorted(train_idx)), np.array(sorted(test_idx))
+
+
 def eval_utility(encoder, head, synthetic_test, true_next_cell_te, device, batch_size=1024):
     encoder.eval(); head.eval()
     n = len(synthetic_test["user"])
@@ -192,6 +238,17 @@ def main():
     ap.add_argument("--attack-epochs", type=int, default=25)
     ap.add_argument("--trajgan-epochs", type=int, default=60)
     ap.add_argument("--trajgan-seed", type=int, default=0)
+    ap.add_argument("--trajgan-group-by", choices=["trajectory", "week"], default="trajectory",
+                     help="trajectory (GeoLife): group by (user_id,traj_id), a real trip. "
+                          "week (Foursquare, Gowalla; PI instruction 2026-11-09, following "
+                          "Rao et al. 2020's per-user weekly trajectory definition): group by "
+                          "(user_id, ISO-week) instead, since these datasets' traj_id is only "
+                          "a same-day grouping that leaves almost every group too short.")
+    ap.add_argument("--trajgan-train-min-traj-len", type=int, default=None,
+                     help="overrides --sl+1 as the TRAIN-side min_traj_len; use 2 for "
+                          "week-grouped datasets per the PI's instruction (train on all "
+                          "weekly trajectories with >=2 points)")
+    ap.add_argument("--trajgan-checkpoint-every", type=int, default=5)
     ap.add_argument("--encoder-seeds", type=str, default="0,1,2")
     ap.add_argument("--attacker-seeds", type=str, default="0,1,2,3,4")
     ap.add_argument("--device", default="cpu")
@@ -237,10 +294,13 @@ def main():
     print(f"{tag} training LSTM-TrajGAN (seed={args.trajgan_seed}, {args.trajgan_epochs} epochs)...", flush=True)
     t0 = time.time()
     cache_dir = pathlib.Path(args.out_dir).parent / "_trajgan_groups_cache"
+    train_min_traj_len = (args.trajgan_train_min_traj_len if args.trajgan_train_min_traj_len is not None
+                           else args.sl + 1)
     synthetic_df, trajgan_summary = run_trajgan(
-        df, device, max_traj_len=150, min_traj_len=args.sl + 1,
+        df, device, max_traj_len=150, min_traj_len=train_min_traj_len,
         max_epochs=args.trajgan_epochs, seed=args.trajgan_seed,
-        cache_dir=cache_dir, cache_key=args.dataset)
+        cache_dir=cache_dir, cache_key=args.dataset,
+        group_by=args.trajgan_group_by, checkpoint_every=args.trajgan_checkpoint_every)
     gan_stage_seconds = time.time() - t0
     mean_epoch_s = trajgan_summary["mean_epoch_time_seconds"]
     print(f"{tag} STAGE generator training: {gan_stage_seconds:.1f}s total, "
@@ -249,22 +309,58 @@ def main():
           f"final_d_loss={trajgan_summary['final_d_loss']:.4f}, final_g_loss={trajgan_summary['final_g_loss']:.4f}, "
           f"weekday_acc={trajgan_summary['weekday_argmax_accuracy']:.4f}, "
           f"hour_acc={trajgan_summary['hour_argmax_accuracy']:.4f}", flush=True)
+    print(f"{tag} chunk counts (group_by={args.trajgan_group_by}, train_min_traj_len={train_min_traj_len}): "
+          f"n_train_chunks={trajgan_summary['n_train_chunks']}, n_test_chunks={trajgan_summary['n_test_chunks']}",
+          flush=True)
     print(f"{tag} STAGE synthetic generation: {trajgan_summary['generation_time_seconds']:.1f}s", flush=True)
 
     out_dir = pathlib.Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     collapse_check = check_gan_collapse(trajgan_summary["d_loss_history"], trajgan_summary["g_loss_history"])
+    checkpoints = trajgan_summary.pop("checkpoints")  # {epoch: state_dict}, NOT json-serializable -- strip before any write
+    regen_state = trajgan_summary.pop("regen_state")
+    checkpoint_used, non_converged = None, False
+
+    if collapse_check["flagged"]:
+        onset = collapse_check["onset_epoch"]
+        # PI instruction (2026-11-09): use the last saved checkpoint at least
+        # 5 epochs before onset, provided it is at epoch >=30; otherwise mark
+        # the seed non-converged. Never replace a seed with a new seed number
+        # -- this seed's result IS "non-converged" if no checkpoint qualifies,
+        # not a reason to retry with a different seed.
+        eligible = [e for e in checkpoints if (onset is not None and e <= onset - 5) and e >= 30]
+        if eligible:
+            checkpoint_used = max(eligible)
+            print(f"{tag} GENERATOR COLLAPSE FLAGGED (seed={args.trajgan_seed}), onset_epoch={onset}: "
+                  f"{collapse_check} -- using checkpoint at epoch {checkpoint_used}", flush=True)
+            G_ckpt = TrajGANGenerator(regen_state["latent_dim"], regen_state["lstm_units"]).to(device)
+            G_ckpt.load_state_dict({k: v.to(device) for k, v in checkpoints[checkpoint_used].items()})
+            synthetic_df, gen_fields, regen_time = generate_from_generator(
+                G_ckpt, regen_state["test_groups"], regen_state["max_traj_len"], regen_state["latent_dim"],
+                regen_state["lat_c"], regen_state["lon_c"], regen_state["scale"], device)
+            trajgan_summary.update(gen_fields)
+            trajgan_summary["generation_time_seconds"] += regen_time
+            print(f"{tag} regenerated synthetic release from checkpoint epoch {checkpoint_used} "
+                  f"in {regen_time:.1f}s", flush=True)
+        else:
+            non_converged = True
+            print(f"{tag} GENERATOR COLLAPSE FLAGGED (seed={args.trajgan_seed}), onset_epoch={onset}: "
+                  f"{collapse_check} -- NO checkpoint satisfies (<=onset-5 AND >=30); "
+                  f"marking seed {args.trajgan_seed} NON-CONVERGED (not retrying with a different seed).",
+                  flush=True)
+
     (out_dir / "loss_curve.json").write_text(json.dumps(dict(
         trajgan_seed=args.trajgan_seed,
         d_loss_history=trajgan_summary["d_loss_history"], g_loss_history=trajgan_summary["g_loss_history"],
-        collapse_check=collapse_check,
+        collapse_check=collapse_check, checkpoint_used=checkpoint_used, non_converged=non_converged,
+        checkpoint_epochs_available=sorted(checkpoints.keys()),
     ), indent=2, default=float))
-    if collapse_check["flagged"]:
-        print(f"{tag} GENERATOR COLLAPSE FLAGGED (seed={args.trajgan_seed}): {collapse_check}", flush=True)
+
+    if non_converged:
         raise RuntimeError(
-            f"{tag} generator seed {args.trajgan_seed} flagged as collapsed "
-            f"(see {out_dir}/loss_curve.json) -- per the PI's instruction, not attacking "
-            f"a collapsed release. Report before continuing.")
+            f"{tag} generator seed {args.trajgan_seed} NON-CONVERGED (collapse onset={collapse_check['onset_epoch']}, "
+            f"no checkpoint epoch satisfies <= onset-5 and >= 30) -- see {out_dir}/loss_curve.json. "
+            f"Per the PI's instruction, not attacking a collapsed release and not retrying with a new seed.")
 
     if args.profiled_epoch_seconds is not None and mean_epoch_s > 10 * args.profiled_epoch_seconds:
         raise RuntimeError(
@@ -294,16 +390,20 @@ def main():
           f"{len(original_windows['train']['user'])} real train windows)", flush=True)
 
     # Attacker's own internal split: carved out of the synthetic release itself
-    # (no synthetic train exists), earlier half by time = attacker-train.
+    # (no synthetic train exists). PI instruction (2026-11-09), Gowalla
+    # attacker crash fix: users with <4 total windows go entirely into
+    # train (remain candidate classes, never scored); others split so
+    # each half gets >=2 -- see split_attacker_windows_min4's docstring.
     attacker_rng = np.random.default_rng(0)
-    atk_test_idx, atk_train_idx = _chronological_val_split(
-        synthetic_test["ts"], synthetic_test["user"], val_frac=0.5, rng=attacker_rng)
+    atk_train_idx, atk_test_idx = split_attacker_windows_min4(
+        synthetic_test["ts"], synthetic_test["user"], attacker_rng)
     attacker_windows = {
         "train": {k: v[atk_train_idx] for k, v in synthetic_test.items()},
         "test": {k: v[atk_test_idx] for k, v in synthetic_test.items()},
     }
     print(f"{tag} attacker internal split: {len(atk_train_idx)} train / {len(atk_test_idx)} test "
-          f"(carved from the synthetic release)", flush=True)
+          f"(carved from the synthetic release); candidate set size (total_users)={total_users} "
+          f"-- confirm this matches the other mechanisms' total_users for this dataset", flush=True)
 
     feats = compute_mobility_features(df[df["split"] == "train"])
     entropy_by_user = dict(zip(feats.user_id, feats.s_unc))
