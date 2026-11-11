@@ -21,8 +21,9 @@ from puffin.baselines.trajgan import (
 torch.manual_seed(0)
 np.random.seed(0)
 DEVICE = torch.device("cuda:1")
+DATASET = sys.argv[1] if len(sys.argv) > 1 else "foursquare"
 
-df = pd.read_parquet("data/processed/foursquare/unified.parquet")
+df = pd.read_parquet(f"data/processed/{DATASET}/unified.parquet")
 df = df[df["lat"].notna() & df["lon"].notna()].copy()
 df = assign_grid_cells(df, resolution_deg=0.01)
 
