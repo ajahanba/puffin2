@@ -1,4 +1,75 @@
-## Current state (2026-11-10): item 2 gap-filled (YJMob100K + base-table rows), item 7 corrected again (v3), TrajGAN rework (checkpointing/week-grouping/attacker-split) deployed -- GeoLife done, Foursquare/Gowalla in progress against the Nov 16 hard stop
+## Current state (2026-11-10, later): two real TrajGAN generator bugs found and fixed via a discriminator-ablation diagnosis; ALL prior TrajGAN results (GeoLife genseed0/1/2, Foursquare genseed0/1/2) invalid, moved to `_invalid_pre_fix/`; GeoLife rerun from scratch in progress
+
+**Foursquare's near-instant (epoch 2-4) collapse, even after the
+week-grouping fix (12.8x more training data), triggered a PI-requested
+diagnosis before applying the stop rule** -- the near-instant collapse
+pattern suggested D was exploiting a trivial artifact, not ordinary
+instability. `scripts/diagnose_foursquare_collapse.py` ran the PI's
+4-part protocol (feature comparison at epoch 0, coordinate-scaling
+check, a discriminator-alone ablation under 4 feature subsets, a diff
+against the original LSTM-TrajGAN repo's conventions) and found TWO
+real bugs in `TrajGANGenerator.forward` (`puffin/baselines/trajgan.py`)
+-- confirmed via before/after numbers from the same ablation, not just
+code-reading:
+
+1. **lat_lon output was double-scaled.** `gen_latlon = torch.tanh(...)
+   * scale_factor`, but `_pad_batch` already normalizes the REAL
+   latlon D compares it against to `(point - centroid) / scale_factor`
+   -- i.e. [-1, 1]. The original's own `build_generator` output head is
+   a bare `Dense(2, activation='tanh')`, no rescale; `scale_factor` is
+   only reapplied once, in `predict.py`'s CSV-writing step, after
+   training is done. This port's extra in-network multiply meant D
+   compared real latlon in [-1,1] against fake latlon in
+   [-scale_factor, scale_factor] -- trivially separable by magnitude
+   whenever scale_factor != 1 (true everywhere; Foursquare's is
+   ~0.27). **Before/after**: discriminator-alone, 1-epoch-equivalent
+   ablation, "coordinates only" accuracy dropped from 0.8047 to 0.5469
+   (near chance) once the extra multiply was removed.
+2. **No output masking, so softmax heads could never represent "no
+   data."** Real weekday/hour one-hots are all-zero at pre-padded
+   (non-existent) positions, but softmax cannot output an all-zero
+   vector (always sums to 1) -- D could trivially tell real from fake
+   at every padded position, independent of genuine signal and
+   impossible to close by further training. Overwhelming whenever real
+   trajectories are much shorter than `max_traj_len`: confirmed
+   GeoLife's trip-based chunks average 142/150 points (5.3% padding,
+   negligible) vs. Foursquare's week-grouped chunks averaging ~9.5/150
+   (94% padding, dominant) -- exactly explaining the dataset-specific
+   severity. **Before/after**: weekday one-hot sum, averaged over a
+   batch including padded positions, real=0.0577 vs. fake(pre-fix)=
+   1.0000 (always a valid distribution) vs. fake(post-fix)=0.0577 --
+   now exact. Fixed by masking all three output heads (lat_lon,
+   weekday, hour) to zero at non-real positions, matching the real-data
+   convention exactly; `mask` is an optional forward() arg (default
+   None, old behavior) for the one non-pipeline caller
+   (`scripts/profile_trajgan.py`) that doesn't pass it.
+
+The residual high ablation accuracy on "time features only" (0.9844
+post-fix, up from 0.7031 pre-fix in that specific condition) is NOT
+evidence of a remaining artifact: it reflects that an untrained
+generator's softmax output isn't peaked (one-hot-like) yet, which
+genuine adversarial training (G gets gradient feedback via
+`d_pred_fake` every step) can close over epochs -- unlike the two
+fixed issues, nothing structurally prevents G from learning this.
+
+**Fix 1 (coordinate scaling) affects every dataset's generator output,
+not just Foursquare's -- so GeoLife's existing TrajGAN results
+(genseed0, genseed1, genseed2) were ALSO produced by the buggy
+generator and are invalid**, per the PI's instruction. All of GeoLife's
+and Foursquare's pre-fix TrajGAN outputs (`geolife_trajgan_genseed{0,1,2}`,
+`foursquare_trajgan_genseed{0,1,2}`, `trajgan_loss_curve_geolife.*`)
+moved to `reports/figures/paper/_invalid_pre_fix/` (git history
+preserved via `git mv`, nothing deleted). GeoLife is being rerun from
+scratch: the 150-epoch loss-curve exploration first (to re-check
+whether the stable-plateau/divergence point moved now that the
+generator's output is in the correct scale -- the old budget=80 was
+chosen against the BUGGY curve), then all 3 generator seeds under the
+checkpoint/collapse rule with whatever budget that curve justifies.
+Foursquare reruns after GeoLife; Gowalla gets the same diagnosis
+treatment before its own run, per the PI's instruction, in case it
+shares Foursquare's severe padding-ratio exposure to bug #2.
+
+## Superseded (2026-11-10, morning): item 2 gap-filled (YJMob100K + base-table rows), item 7 corrected again (v3), TrajGAN rework (checkpointing/week-grouping/attacker-split) deployed -- GeoLife done, Foursquare/Gowalla in progress against the Nov 16 hard stop
 
 **Item 2: two gaps closed.** (1) YJMob100K had no comparisons at all --
 added ed_soft entropy lambda4 in {0.3,1.0,3.0} vs. its own plain

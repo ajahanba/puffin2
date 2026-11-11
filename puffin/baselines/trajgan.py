@@ -318,7 +318,47 @@ class TrajGANGenerator(nn.Module):
     with a *per-timestep-repeated* noise vector (same noise draw at every
     timestep, exactly as the original's `Concatenate([x, noise])` inside
     the per-timestep loop), then a many-to-many LSTM and three output
-    heads (lat_lon via tanh*scale_factor, weekday/hour via softmax)."""
+    heads (lat_lon via tanh, weekday/hour via softmax).
+
+    **Two bugs found and fixed here (2026-11-10), diagnosed from
+    Foursquare's near-instant (epoch 2-4) collapse under the week-
+    grouping rework** -- a discriminator-accuracy ablation
+    (`scripts/diagnose_foursquare_collapse.py`) confirmed D was
+    exploiting trivial, training-proof artifacts, not genuine
+    adversarial pressure:
+
+    1. **lat_lon output was `tanh(...) * scale_factor`, double-scaled.**
+    `_pad_batch` already normalizes the REAL latlon fed to D to
+    `(point - centroid) / scale_factor`, i.e. [-1, 1] -- the ORIGINAL's
+    own `build_generator` output head is a bare `Dense(2,
+    activation='tanh')`, no rescale; `scale_factor` is only ever
+    reapplied when writing the final CSV (`predict.py`), after
+    training/D-comparison is done. This port's extra `* scale_factor`
+    inside the network meant D compared real latlon in [-1,1] against
+    fake latlon in [-scale_factor, scale_factor] -- directly
+    discriminable by magnitude alone whenever scale_factor != 1 (true on
+    every dataset; Foursquare's is ~0.27). Fixed by dropping the
+    multiply here; `generate_from_generator`'s existing `*scale +
+    centroid` denormalization step (unchanged) now applies it exactly
+    once, as intended.
+
+    2. **No output masking, so fake's weekday/hour heads can never
+    represent "no data."** `_pad_batch` leaves REAL one-hots all-zero
+    at pre-padded (non-existent) positions -- but softmax CANNOT output
+    an all-zero vector (it always sums to 1), so D could trivially tell
+    real from fake at every synthetic-looking all-zero-vs-sums-to-1
+    position, independent of any genuine trajectory signal and
+    un-fixable by further training (softmax is structurally incapable
+    of matching it). This is overwhelming whenever a dataset's real
+    trajectories are much shorter than `max_traj_len` -- confirmed:
+    GeoLife's trip-based chunks average 142/150 points (5.3% padding,
+    the artifact is negligible), Foursquare's week-grouped chunks
+    average ~9.5/150 (94% padding, the artifact dominates almost every
+    position in almost every batch). Fixed by masking every output head
+    to exactly zero at non-real positions, matching the real-data
+    convention exactly; `mask` is optional (default None, no masking)
+    for the one non-pipeline caller (`scripts/profile_trajgan.py`) that
+    doesn't pass it."""
 
     def __init__(self, latent_dim: int = 100, lstm_units: int = 100):
         super().__init__()
@@ -331,7 +371,7 @@ class TrajGANGenerator(nn.Module):
         self.out_weekday = nn.Linear(lstm_units, 7)
         self.out_hour = nn.Linear(lstm_units, 24)
 
-    def forward(self, latlon, weekday_oh, hour_oh, noise, scale_factor: float):
+    def forward(self, latlon, weekday_oh, hour_oh, noise, scale_factor: float, mask=None):
         B, L, _ = latlon.shape
         e = torch.cat([
             F.relu(self.emb_latlon(latlon)),
@@ -341,9 +381,14 @@ class TrajGANGenerator(nn.Module):
         noise_rep = noise.unsqueeze(1).expand(-1, L, -1)
         fused = F.relu(self.fuse(torch.cat([e, noise_rep], dim=-1)))
         lstm_out, _ = self.lstm(fused)
-        gen_latlon = torch.tanh(self.out_latlon(lstm_out)) * scale_factor
+        gen_latlon = torch.tanh(self.out_latlon(lstm_out))
         gen_weekday = F.softmax(self.out_weekday(lstm_out), dim=-1)
         gen_hour = F.softmax(self.out_hour(lstm_out), dim=-1)
+        if mask is not None:
+            m = mask.unsqueeze(-1)
+            gen_latlon = gen_latlon * m
+            gen_weekday = gen_weekday * m
+            gen_hour = gen_hour * m
         return gen_latlon, gen_weekday, gen_hour
 
 
@@ -351,9 +396,11 @@ class TrajGANDiscriminator(nn.Module):
     """Real-vs-synthetic classifier. Mirrors `build_discriminator`: same
     per-field embeddings (no noise, no mask), concatenated, many-to-ONE
     LSTM (final hidden state), sigmoid. Padding is pre-padded zeros for
-    both real and fake inputs identically, so -- as in the original -- the
-    discriminator is never given an explicit mask and simply learns the
-    padding pattern is uninformative."""
+    both real and fake inputs -- genuinely uninformative now that the
+    generator's own output is masked to zero at the same positions (see
+    TrajGANGenerator's docstring, 2026-11-10 fix); before that fix, fake's
+    softmax heads could never actually BE zero there, which is exactly
+    what D was exploiting."""
 
     def __init__(self, lstm_units: int = 100):
         super().__init__()
@@ -420,7 +467,7 @@ def generate_from_generator(G, test_groups, max_traj_len, latent_dim, lat_c, lon
             latlon, weekday_oh, hour_oh, mask = (
                 latlon.to(device), weekday_oh.to(device), hour_oh.to(device), mask.to(device))
             noise = torch.randn(len(idx), latent_dim, device=device)
-            gen_latlon, gen_weekday, gen_hour = G(latlon, weekday_oh, hour_oh, noise, scale)
+            gen_latlon, gen_weekday, gen_hour = G(latlon, weekday_oh, hour_oh, noise, scale, mask)
 
             gen_lat = (gen_latlon[..., 0] * scale + lat_c).cpu().numpy()
             gen_lon = (gen_latlon[..., 1] * scale + lon_c).cpu().numpy()
@@ -574,7 +621,7 @@ def run_trajgan(df: pd.DataFrame, device: torch.device, max_traj_len: int = 150,
             # --- train D ---
             noise = torch.randn(B, latent_dim, device=device)
             with torch.no_grad():
-                fake_latlon, fake_weekday, fake_hour = G(latlon, weekday_oh, hour_oh, noise, scale)
+                fake_latlon, fake_weekday, fake_hour = G(latlon, weekday_oh, hour_oh, noise, scale, mask)
             d_real = D(latlon, weekday_oh, hour_oh)
             d_fake = D(fake_latlon, fake_weekday, fake_hour)
             d_loss = 0.5 * (F.binary_cross_entropy(d_real, torch.ones_like(d_real)) +
@@ -585,7 +632,7 @@ def run_trajgan(df: pd.DataFrame, device: torch.device, max_traj_len: int = 150,
 
             # --- train G ---
             noise = torch.randn(B, latent_dim, device=device)
-            gen_latlon, gen_weekday, gen_hour = G(latlon, weekday_oh, hour_oh, noise, scale)
+            gen_latlon, gen_weekday, gen_hour = G(latlon, weekday_oh, hour_oh, noise, scale, mask)
             d_pred_fake = D(gen_latlon, gen_weekday, gen_hour)
             g_loss = _traj_loss(mask, lengths_t, latlon, gen_latlon, weekday_oh, gen_weekday,
                                  hour_oh, gen_hour, d_pred_fake, p_bce, p_latlon, p_weekday, p_hour)
