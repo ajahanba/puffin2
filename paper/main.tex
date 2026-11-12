@@ -203,7 +203,7 @@ Table~\ref{tab:base} and Figure~\ref{fig:decile} compare Mo-PAE with the no-priv
 
 \begin{table}[t]
 \centering
-\caption{Re-identification risk (top-1, external attacker) before (no-privacy reference) and after Mo-PAE ($\lambda_3=0.3$), for all users and for the most and least predictable entropy deciles. On GeoLife only the change in mean risk is distinguishable from zero (95\% paired bootstrap interval $[-0.018,-0.002]$). \pending{Intervals for the other datasets.}}
+\caption{Re-identification risk (top-1, external attacker) before (no-privacy reference) and after Mo-PAE ($\lambda_3=0.3$), for all users and for the most and least predictable entropy deciles. On Foursquare, Gowalla, and YJMob100K all three changes are distinguishable from zero (95\% paired bootstrap intervals); on GeoLife only the change in mean risk is ($[-0.018,-0.002]$).}
 \label{tab:base}
 \small
 \begin{tabular}{@{}lccc@{}}
@@ -244,7 +244,7 @@ $\lambda_4$ & $\Delta$ utility (Acc@1) & $\Delta$ risk, most predictable decile 
 
 \begin{table*}[t]
 \centering
-\caption{\puffin{} versus Mo-PAE at matched utility (Mo-PAE interpolated along its privacy-weight curve to \puffin's utility). Each cell: Mo-PAE $\to$ \puffin. $^*$95\% paired bootstrap interval of the difference excludes zero (users and encoder seeds resampled; Appendix~\ref{app:cis}). \pending{YJMob100K intervals.} $^\dagger$\puffin's utility lies slightly above Mo-PAE's curve; nearest Mo-PAE point ($\lambda_3=0.3$, utility 0.263) shown, no interval.}
+\caption{\puffin{} versus Mo-PAE at matched utility (Mo-PAE interpolated along its privacy-weight curve to \puffin's utility). Each cell: Mo-PAE $\to$ \puffin. $^*$95\% paired bootstrap interval of the difference excludes zero (users and encoder seeds resampled; Appendix~\ref{app:cis}). $^\dagger$\puffin's utility lies slightly above Mo-PAE's curve; nearest Mo-PAE point ($\lambda_3=0.3$, utility 0.263) shown, no interval.}
 \label{tab:matched}
 \small
 \begin{tabular}{@{}llccc@{}}
@@ -263,9 +263,9 @@ Gowalla & 0.3 (0.266)$^\dagger$ & 0.188 $\to$ 0.201 & 0.360 $\to$ 0.369 & 0.091 
  & 1.0 (0.245) & 0.162 $\to$ 0.223$^*$ & 0.322 $\to$ 0.391$^*$ & 0.072 $\to$ 0.119$^*$ \\
  & 3.0 (0.226) & 0.135 $\to$ 0.203$^*$ & 0.285 $\to$ 0.345 & 0.053 $\to$ 0.085$^*$ \\
 \addlinespace
-YJMob100K & 0.3 (0.183) & 0.578 $\to$ 0.581 & 0.901 $\to$ 0.915 & 0.154 $\to$ 0.148 \\
- & 1.0 (0.183) & 0.577 $\to$ 0.569 & 0.901 $\to$ 0.915 & 0.154 $\to$ 0.116 \\
- & 3.0 (0.184) & 0.582 $\to$ 0.546 & 0.902 $\to$ 0.916 & 0.159 $\to$ 0.091 \\
+YJMob100K & 0.3 (0.183) & 0.578 $\to$ 0.581 & 0.901 $\to$ 0.915$^*$ & 0.154 $\to$ 0.148 \\
+ & 1.0 (0.183) & 0.577 $\to$ 0.569 & 0.901 $\to$ 0.915$^*$ & 0.154 $\to$ 0.116$^*$ \\
+ & 3.0 (0.184) & 0.582 $\to$ 0.546$^*$ & 0.902 $\to$ 0.916$^*$ & 0.159 $\to$ 0.091$^*$ \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -366,7 +366,7 @@ AI tools were used to assist with debugging code and polishing the writing of th
 \appendix
 \section{Bootstrap intervals}
 \label{app:cis}
-Table~\ref{tab:cis} gives the 95\% paired bootstrap intervals behind the markers in Tables~\ref{tab:matched} and~\ref{tab:alternatives}. Each of 2{,}000 replicates draws one vector of users, applied to both the method and Mo-PAE, and resamples encoder seeds within each run (with the same draw for both endpoints of Mo-PAE's interpolation). Differences are computed per user and then averaged; decile membership is fixed. Entries are method minus interpolated Mo-PAE, as bootstrap mean and 95\% interval; negative risk and $D_{\mathrm{abs}}$ differences favor the method. \pending{YJMob100K rows.}
+Table~\ref{tab:cis} gives the 95\% paired bootstrap intervals behind the markers in Tables~\ref{tab:matched} and~\ref{tab:alternatives}. Each of 2{,}000 replicates draws one vector of users, applied to both the method and Mo-PAE, and resamples encoder seeds within each run (with the same draw for both endpoints of Mo-PAE's interpolation). Differences are computed per user and then averaged; decile membership is fixed. Entries are method minus interpolated Mo-PAE, as bootstrap mean and 95\% interval; negative risk and $D_{\mathrm{abs}}$ differences favor the method.
 
 \begin{table*}[h]
 \centering
@@ -409,6 +409,9 @@ Gowalla & Lipschitz ent., 3.0 & $-$0.075 [$-$0.088, $-$0.062]$^*$ & $-$0.055 [$-
 Gowalla & Lipschitz loc., 0.3 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
 Gowalla & Lipschitz loc., 1.0 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
 Gowalla & Lipschitz loc., 3.0 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
+YJMob100K & \puffin{} ent., 0.3 & $+$0.003 [$-$0.008, $+$0.013] & $+$0.014 [$+$0.009, $+$0.020]$^*$ & $-$0.006 [$-$0.021, $+$0.008] & $-$0.002 [$-$0.010, $+$0.005] & $+$0.007 [$+$0.003, $+$0.012]$^*$ \\
+YJMob100K & \puffin{} ent., 1.0 & $-$0.009 [$-$0.019, $+$0.001] & $+$0.014 [$+$0.009, $+$0.019]$^*$ & $-$0.038 [$-$0.051, $-$0.026]$^*$ & $-$0.002 [$-$0.009, $+$0.006] & $+$0.020 [$+$0.015, $+$0.026]$^*$ \\
+YJMob100K & \puffin{} ent., 3.0 & $-$0.036 [$-$0.047, $-$0.027]$^*$ & $+$0.013 [$+$0.008, $+$0.018]$^*$ & $-$0.068 [$-$0.082, $-$0.057]$^*$ & $-$0.003 [$-$0.010, $+$0.004] & $+$0.022 [$+$0.018, $+$0.026]$^*$ \\
 \bottomrule
 \end{tabular}}
 \end{table*}
