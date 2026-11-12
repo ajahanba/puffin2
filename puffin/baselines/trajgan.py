@@ -590,6 +590,24 @@ def run_trajgan(df: pd.DataFrame, device: torch.device, max_traj_len: int = 150,
     if len(train_groups) == 0 or len(test_groups) == 0:
         raise ValueError("run_trajgan: need at least one usable trajectory in each split")
 
+    # PI-caught bug (2026-11-12): _cached_trajectory_chunks always uses
+    # min_traj_len=1 for TEST chunks but the caller's min_traj_len (e.g. 2
+    # for week-grouped Foursquare/Gowalla) for TRAIN chunks -- fine when
+    # train_groups is only ever used to TRAIN the GAN (a (user, week)
+    # group with a single point has no next-step signal anyway), but once
+    # a synthetic TRAIN release also needs to be generated and compared
+    # point-for-point against the real train windows (PI instruction,
+    # 2026-11-11), that filtering silently drops those single-point
+    # groups' points from the release -- breaking window alignment
+    # (caught via run_trajgan_current_protocol.py's assertion). min_traj_
+    # len only affects which groups are INCLUDED, never chunk boundaries
+    # for groups that already qualify, so this min_traj_len=1 variant is
+    # IDENTICAL to train_groups for every group with >=2 points -- it only
+    # adds back the ones min_traj_len=2 excluded. Used for GENERATION
+    # only; the GAN itself still trains on the narrower train_groups.
+    train_groups_for_generation, _ = _cached_trajectory_chunks(
+        df, max_traj_len, min_traj_len=1, cache_dir=cache_dir, cache_key=cache_key + "_gen", group_by=group_by)
+
     lat_c, lon_c, scale = _latlon_centroid_scale(train_groups, test_groups)
 
     G = TrajGANGenerator(latent_dim, lstm_units).to(device)
@@ -650,7 +668,11 @@ def run_trajgan(df: pd.DataFrame, device: torch.device, max_traj_len: int = 150,
             torch.cuda.synchronize()
         epoch_times.append(_time.time() - _epoch_t0)
         actual_epoch_num = epoch + 1
-        if checkpoint_every and actual_epoch_num % checkpoint_every == 0:
+        # Always checkpoint the FINAL epoch too, regardless of checkpoint_every's
+        # divisibility -- callers that reload "the last checkpoint" to reuse
+        # trained weights without retraining (PI instruction, 2026-11-11) must
+        # be able to find the true final epoch's weights unconditionally.
+        if (checkpoint_every and actual_epoch_num % checkpoint_every == 0) or actual_epoch_num == max_epochs:
             checkpoints[actual_epoch_num] = {k: v.detach().cpu().clone() for k, v in G.state_dict().items()}
 
     # --- generate synthetic counterparts of every test trajectory, using
@@ -666,8 +688,9 @@ def run_trajgan(df: pd.DataFrame, device: torch.device, max_traj_len: int = 150,
         d_loss_history=d_loss_history,
         g_loss_history=g_loss_history,
         checkpoints=checkpoints,
-        regen_state=dict(test_groups=test_groups, max_traj_len=max_traj_len, latent_dim=latent_dim,
-                          lstm_units=lstm_units, lat_c=lat_c, lon_c=lon_c, scale=scale),
+        regen_state=dict(test_groups=test_groups, train_groups=train_groups_for_generation,
+                          max_traj_len=max_traj_len, latent_dim=latent_dim, lstm_units=lstm_units,
+                          lat_c=lat_c, lon_c=lon_c, scale=scale),
         **gen_fields,
         final_d_loss=d_loss_history[-1] if d_loss_history else float("nan"),
         final_g_loss=g_loss_history[-1] if g_loss_history else float("nan"),

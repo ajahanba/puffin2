@@ -1,30 +1,44 @@
 #!/usr/bin/env python
-"""TrajGAN baseline, current protocol, per the PI's instruction (2026-11-08).
-One (dataset) per invocation. Mirrors run_gi_dp_current_protocol.py's
-shape so every downstream analysis script works unchanged.
+"""TrajGAN baseline, current protocol, per the PI's instruction (2026-11-08,
+revised 2026-11-11). One (dataset) per invocation. Mirrors
+run_gi_dp_current_protocol.py's shape so every downstream analysis script
+works unchanged.
 
-The generator trains ONCE on the REAL train split (seed=0, fixed) and
-produces ONE synthetic counterpart of the real test split -- there is
-no synthetic train release (run_trajgan's own design: the generator is
-fit once on real historical data; only the test-period release is
-synthetic). Per the PI's explicit choice (2026-11-08), given that
-asymmetry:
+**Revised 2026-11-11 (PI correction): the ORIGINAL design below (real
+train, synthetic test only) made utility look like an artifact of the
+generator rather than of the protocol.** The predictor trained on REAL
+train windows but was evaluated on SYNTHETIC test windows whose cells
+are mostly unseen (embedding vocab 160k-205k vs. the original 85k for
+GeoLife) -- those extra cells' embeddings are untrained, so utility
+measured ~0.0003 regardless of how good the generator actually is. Now
+aligned with GI-DP's own protocol exactly: the SAME trained generator
+also releases a synthetic counterpart of the TRAIN split (not just
+test), and both utility and risk are computed entirely from the two
+synthetic releases against TRUE labels, mirroring run_gi_dp_current_
+protocol.py's perturbed_windows/original_windows["*"]["next_cell"]
+pattern one for one.
 
 Utility: next-location Acc@1 of the SAME predictor architecture
-(FixedEncoder + MLPHead) used everywhere else, trained on the REAL
-train windows (no mechanism applied to training, since no synthetic
-train exists), evaluated on the SYNTHETIC test windows against the
-TRUE (real) next-location labels -- same "what does a consumer of the
-release actually get" question as GI-DP, just answered with the real
-train split standing in where GI-DP would have had a perturbed train.
-3 predictor-init seeds, same early-stopping protocol as everywhere else.
+(FixedEncoder + MLPHead) used everywhere else, trained on the SYNTHETIC
+train windows against the TRUE (real) next-location labels, evaluated
+on the SYNTHETIC test windows against TRUE labels -- exactly GI-DP's
+protocol, with the synthetic release standing in for GI-DP's perturbed
+release. 3 predictor-init seeds, same early-stopping protocol as
+everywhere else.
 
-Risk: the SAME strongest-per-user external attacker, trained AND tested
-on an internal 50/50 CHRONOLOGICAL split carved out of the synthetic
-test release itself (there is no synthetic train to split against
-instead) -- the earlier half of the release is attacker-train, the
-later half attacker-test, via the same _chronological_val_split utility
-used for early-stopping elsewhere in this project.
+Risk: the SAME strongest-per-user external attacker, trained on the
+synthetic TRAIN release and tested on the synthetic TEST release --
+exactly GI-DP's protocol. No internal 50/50 split (the 2026-11-09
+Gowalla min-4 split existed only because no synthetic train release
+existed yet; it's gone now that one does).
+
+The trained generator's weights are checkpointed every 5 epochs (and
+always at the final epoch) and persisted to `<out-dir>/
+generator_checkpoints.pt` -- pass `--reuse-generator-checkpoints
+<path>` to skip GAN training entirely and regenerate both releases
+from previously-saved weights (e.g. after a protocol change like this
+one that doesn't touch the generator itself); this run records whether
+it did so in protocol_tag.json.
 
 The generator's own grid-cell tessellation is NOT reused here (it
 builds an independent mapping per call, the same bug class fixed in
@@ -179,33 +193,6 @@ def train_predictor(real_train, true_next_cell_tr, embedding_vocab, output_vocab
     return encoder, head, actual_epochs
 
 
-def split_attacker_windows_min4(ts, user, rng):
-    """PI instruction (2026-11-09), Gowalla attacker crash fix: any user
-    with FEWER THAN 4 total windows in the synthetic release goes
-    ENTIRELY into the attacker's training half -- they remain candidate
-    classes for the classifier (total_users unchanged) but get no test
-    windows, so they are never scored (same as every other mechanism's
-    standard >=10-test-window reporting filter already excludes very
-    low-window users). Users with >=4 windows are split by floor(n/2)
-    so EACH half gets >=2 -- the generic round(0.5*n) formula used
-    elsewhere in this project can leave as few as 1 in a half for
-    n in {2,3}, which is what crashed sklearn's internal stratified
-    early-stopping split (a class with only 1 member)."""
-    train_idx, test_idx = [], []
-    tie_break = rng.random(len(ts))
-    for u in np.unique(user):
-        idx = np.where(user == u)[0]
-        n = len(idx)
-        if n < 4:
-            train_idx.extend(idx.tolist())
-            continue
-        order = idx[np.lexsort((tie_break[idx], ts[idx]))]
-        n_test = n // 2
-        test_idx.extend(order[-n_test:].tolist())
-        train_idx.extend(order[:-n_test].tolist())
-    return np.array(sorted(train_idx)), np.array(sorted(test_idx))
-
-
 def eval_utility(encoder, head, synthetic_test, true_next_cell_te, device, batch_size=1024):
     encoder.eval(); head.eval()
     n = len(synthetic_test["user"])
@@ -249,6 +236,11 @@ def main():
                           "week-grouped datasets per the PI's instruction (train on all "
                           "weekly trajectories with >=2 points)")
     ap.add_argument("--trajgan-checkpoint-every", type=int, default=5)
+    ap.add_argument("--reuse-generator-checkpoints", default=None,
+                     help="path to a previously-saved <out-dir>/generator_checkpoints.pt -- "
+                          "skips GAN training entirely and regenerates both releases from "
+                          "those weights (PI instruction 2026-11-11: never retrain the GAN "
+                          "for a protocol change that doesn't touch the generator)")
     ap.add_argument("--encoder-seeds", type=str, default="0,1,2")
     ap.add_argument("--attacker-seeds", type=str, default="0,1,2,3,4")
     ap.add_argument("--device", default="cpu")
@@ -271,70 +263,81 @@ def main():
     original_total_locations = max(original_mapping.values())
     print(f"{tag} total_locations={original_total_locations}, building ORIGINAL windows...", flush=True)
 
-    original_windows = build_sl_windows(df, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
-                                         respect_traj_boundary=False)
-    # PI-caught bug (2026-11-09, confirmed via diagnostic): build_sl_windows
-    # shares ONE sequentially-advancing rng across train+test, so
-    # original_windows["test"]'s random per-user subsample draws happen
-    # AFTER consuming rng state from the entire train split's sampling --
-    # while the synthetic release below is windowed in ISOLATION (a
-    # single-split call, fresh rng). That rng-position mismatch (not
-    # chunking, not ordering -- the underlying point sets matched exactly,
-    # confirmed by set comparison) is what broke the alignment assertion.
-    # Recompute the TRUE test windows the same isolated way so both sides
-    # start from equivalent rng state.
-    _test_only = df[df["split"] == "test"].copy()
-    _test_only["split"] = "train"
-    # PI-caught bug (2026-11-11), same root cause as the comment above but
-    # resurfacing at a DIFFERENT comparison: build_sl_windows's internal
-    # groupby(sort=False) iterates users in frame row-order, consuming the
-    # module's max_windows_per_user rng one draw per user that exceeds the
-    # cap -- so for datasets whose raw rows AREN'T already user_id-sorted
-    # (Foursquare's real split; GeoLife's/Gowalla's happen to be, which
-    # masked this for them), the rng draw sequence depends on incidental
-    # row order. The synthetic release reassembled below (from week- or
-    # trajectory-grouped chunks) IS user_id-sorted, so sorting here too
-    # keeps both sides' user-iteration order identical regardless of the
-    # real data's own incidental order -- a LOCAL fix, not a change to
-    # windowing.py's shared groupby (which every other mechanism also
-    # calls; changing its order there would silently shift Foursquare's
-    # existing non-TrajGAN subsampled results too).
-    _test_only = _test_only.sort_values(["user_id", "ts"])
-    original_windows["test"] = build_sl_windows(
-        _test_only, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
-        respect_traj_boundary=False)["train"]
+    # PI-caught bugs (2026-11-09 rng-position; 2026-11-11 row-order-
+    # dependence): build_sl_windows's max_windows_per_user subsampling rng
+    # draw depends on (a) sharing one rng across train+test (test draws
+    # AFTER consuming train's rng state) and (b) the internal groupby's
+    # iteration order, which follows the input dataframe's OWN row order.
+    # The synthetic releases built below are reassembled from grouped
+    # chunks and come out user_id-sorted regardless of the real data's own
+    # order -- so EACH real split is rebuilt here in ISOLATION (one
+    # build_sl_windows call per split, a single-split frame) and SORTED by
+    # [user_id, ts] first, matching the synthetic side exactly regardless
+    # of whether the dataset's raw row order happens to already be sorted
+    # (GeoLife/Gowalla are; Foursquare's train AND test splits are not --
+    # confirmed 202 and 9 users respectively exceed the 200-window cap
+    # there, so this isn't cosmetic for Foursquare).
+    original_windows = {}
+    for split_name in ("train", "test"):
+        split_only = df[df["split"] == split_name].copy()
+        split_only["split"] = "train"  # single-split isolation trick, see above
+        split_only = split_only.sort_values(["user_id", "ts"])
+        original_windows[split_name] = build_sl_windows(
+            split_only, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
+            respect_traj_boundary=False)["train"]
     prep_stage_seconds = time.time() - _stage_t0
     print(f"{tag} STAGE windowing/prep: {prep_stage_seconds:.1f}s", flush=True)
 
-    print(f"{tag} training LSTM-TrajGAN (seed={args.trajgan_seed}, {args.trajgan_epochs} epochs)...", flush=True)
-    t0 = time.time()
     cache_dir = pathlib.Path(args.out_dir).parent / "_trajgan_groups_cache"
     train_min_traj_len = (args.trajgan_train_min_traj_len if args.trajgan_train_min_traj_len is not None
                            else args.sl + 1)
-    synthetic_df, trajgan_summary = run_trajgan(
-        df, device, max_traj_len=150, min_traj_len=train_min_traj_len,
-        max_epochs=args.trajgan_epochs, seed=args.trajgan_seed,
-        cache_dir=cache_dir, cache_key=args.dataset,
-        group_by=args.trajgan_group_by, checkpoint_every=args.trajgan_checkpoint_every)
-    gan_stage_seconds = time.time() - t0
-    mean_epoch_s = trajgan_summary["mean_epoch_time_seconds"]
-    print(f"{tag} STAGE generator training: {gan_stage_seconds:.1f}s total, "
-          f"{mean_epoch_s:.2f}s/epoch mean over {len(trajgan_summary['epoch_times_seconds'])} epochs, "
-          f"n_train_chunks={trajgan_summary['n_train_chunks']}, n_test_chunks={trajgan_summary['n_test_chunks']}, "
-          f"final_d_loss={trajgan_summary['final_d_loss']:.4f}, final_g_loss={trajgan_summary['final_g_loss']:.4f}, "
-          f"weekday_acc={trajgan_summary['weekday_argmax_accuracy']:.4f}, "
-          f"hour_acc={trajgan_summary['hour_argmax_accuracy']:.4f}", flush=True)
-    print(f"{tag} chunk counts (group_by={args.trajgan_group_by}, train_min_traj_len={train_min_traj_len}): "
-          f"n_train_chunks={trajgan_summary['n_train_chunks']}, n_test_chunks={trajgan_summary['n_test_chunks']}",
-          flush=True)
-    print(f"{tag} STAGE synthetic generation: {trajgan_summary['generation_time_seconds']:.1f}s", flush=True)
-
     out_dir = pathlib.Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    reused_checkpoints = args.reuse_generator_checkpoints is not None
+    if reused_checkpoints:
+        print(f"{tag} reusing saved generator checkpoints from {args.reuse_generator_checkpoints} "
+              f"-- skipping GAN training entirely (PI instruction, 2026-11-11)", flush=True)
+        saved = torch.load(args.reuse_generator_checkpoints, map_location="cpu")
+        checkpoints, regen_state, trajgan_summary = saved["checkpoints"], saved["regen_state"], saved["trajgan_summary"]
+        mean_epoch_s = trajgan_summary["mean_epoch_time_seconds"]
+        print(f"{tag} loaded {len(checkpoints)} checkpoints (epochs {sorted(checkpoints.keys())}); "
+              f"original training: {mean_epoch_s:.2f}s/epoch mean, "
+              f"final_d_loss={trajgan_summary['final_d_loss']:.4f}, final_g_loss={trajgan_summary['final_g_loss']:.4f}",
+              flush=True)
+    else:
+        print(f"{tag} training LSTM-TrajGAN (seed={args.trajgan_seed}, {args.trajgan_epochs} epochs)...", flush=True)
+        t0 = time.time()
+        _, trajgan_summary = run_trajgan(
+            df, device, max_traj_len=150, min_traj_len=train_min_traj_len,
+            max_epochs=args.trajgan_epochs, seed=args.trajgan_seed,
+            cache_dir=cache_dir, cache_key=args.dataset,
+            group_by=args.trajgan_group_by, checkpoint_every=args.trajgan_checkpoint_every)
+        gan_stage_seconds = time.time() - t0
+        mean_epoch_s = trajgan_summary["mean_epoch_time_seconds"]
+        print(f"{tag} STAGE generator training: {gan_stage_seconds:.1f}s total, "
+              f"{mean_epoch_s:.2f}s/epoch mean over {len(trajgan_summary['epoch_times_seconds'])} epochs, "
+              f"n_train_chunks={trajgan_summary['n_train_chunks']}, n_test_chunks={trajgan_summary['n_test_chunks']}, "
+              f"final_d_loss={trajgan_summary['final_d_loss']:.4f}, final_g_loss={trajgan_summary['final_g_loss']:.4f}, "
+              f"weekday_acc={trajgan_summary['weekday_argmax_accuracy']:.4f}, "
+              f"hour_acc={trajgan_summary['hour_argmax_accuracy']:.4f}", flush=True)
+        print(f"{tag} chunk counts (group_by={args.trajgan_group_by}, train_min_traj_len={train_min_traj_len}): "
+              f"n_train_chunks={trajgan_summary['n_train_chunks']}, n_test_chunks={trajgan_summary['n_test_chunks']}",
+              flush=True)
+        checkpoints = trajgan_summary.pop("checkpoints")  # {epoch: state_dict}, NOT json-serializable -- strip before any write
+        regen_state = trajgan_summary.pop("regen_state")
+        # PI instruction (2026-11-11): never retrain the GAN for a protocol
+        # change that doesn't touch the generator itself -- persist the
+        # trained weights so a future run can pass --reuse-generator-
+        # checkpoints instead of training from scratch again.
+        torch.save(dict(checkpoints=checkpoints, regen_state=regen_state, trajgan_summary=trajgan_summary),
+                   out_dir / "generator_checkpoints.pt")
+        print(f"{tag} saved generator checkpoints to {out_dir / 'generator_checkpoints.pt'} "
+              f"(epochs {sorted(checkpoints.keys())}) for future reuse", flush=True)
+
     collapse_check = check_gan_collapse(trajgan_summary["d_loss_history"], trajgan_summary["g_loss_history"])
-    checkpoints = trajgan_summary.pop("checkpoints")  # {epoch: state_dict}, NOT json-serializable -- strip before any write
-    regen_state = trajgan_summary.pop("regen_state")
     checkpoint_used, non_converged = None, False
+    final_epoch = max(checkpoints.keys())
 
     if collapse_check["flagged"]:
         onset = collapse_check["onset_epoch"]
@@ -347,22 +350,14 @@ def main():
         if eligible:
             checkpoint_used = max(eligible)
             print(f"{tag} GENERATOR COLLAPSE FLAGGED (seed={args.trajgan_seed}), onset_epoch={onset}: "
-                  f"{collapse_check} -- using checkpoint at epoch {checkpoint_used}", flush=True)
-            G_ckpt = TrajGANGenerator(regen_state["latent_dim"], regen_state["lstm_units"]).to(device)
-            G_ckpt.load_state_dict({k: v.to(device) for k, v in checkpoints[checkpoint_used].items()})
-            synthetic_df, gen_fields, regen_time = generate_from_generator(
-                G_ckpt, regen_state["test_groups"], regen_state["max_traj_len"], regen_state["latent_dim"],
-                regen_state["lat_c"], regen_state["lon_c"], regen_state["scale"], device)
-            trajgan_summary.update(gen_fields)
-            trajgan_summary["generation_time_seconds"] += regen_time
-            print(f"{tag} regenerated synthetic release from checkpoint epoch {checkpoint_used} "
-                  f"in {regen_time:.1f}s", flush=True)
+                  f"{collapse_check} -- using checkpoint at epoch {checkpoint_used} for generation", flush=True)
         else:
             non_converged = True
             print(f"{tag} GENERATOR COLLAPSE FLAGGED (seed={args.trajgan_seed}), onset_epoch={onset}: "
                   f"{collapse_check} -- NO checkpoint satisfies (<=onset-5 AND >=30); "
                   f"marking seed {args.trajgan_seed} NON-CONVERGED (not retrying with a different seed).",
                   flush=True)
+    gen_epoch = checkpoint_used if checkpoint_used is not None else final_epoch
 
     (out_dir / "loss_curve.json").write_text(json.dumps(dict(
         trajgan_seed=args.trajgan_seed,
@@ -382,6 +377,9 @@ def main():
         trajgan_seed=args.trajgan_seed, trajgan_group_by=args.trajgan_group_by,
         train_min_traj_len=train_min_traj_len, checkpoint_every=args.trajgan_checkpoint_every,
         collapse_onset_epoch=collapse_check.get("onset_epoch"), checkpoint_used=checkpoint_used,
+        generation_epoch_used=gen_epoch,
+        reused_generator_checkpoints=reused_checkpoints,
+        reused_generator_checkpoints_path=args.reuse_generator_checkpoints,
         non_converged=non_converged, protocol_ok=not non_converged,
         usable=not non_converged,
         usable_note=("non-converged: collapse onset within 5 epochs of the earliest eligible "
@@ -395,53 +393,66 @@ def main():
             f"no checkpoint epoch satisfies <= onset-5 and >= 30) -- see {out_dir}/loss_curve.json. "
             f"Per the PI's instruction, not attacking a collapsed release and not retrying with a new seed.")
 
-    if args.profiled_epoch_seconds is not None and mean_epoch_s > 10 * args.profiled_epoch_seconds:
+    if (not reused_checkpoints) and args.profiled_epoch_seconds is not None and mean_epoch_s > 10 * args.profiled_epoch_seconds:
         raise RuntimeError(
             f"{tag} STOP: mean epoch time {mean_epoch_s:.2f}s is more than 10x the profiled "
             f"rate ({args.profiled_epoch_seconds:.2f}s) -- per the PI's instruction (2026-11-09), "
             f"halting before the attacker phases rather than continuing into what caused the "
             f"original 7.2h/2-epoch slowdown. Report this and investigate before relaunching.")
 
+    # Generate BOTH synthetic releases (train and test) from the selected
+    # checkpoint's generator -- PI correction (2026-11-11): the original
+    # design only ever released a synthetic test counterpart, which made
+    # utility look like a generator artifact (evaluated on mostly-unseen
+    # cells with untrained embeddings) rather than reflecting the
+    # generator's actual quality. Now mirrors run_gi_dp_current_protocol.py
+    # exactly: both releases, both compared against TRUE labels.
+    G_used = TrajGANGenerator(regen_state["latent_dim"], regen_state["lstm_units"]).to(device)
+    G_used.load_state_dict({k: v.to(device) for k, v in checkpoints[gen_epoch].items()})
+    print(f"{tag} generating synthetic train+test releases from epoch {gen_epoch} generator "
+          f"({'reused checkpoint' if reused_checkpoints else 'this run'})...", flush=True)
+    t_gen0 = time.time()
+    synthetic_test_df, _test_gen_fields, test_gen_time = generate_from_generator(
+        G_used, regen_state["test_groups"], regen_state["max_traj_len"], regen_state["latent_dim"],
+        regen_state["lat_c"], regen_state["lon_c"], regen_state["scale"], device)
+    synthetic_train_df, _train_gen_fields, train_gen_time = generate_from_generator(
+        G_used, regen_state["train_groups"], regen_state["max_traj_len"], regen_state["latent_dim"],
+        regen_state["lat_c"], regen_state["lon_c"], regen_state["scale"], device)
+    print(f"{tag} STAGE synthetic generation: {time.time() - t_gen0:.1f}s "
+          f"(test={test_gen_time:.1f}s, train={train_gen_time:.1f}s)", flush=True)
+    trajgan_summary.update({f"test_{k}": v for k, v in _test_gen_fields.items()})
+    trajgan_summary.update({f"train_{k}": v for k, v in _train_gen_fields.items()})
+
     # Re-tessellate with the ORIGINAL mapping, extended for any new cells --
     # run_trajgan's own internal assign_grid_cells call builds an independent
     # mapping, which would make cell ids incomparable to the true labels.
-    synthetic_df = synthetic_df[["user_id", "traj_id", "ts", "lat", "lon", "weekday", "hour"]].copy()
-    synthetic_df["split"] = "train"  # arbitrary single-split label; this IS the whole release
-    # See the matching sort on _test_only above -- same fix, same reason:
-    # keeps user-iteration order (and therefore max_windows_per_user's rng
-    # draw sequence) identical to _test_only's, independent of how the
-    # chunking above happened to order rows.
-    synthetic_df = synthetic_df.sort_values(["user_id", "ts"])
-    synthetic_df = assign_grid_cells(synthetic_df, resolution_deg=0.01, existing_mapping=original_mapping)
-    embedding_vocab = max(original_total_locations, int(synthetic_df["cell_id"].max()))
+    def _retessellate(sdf):
+        sdf = sdf[["user_id", "traj_id", "ts", "lat", "lon", "weekday", "hour"]].copy()
+        sdf["split"] = "train"  # single-split isolation trick, see original_windows above
+        # Same sort fix as original_windows: keeps user-iteration order (and
+        # therefore max_windows_per_user's rng draw sequence) identical to
+        # the real split's, independent of how the chunking above ordered rows.
+        sdf = sdf.sort_values(["user_id", "ts"])
+        return assign_grid_cells(sdf, resolution_deg=0.01, existing_mapping=original_mapping)
+
+    synthetic_test_df = _retessellate(synthetic_test_df)
+    synthetic_train_df = _retessellate(synthetic_train_df)
+    embedding_vocab = max(original_total_locations, int(synthetic_test_df["cell_id"].max()),
+                           int(synthetic_train_df["cell_id"].max()))
     print(f"{tag} embedding vocab after synthesis: {embedding_vocab} "
           f"(output vocab stays at the original {original_total_locations})", flush=True)
 
-    synth_windows_raw = build_sl_windows(synthetic_df, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
-                                          respect_traj_boundary=False)
-    synthetic_test = synth_windows_raw["train"]  # the single split we labeled "train" above
-    assert np.array_equal(synthetic_test["user"], original_windows["test"]["user"]), \
-        f"{tag} window alignment broke between real test and synthetic release -- cannot pair true labels"
-    assert np.array_equal(synthetic_test["ts"], original_windows["test"]["ts"]), \
-        f"{tag} window alignment broke (ts)"
-    print(f"{tag} window alignment verified ({len(synthetic_test['user'])} synthetic test windows, "
-          f"{len(original_windows['train']['user'])} real train windows)", flush=True)
-
-    # Attacker's own internal split: carved out of the synthetic release itself
-    # (no synthetic train exists). PI instruction (2026-11-09), Gowalla
-    # attacker crash fix: users with <4 total windows go entirely into
-    # train (remain candidate classes, never scored); others split so
-    # each half gets >=2 -- see split_attacker_windows_min4's docstring.
-    attacker_rng = np.random.default_rng(0)
-    atk_train_idx, atk_test_idx = split_attacker_windows_min4(
-        synthetic_test["ts"], synthetic_test["user"], attacker_rng)
-    attacker_windows = {
-        "train": {k: v[atk_train_idx] for k, v in synthetic_test.items()},
-        "test": {k: v[atk_test_idx] for k, v in synthetic_test.items()},
-    }
-    print(f"{tag} attacker internal split: {len(atk_train_idx)} train / {len(atk_test_idx)} test "
-          f"(carved from the synthetic release); candidate set size (total_users)={total_users} "
-          f"-- confirm this matches the other mechanisms' total_users for this dataset", flush=True)
+    synthetic_windows = {}
+    for split_name, sdf in (("train", synthetic_train_df), ("test", synthetic_test_df)):
+        w = build_sl_windows(sdf, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
+                              respect_traj_boundary=False)["train"]
+        assert np.array_equal(w["user"], original_windows[split_name]["user"]), \
+            f"{tag} {split_name}: window alignment broke between real and synthetic release -- cannot pair true labels"
+        assert np.array_equal(w["ts"], original_windows[split_name]["ts"]), \
+            f"{tag} {split_name}: window alignment broke (ts)"
+        synthetic_windows[split_name] = w
+    print(f"{tag} window alignment verified ({len(synthetic_windows['train']['user'])} train, "
+          f"{len(synthetic_windows['test']['user'])} test synthetic windows)", flush=True)
 
     feats = compute_mobility_features(df[df["split"] == "train"])
     entropy_by_user = dict(zip(feats.user_id, feats.s_unc))
@@ -455,19 +466,25 @@ def main():
     utilities, actual_epochs_list, per_encoder_seed_post = [], [], []
     for enc_seed in encoder_seeds:
         t0 = time.time()
-        print(f"{tag} encoder seed {enc_seed}: training predictor on REAL train...", flush=True)
+        print(f"{tag} encoder seed {enc_seed}: training predictor on SYNTHETIC train "
+              f"(true next-cell labels)...", flush=True)
         encoder, head, actual_epochs = train_predictor(
-            original_windows["train"], original_windows["train"]["next_cell"],
+            synthetic_windows["train"], original_windows["train"]["next_cell"],
             embedding_vocab, original_total_locations, device, enc_seed,
             max_epochs=args.max_epochs, patience=args.patience, min_epochs=args.min_epochs, val_frac=args.val_frac)
-        utility = eval_utility(encoder, head, synthetic_test, original_windows["test"]["next_cell"], device)
+        utility = eval_utility(encoder, head, synthetic_windows["test"], original_windows["test"]["next_cell"], device)
         utilities.append(utility)
         actual_epochs_list.append(actual_epochs)
         print(f"{tag} encoder seed {enc_seed}: stopped after {actual_epochs} epochs, utility={utility:.4f}, "
-              f"post attacker ({len(attacker_seeds)} seeds) on synthetic release...", flush=True)
+              f"post attacker ({len(attacker_seeds)} seeds) trained on synthetic train, "
+              f"tested on synthetic test...", flush=True)
 
+        # PI instruction (2026-11-11): train on the synthetic TRAIN release,
+        # test on the synthetic TEST release -- exactly GI-DP's protocol, no
+        # internal 50/50 split (that only ever existed because no synthetic
+        # train release existed yet).
         post_df, _ = train_raw_attacker_strongest_per_user(
-            attacker_windows, embedding_vocab, total_users, device, seeds=attacker_seeds,
+            synthetic_windows, embedding_vocab, total_users, device, seeds=attacker_seeds,
             max_epochs=args.attack_epochs, patience=6)
         post_df = post_df.rename(columns={"raw_top1": f"post_top1_encseed{enc_seed}"})
         per_encoder_seed_post.append(post_df[["user_id", f"post_top1_encseed{enc_seed}"]])
@@ -483,11 +500,9 @@ def main():
     n_total = len(feats)
     merged["entropy_decile"] = pd.qcut(merged["s_unc"], 10, labels=False, duplicates="drop")
 
-    test_counts = pd.Series(original_windows["test"]["user"]).value_counts()
+    test_counts = pd.Series(synthetic_windows["test"]["user"]).value_counts()
     merged["n_windows"] = merged["user_id"].map(lambda u: int(test_counts.get(u - 1, 0)))
 
-    out_dir = pathlib.Path(args.out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
     merged.to_csv(out_dir / "per_user_04d.csv", index=False)
 
     result = dict(
@@ -501,7 +516,9 @@ def main():
         utility_per_encoder_seed=utilities,
         n_users_before_filter=n_total, n_users_after_filter=len(merged),
         output_vocab_size=original_total_locations, embedding_vocab_size=embedding_vocab,
-        attacker_internal_split_sizes=dict(train=len(atk_train_idx), test=len(atk_test_idx)),
+        synthetic_window_counts=dict(train=len(synthetic_windows["train"]["user"]),
+                                      test=len(synthetic_windows["test"]["user"])),
+        reused_generator_checkpoints=reused_checkpoints, generation_epoch_used=gen_epoch,
     )
     (out_dir / "summary.json").write_text(json.dumps(result, indent=2, default=float))
     print(json.dumps(result, indent=2, default=float))

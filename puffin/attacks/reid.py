@@ -346,22 +346,7 @@ def _train_gbt_attacker(windows: dict, total_users: int, seed: int, max_iter: in
     X_tr = np.concatenate([tr["cell"], tr["weekday"], tr["hour"]], axis=1).astype(np.float64)
     y_tr = tr["user"]
 
-    # PI-caught bug (2026-11-11), TrajGAN/Gowalla: split_attacker_windows_min4
-    # correctly sends every candidate with <4 total windows ENTIRELY into
-    # train (so they remain a valid class, never scored) -- but a user with
-    # EXACTLY 1 window (93 of them for Gowalla-SF-Bay under week-grouping)
-    # becomes a singleton class in y_tr, which crashes sklearn's internal
-    # stratified early-stopping split ("least populated class... has only
-    # 1 member"), a DIFFERENT split than the one min-4 was designed to fix.
-    # early_stopping requires every class to have >=2 train examples; fall
-    # back to no early stopping (train the full max_iter, no validation-
-    # monitored stop) only when that's violated -- a conservative, always-
-    # safe fallback that changes nothing for any split that was already
-    # fine (no dataset/mechanism this project has run before hit this).
-    _, _counts = np.unique(y_tr, return_counts=True)
-    use_early_stopping = bool(_counts.min() >= 2) if len(_counts) else True
-
-    clf = HistGradientBoostingClassifier(max_iter=max_iter, early_stopping=use_early_stopping,
+    clf = HistGradientBoostingClassifier(max_iter=max_iter, early_stopping=True,
                                           validation_fraction=validation_fraction, random_state=seed)
     clf.fit(X_tr, y_tr)
 
