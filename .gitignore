@@ -12,3 +12,4 @@ legacy/POIPrivacy/
 legacy/MainTUL/
 legacy/LSTM-TrajGAN/
 reports/figures/yjmob100k_sample/similarities.npz
+paper/data/pooled/
