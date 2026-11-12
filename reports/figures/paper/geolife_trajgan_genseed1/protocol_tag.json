@@ -1,0 +1,14 @@
+{
+  "git_commit": "99f98f3b033fb998638f69c90dcc38307af0b76a",
+  "git_commit_inferred": false,
+  "trajgan_seed": 1,
+  "trajgan_group_by": "trajectory",
+  "train_min_traj_len": 11,
+  "checkpoint_every": 5,
+  "collapse_onset_epoch": null,
+  "checkpoint_used": null,
+  "non_converged": false,
+  "protocol_ok": true,
+  "usable": true,
+  "usable_note": "trained under the checkpoint-aware collapse protocol"
+}

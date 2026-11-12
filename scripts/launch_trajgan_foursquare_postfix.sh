@@ -23,7 +23,7 @@ for genseed in 0 1 2; do
     echo "$(date) SKIP (already done): $out_name" >> "$LOG"
   else
     rm -rf "$out"
-    echo "$(date) LAUNCH $out_name gpu=1 (post-fix generator, week-grouping)" >> "$LOG"
+    echo "$(date) LAUNCH $out_name gpu=0 (post-fix generator, week-grouping)" >> "$LOG"
     .venv/bin/python scripts/run_trajgan_current_protocol.py \
       --dataset foursquare --parquet data/processed/foursquare/unified.parquet --out-dir "$out" \
       --no-privacy-run-dir reports/figures/retraining_to_convergence/foursquare_no_privacy \
@@ -31,7 +31,7 @@ for genseed in 0 1 2; do
       --attack-epochs 25 --trajgan-epochs $EPOCH_BUDGET --trajgan-seed $genseed \
       --trajgan-group-by week --trajgan-train-min-traj-len 2 \
       --encoder-seeds 0,1,2 --attacker-seeds 0,1,2,3,4 \
-      --device cuda:1 \
+      --device cuda:0 \
       > "logs/paper/${out_name}_postfix.log" 2>&1 &
     JOB_PID=$!
     .venv/bin/python scripts/job_watchdog.py --pid $JOB_PID --expected-seconds $EXPECTED_SECONDS \

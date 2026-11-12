@@ -285,6 +285,21 @@ def main():
     # start from equivalent rng state.
     _test_only = df[df["split"] == "test"].copy()
     _test_only["split"] = "train"
+    # PI-caught bug (2026-11-11), same root cause as the comment above but
+    # resurfacing at a DIFFERENT comparison: build_sl_windows's internal
+    # groupby(sort=False) iterates users in frame row-order, consuming the
+    # module's max_windows_per_user rng one draw per user that exceeds the
+    # cap -- so for datasets whose raw rows AREN'T already user_id-sorted
+    # (Foursquare's real split; GeoLife's/Gowalla's happen to be, which
+    # masked this for them), the rng draw sequence depends on incidental
+    # row order. The synthetic release reassembled below (from week- or
+    # trajectory-grouped chunks) IS user_id-sorted, so sorting here too
+    # keeps both sides' user-iteration order identical regardless of the
+    # real data's own incidental order -- a LOCAL fix, not a change to
+    # windowing.py's shared groupby (which every other mechanism also
+    # calls; changing its order there would silently shift Foursquare's
+    # existing non-TrajGAN subsampled results too).
+    _test_only = _test_only.sort_values(["user_id", "ts"])
     original_windows["test"] = build_sl_windows(
         _test_only, sl=args.sl, max_windows_per_user=args.max_windows_per_user,
         respect_traj_boundary=False)["train"]
@@ -392,6 +407,11 @@ def main():
     # mapping, which would make cell ids incomparable to the true labels.
     synthetic_df = synthetic_df[["user_id", "traj_id", "ts", "lat", "lon", "weekday", "hour"]].copy()
     synthetic_df["split"] = "train"  # arbitrary single-split label; this IS the whole release
+    # See the matching sort on _test_only above -- same fix, same reason:
+    # keeps user-iteration order (and therefore max_windows_per_user's rng
+    # draw sequence) identical to _test_only's, independent of how the
+    # chunking above happened to order rows.
+    synthetic_df = synthetic_df.sort_values(["user_id", "ts"])
     synthetic_df = assign_grid_cells(synthetic_df, resolution_deg=0.01, existing_mapping=original_mapping)
     embedding_vocab = max(original_total_locations, int(synthetic_df["cell_id"].max()))
     print(f"{tag} embedding vocab after synthesis: {embedding_vocab} "
