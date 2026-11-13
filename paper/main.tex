@@ -1,27 +1,29 @@
-% PUFFIN -- PoPETs 2027 submission draft.
-% Rebuilt from the earlier PUFFIN manuscript (Darbari, Lagesse, Mashhadi).
-% Before submission: port into the official PoPETs 2027 submission template
-% (https://petsymposium.org/files/submission-template-2027.zip).
-% \pending{...} marks numbers/results still being produced; \note{...} marks
-% decisions for the authors. Both render in color and must be gone before submission.
-\documentclass[sigconf,review,anonymous]{acmart}
-\settopmatter{printacmref=false}
-\renewcommand\footnotetextcopyrightpermission[1]{}
-\setcopyright{none}
-\acmConference[PoPETs]{Proceedings on Privacy Enhancing Technologies}{2027}{}
+\documentclass[sigconf,anonymous,review]{acmart}
+\usepackage{popets}
 
-\usepackage{booktabs}
+% Copyright
+\setcopyright{popets}
+\copyrightyear{YYYY}
+
+% Issue info
+\acmYear{YYYY}
+\acmVolume{YYYY}
+\acmNumber{X}
+\acmDOI{XXXXXXX.XXXXXXX}
+\acmISBN{}
+\acmConference{Proceedings on Privacy Enhancing Technologies}
+\settopmatter{printacmref=false,printccs=false,printfolios=true}
+
 \usepackage{xcolor}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,fit}
 
 \newcommand{\pending}[1]{\textcolor{blue}{[\textbf{PENDING:} #1]}}
-\newcommand{\note}[1]{\textcolor{red}{[\textbf{NOTE:} #1]}}
 \newcommand{\puffin}{\textsc{Puffin}}
 
 \begin{document}
 
-\title{Redistributing Privacy Protection in Privacy--Utility Models for Mobility Data}
+\title[Redistributing Privacy Protection in Mobility PUT Models]{Redistributing Privacy Protection in Privacy--Utility Models for Mobility Data}
 
 \begin{abstract}
 Spatial-temporal mobility data enable critical applications, from transit planning to epidemic response, but expose individuals to re-identification. Privacy--utility trade-off (PUT) models address this by learning representations that retain what downstream tasks need while suppressing what identifies a person. Their protection is assessed as an aggregate, and it is not distributed fairly: the most predictable users, who are the easiest to re-identify to begin with, receive the least protection, with 4--10$\times$ the residual risk of the least predictable. We present \puffin, which adds a fairness surrogate to an adversarial PUT encoder: an entropy-difference loss that aligns the mobility entropy the adversary attributes to each user with the user's true entropy. We ask under which conditions such an objective actually makes protection fairer, measured by a separately trained external attacker, at matched utility, on four datasets and against alternative fairness objectives and two data-release baselines (geo-indistinguishability and LSTM-TrajGAN). The answer is conditional. Where the base model's privacy term provides little signal (GeoLife), \puffin{} lowers the most predictable users' risk by 38\% and reduces the absolute risk gap between similar users by 25--39\% under four similarity definitions (by 8--16\% relative to its lower overall risk under three of them, and not at all under entropy), a point the base model cannot reach at any privacy weight and that a Lipschitz penalty and group DRO do not reach either. On Foursquare the benefit is confined to low fairness weights; on Gowalla the fairness term competes with privacy; on YJMob100K lower mean risk does not translate into fairer protection. And on GeoLife, an attacker who knows a target's predictability group largely undoes \puffin's gain for the most predictable users. Fairness-aware PUT training can redistribute protection, but whether it does depends on the strength of the base privacy mechanism and on what the attacker knows; we also show that a commonly used pairwise fairness rate mostly measures how low risk is, and propose measures that separate the two.
@@ -122,6 +124,7 @@ where $R(u)$ is a user's post-mechanism re-identification risk and $\bar R$ the 
 \draw[arr] (uru) -- node[right, font=\scriptsize]{posterior $p(v\mid f)$} (fair);
 \end{tikzpicture}}
 \caption{\puffin{} architecture. An LSTM encoder produces features that are shared with a utility head (MPU, next-location prediction) and two adversarial heads (DRU, reconstruction; URU, re-identification), following Mo-PAE~\cite{zhan2023mopae}. \puffin{} adds a fairness module that uses the URU's posterior over users and each user's mobility entropy to compute $\mathcal{L}_F$, which is added to the encoder's objective with weight $\lambda_4$.}
+\Description{Block diagram: a trajectory window enters an LSTM encoder whose features feed three heads (reconstruction decoder, next-location predictor, re-identification classifier); the re-identification posterior feeds a fairness module that uses a per-user entropy table.}
 \label{fig:architecture}
 \end{figure}
 
@@ -201,6 +204,7 @@ Comparisons with Mo-PAE are made at matched utility by linear interpolation betw
 \centering
 \includegraphics[width=\textwidth]{figures/decile_risk.pdf}
 \caption{Re-identification risk by the external attacker, per entropy decile (0 = most predictable users), without privacy and under Mo-PAE ($\lambda_3=0.3$). Error bars: 95\% intervals over users in the decile. Protection shrinks toward the most predictable users on every dataset; on GeoLife Mo-PAE barely changes risk at all.}
+\Description{Four line charts, one per dataset, plotting re-identification risk against entropy decile for the no-privacy model and Mo-PAE. Risk decreases from decile 0 to decile 9 in every panel; the gap between the two lines is smallest at decile 0, and on GeoLife the two lines nearly coincide.}
 \label{fig:decile}
 \end{figure*}
 
@@ -321,6 +325,7 @@ Gowalla & \puffin, entropy (0.3) & 0.266$^\dagger$ & 0.188 $\to$ 0.201 & 0.360 $
 \centering
 \includegraphics[width=\textwidth]{figures/tradeoff.pdf}
 \caption{Utility versus re-identification risk of the most predictable decile (lower right is better). The black line is Mo-PAE across its privacy weight $\lambda_3$; the GeoLife inset enlarges the region around $\lambda_3\le1.2$. On GeoLife, only \puffin{} (with either similarity) reaches points below Mo-PAE's curve; on the other datasets no method improves on it. TrajGAN's GeoLife point (lower left) reflects a release that supports neither prediction nor re-identification (Section~\ref{sec:results-alternatives}).}
+\Description{Four scatter panels of utility versus risk of the most predictable decile, with Mo-PAE's privacy-weight curve as a black line. On GeoLife, the PUFFIN points lie well below the curve and the other fairness objectives lie on it; on the other datasets all methods lie on or near the curve, and geo-indistinguishability and LSTM-TrajGAN lie above it.}
 \label{fig:tradeoff}
 \end{figure*}
 \subsection{An attacker with side information}
@@ -351,73 +356,77 @@ Our approach has several limitations. First, entropy captures only one dimension
 %=====================================================================
 We proposed \puffin, a fairness-aware PUT model whose entropy-difference objective aligns the mobility entropy the adversary attributes to each user with the user's true entropy, with the aim of fairer privacy protection among users with similar mobility. Evaluated against an external attacker with multiple seeds and at matched utility, \puffin{} lowers the re-identification risk of the most predictable GeoLife users by 38\%, lowers mean risk, and reduces the absolute risk gap between similar users under every similarity definition we test, reaching operating points the base model cannot. A Lipschitz penalty and group DRO in the same architecture do not reach this point. On check-in data its benefit is small and confined to low fairness weights, and on YJMob100K it does not improve individual fairness. Geo-indistinguishability leaves higher risk than the PUT models at the same utility on every dataset. Against an attacker who knows a target's predictability group, \puffin's gain for the most predictable GeoLife users largely disappears. Which users count as similar depends strongly on the chosen mobility descriptor: the four similarity definitions identify largely disjoint sets of similar pairs, and a variant trained on location distributions improves fairness under the spatial definitions but not under entropy. Fairness-aware PUT training can redistribute protection, but whether it does depends on how much signal the base model's own privacy mechanism provides and on what the attacker knows, and evaluating it requires measures that separate how evenly risk is distributed from how low it is.
 
-%=====================================================================
-% Mandatory PoPETs sections (excluded from the page limit)
-%=====================================================================
-\section*{Ethical Considerations}
+% This is the end of the main body of the paper (12-page limit).
+% Ethical Considerations, Open Science, AI Use, References, and the Appendix are outside the main body.
+
+\appendix
+
+\begin{ethics}
 This work uses only publicly available research datasets (GeoLife, Foursquare-NYC, Gowalla, and YJMob100K) that are distributed with pseudonymous user identifiers. We collect no new data and do not interact with any individual. Because the work is a secondary analysis of publicly available, de-identified data, it did not require IRB review. Our re-identification experiments link trajectories only to the pseudonyms already present in these datasets; we make no attempt to link any user to a real-world identity, and we release no per-user re-identification outputs. The attacks we use are standard trajectory--user linking models already described in the literature, and we use them only to measure how protection is distributed. The aim of the work is to identify and reduce the residual risk borne by the users whom current privacy--utility models protect least.
+\end{ethics}
 
-\section*{Open Science}
+\begin{openscience}
 All code, configurations, training and evaluation scripts, and the analysis scripts that produce every table and figure are available in an anonymized repository for review \pending{anonymized repository URL}, and will be released publicly upon publication. The repository includes preprocessing scripts for GeoLife, Foursquare-NYC, and Gowalla, which are available from their original sources, and the seeded sampling script and user list that reproduce our 2{,}000-user YJMob100K sample from the public release.
+\end{openscience}
 
-\section*{Use of AI}
+\begin{ai}
 AI tools were used to assist with debugging code and polishing the writing of this paper. The authors take full responsibility for the final content, including all code, results, and claims.
+\end{ai}
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references}
 
 
-\appendix
 \section{Bootstrap intervals}
 \label{app:cis}
-Table~\ref{tab:cis} gives the 95\% paired bootstrap intervals behind the markers in Tables~\ref{tab:matched} and~\ref{tab:alternatives}. Each of 2{,}000 replicates draws one vector of users, applied to both the method and Mo-PAE, and resamples encoder seeds within each run (with the same draw for both endpoints of Mo-PAE's interpolation). Differences are computed per user and then averaged; decile membership is fixed. Entries are method minus interpolated Mo-PAE, as bootstrap mean and 95\% interval; negative risk and $D_{\mathrm{abs}}$ differences favor the method.
+Table~\ref{tab:cis} gives the 95\% paired bootstrap intervals behind the markers in Tables~\ref{tab:matched} and~\ref{tab:alternatives}. Each of 2{,}000 replicates draws one vector of users, applied to both the method and Mo-PAE, and resamples encoder seeds within each run (with the same draw for both endpoints of Mo-PAE's interpolation). Differences are computed per user and then averaged; decile membership is fixed. Entries are 95\% intervals for the method minus interpolated Mo-PAE (point estimates are in the main tables); negative risk and $D_{\mathrm{abs}}$ differences favor the method.
 
 \begin{table*}[!htbp]
 \centering
 \caption{Differences (method $-$ Mo-PAE) at matched utility with 95\% paired bootstrap intervals. $^*$Interval excludes zero.}
 \label{tab:cis}
 \scriptsize
-\resizebox{\textwidth}{!}{\begin{tabular}{@{}llccccc@{}}
+\begin{tabular}{@{}llccccc@{}}
 \toprule
  & Method, $\lambda_4$ & Mean risk & Most pred. & Least pred. & $D_{\mathrm{abs}}$ (entropy) & $D_{\mathrm{abs}}$ (location) \\
 \midrule
-GeoLife & \puffin{} ent., 0.3 & $-$0.022 [$-$0.034, $-$0.011]$^*$ & $-$0.109 [$-$0.174, $-$0.048]$^*$ & $+$0.020 [$+$0.009, $+$0.033]$^*$ & $-$0.019 [$-$0.026, $-$0.012]$^*$ & $-$0.025 [$-$0.031, $-$0.019]$^*$ \\
-GeoLife & \puffin{} ent., 1.0 & $-$0.035 [$-$0.048, $-$0.022]$^*$ & $-$0.128 [$-$0.215, $-$0.058]$^*$ & $+$0.021 [$+$0.012, $+$0.032]$^*$ & $-$0.032 [$-$0.039, $-$0.026]$^*$ & $-$0.036 [$-$0.044, $-$0.029]$^*$ \\
-GeoLife & \puffin{} ent., 3.0 & $-$0.037 [$-$0.052, $-$0.024]$^*$ & $-$0.132 [$-$0.213, $-$0.064]$^*$ & $+$0.017 [$+$0.008, $+$0.028]$^*$ & $-$0.032 [$-$0.039, $-$0.026]$^*$ & $-$0.037 [$-$0.044, $-$0.030]$^*$ \\
-GeoLife & \puffin{} loc., 0.3 & $-$0.004 [$-$0.018, $+$0.010] & $-$0.123 [$-$0.210, $-$0.056]$^*$ & $-$0.002 [$-$0.010, $+$0.007] & $+$0.015 [$+$0.007, $+$0.024]$^*$ & $-$0.007 [$-$0.015, $+$0.002] \\
-GeoLife & \puffin{} loc., 1.0 & $-$0.002 [$-$0.017, $+$0.012] & $-$0.117 [$-$0.200, $-$0.053]$^*$ & $-$0.002 [$-$0.009, $+$0.006] & $+$0.024 [$+$0.017, $+$0.032]$^*$ & $-$0.013 [$-$0.021, $-$0.005]$^*$ \\
-GeoLife & \puffin{} loc., 3.0 & $+$0.006 [$-$0.010, $+$0.022] & $-$0.103 [$-$0.214, $-$0.005]$^*$ & $-$0.004 [$-$0.012, $+$0.004] & $+$0.032 [$+$0.024, $+$0.042]$^*$ & $-$0.009 [$-$0.017, $+$0.001] \\
-GeoLife & Lipschitz ent., 0.3 & $+$0.000 [$-$0.006, $+$0.006] & $-$0.011 [$-$0.044, $+$0.020] & $-$0.003 [$-$0.009, $+$0.003] & $-$0.003 [$-$0.008, $+$0.003] & $-$0.001 [$-$0.008, $+$0.005] \\
-GeoLife & Lipschitz ent., 1.0 & $-$0.000 [$-$0.007, $+$0.007] & $-$0.011 [$-$0.049, $+$0.030] & $-$0.005 [$-$0.013, $+$0.002] & $-$0.002 [$-$0.007, $+$0.004] & $-$0.001 [$-$0.008, $+$0.005] \\
-GeoLife & Lipschitz ent., 3.0 & $-$0.001 [$-$0.008, $+$0.006] & $-$0.008 [$-$0.041, $+$0.028] & $-$0.006 [$-$0.013, $+$0.001] & $-$0.004 [$-$0.011, $+$0.003] & $-$0.002 [$-$0.009, $+$0.004] \\
-GeoLife & Lipschitz loc., 0.3 & $-$0.001 [$-$0.007, $+$0.006] & $+$0.000 [$-$0.038, $+$0.041] & $-$0.004 [$-$0.012, $+$0.005] & $-$0.004 [$-$0.011, $+$0.002] & $+$0.003 [$-$0.003, $+$0.010] \\
-GeoLife & Lipschitz loc., 1.0 & $+$0.003 [$-$0.004, $+$0.010] & $+$0.010 [$-$0.037, $+$0.061] & $-$0.008 [$-$0.016, $-$0.000]$^*$ & $-$0.001 [$-$0.007, $+$0.005] & $+$0.005 [$-$0.001, $+$0.011] \\
-GeoLife & Lipschitz loc., 3.0 & $-$0.000 [$-$0.007, $+$0.007] & $+$0.003 [$-$0.040, $+$0.052] & $-$0.007 [$-$0.014, $-$0.000]$^*$ & $-$0.002 [$-$0.009, $+$0.005] & $+$0.004 [$-$0.002, $+$0.011] \\
-GeoLife & Group DRO, 0.3 & $-$0.000 [$-$0.009, $+$0.010] & $-$0.020 [$-$0.050, $+$0.012] & $-$0.010 [$-$0.021, $+$0.001] & $+$0.002 [$-$0.007, $+$0.015] & $+$0.001 [$-$0.006, $+$0.012] \\
-GeoLife & Group DRO, 1.0 & $+$0.002 [$-$0.008, $+$0.012] & $-$0.014 [$-$0.081, $+$0.054] & $-$0.010 [$-$0.021, $+$0.001] & $+$0.004 [$-$0.004, $+$0.016] & $+$0.003 [$-$0.009, $+$0.021] \\
-Foursquare & \puffin{} ent., 0.3 & $-$0.020 [$-$0.037, $-$0.005]$^*$ & $-$0.017 [$-$0.042, $+$0.006] & $-$0.004 [$-$0.032, $+$0.021] & $-$0.014 [$-$0.028, $+$0.004] & $-$0.019 [$-$0.034, $-$0.001]$^*$ \\
-Foursquare & \puffin{} ent., 1.0 & $+$0.009 [$-$0.001, $+$0.018] & $+$0.014 [$-$0.012, $+$0.041] & $+$0.007 [$-$0.014, $+$0.030] & $+$0.005 [$-$0.007, $+$0.019] & $+$0.003 [$-$0.008, $+$0.017] \\
-Foursquare & \puffin{} ent., 3.0 & $+$0.081 [$+$0.046, $+$0.126]$^*$ & $+$0.082 [$+$0.044, $+$0.118]$^*$ & $+$0.025 [$-$0.011, $+$0.067] & $+$0.056 [$+$0.019, $+$0.088]$^*$ & $+$0.062 [$+$0.037, $+$0.088]$^*$ \\
-Foursquare & Lipschitz ent., 0.3 & $-$0.011 [$-$0.046, $+$0.036] & $-$0.003 [$-$0.038, $+$0.030] & $-$0.011 [$-$0.047, $+$0.028] & $-$0.008 [$-$0.045, $+$0.025] & $-$0.009 [$-$0.035, $+$0.015] \\
-Foursquare & Lipschitz ent., 1.0 & $+$0.001 [$-$0.040, $+$0.047] & $+$0.003 [$-$0.039, $+$0.043] & $-$0.004 [$-$0.039, $+$0.035] & $+$0.005 [$-$0.033, $+$0.037] & $+$0.000 [$-$0.028, $+$0.030] \\
-Foursquare & Lipschitz ent., 3.0 & $+$0.011 [$-$0.050, $+$0.069] & $+$0.037 [$-$0.015, $+$0.083] & $-$0.006 [$-$0.053, $+$0.041] & $+$0.007 [$-$0.043, $+$0.060] & $+$0.011 [$-$0.029, $+$0.051] \\
-Foursquare & Lipschitz loc., 0.3 & $-$0.003 [$-$0.043, $+$0.042] & $+$0.005 [$-$0.034, $+$0.046] & $-$0.011 [$-$0.046, $+$0.027] & $-$0.000 [$-$0.037, $+$0.038] & $-$0.000 [$-$0.028, $+$0.029] \\
-Foursquare & Lipschitz loc., 1.0 & $+$0.006 [$-$0.080, $+$0.082] & $+$0.031 [$-$0.039, $+$0.095] & $-$0.002 [$-$0.060, $+$0.049] & $+$0.000 [$-$0.075, $+$0.071] & $+$0.005 [$-$0.046, $+$0.050] \\
-Foursquare & Lipschitz loc., 3.0 & $+$0.022 [$-$0.007, $+$0.060] & $+$0.084 [$+$0.050, $+$0.119]$^*$ & $-$0.009 [$-$0.037, $+$0.020] & $+$0.028 [$+$0.000, $+$0.055]$^*$ & $+$0.011 [$-$0.008, $+$0.032] \\
+GeoLife & \puffin{} ent., 0.3 & [$-$0.034, $-$0.011]$^*$ & [$-$0.174, $-$0.048]$^*$ & [$+$0.009, $+$0.033]$^*$ & [$-$0.026, $-$0.012]$^*$ & [$-$0.031, $-$0.019]$^*$ \\
+GeoLife & \puffin{} ent., 1.0 & [$-$0.048, $-$0.022]$^*$ & [$-$0.215, $-$0.058]$^*$ & [$+$0.012, $+$0.032]$^*$ & [$-$0.039, $-$0.026]$^*$ & [$-$0.044, $-$0.029]$^*$ \\
+GeoLife & \puffin{} ent., 3.0 & [$-$0.052, $-$0.024]$^*$ & [$-$0.213, $-$0.064]$^*$ & [$+$0.008, $+$0.028]$^*$ & [$-$0.039, $-$0.026]$^*$ & [$-$0.044, $-$0.030]$^*$ \\
+GeoLife & \puffin{} loc., 0.3 & [$-$0.018, $+$0.010] & [$-$0.210, $-$0.056]$^*$ & [$-$0.010, $+$0.007] & [$+$0.007, $+$0.024]$^*$ & [$-$0.015, $+$0.002] \\
+GeoLife & \puffin{} loc., 1.0 & [$-$0.017, $+$0.012] & [$-$0.200, $-$0.053]$^*$ & [$-$0.009, $+$0.006] & [$+$0.017, $+$0.032]$^*$ & [$-$0.021, $-$0.005]$^*$ \\
+GeoLife & \puffin{} loc., 3.0 & [$-$0.010, $+$0.022] & [$-$0.214, $-$0.005]$^*$ & [$-$0.012, $+$0.004] & [$+$0.024, $+$0.042]$^*$ & [$-$0.017, $+$0.001] \\
+GeoLife & Lipschitz ent., 0.3 & [$-$0.006, $+$0.006] & [$-$0.044, $+$0.020] & [$-$0.009, $+$0.003] & [$-$0.008, $+$0.003] & [$-$0.008, $+$0.005] \\
+GeoLife & Lipschitz ent., 1.0 & [$-$0.007, $+$0.007] & [$-$0.049, $+$0.030] & [$-$0.013, $+$0.002] & [$-$0.007, $+$0.004] & [$-$0.008, $+$0.005] \\
+GeoLife & Lipschitz ent., 3.0 & [$-$0.008, $+$0.006] & [$-$0.041, $+$0.028] & [$-$0.013, $+$0.001] & [$-$0.011, $+$0.003] & [$-$0.009, $+$0.004] \\
+GeoLife & Lipschitz loc., 0.3 & [$-$0.007, $+$0.006] & [$-$0.038, $+$0.041] & [$-$0.012, $+$0.005] & [$-$0.011, $+$0.002] & [$-$0.003, $+$0.010] \\
+GeoLife & Lipschitz loc., 1.0 & [$-$0.004, $+$0.010] & [$-$0.037, $+$0.061] & [$-$0.016, $-$0.000]$^*$ & [$-$0.007, $+$0.005] & [$-$0.001, $+$0.011] \\
+GeoLife & Lipschitz loc., 3.0 & [$-$0.007, $+$0.007] & [$-$0.040, $+$0.052] & [$-$0.014, $-$0.000]$^*$ & [$-$0.009, $+$0.005] & [$-$0.002, $+$0.011] \\
+GeoLife & Group DRO, 0.3 & [$-$0.009, $+$0.010] & [$-$0.050, $+$0.012] & [$-$0.021, $+$0.001] & [$-$0.007, $+$0.015] & [$-$0.006, $+$0.012] \\
+GeoLife & Group DRO, 1.0 & [$-$0.008, $+$0.012] & [$-$0.081, $+$0.054] & [$-$0.021, $+$0.001] & [$-$0.004, $+$0.016] & [$-$0.009, $+$0.021] \\
+Foursquare & \puffin{} ent., 0.3 & [$-$0.037, $-$0.005]$^*$ & [$-$0.042, $+$0.006] & [$-$0.032, $+$0.021] & [$-$0.028, $+$0.004] & [$-$0.034, $-$0.001]$^*$ \\
+Foursquare & \puffin{} ent., 1.0 & [$-$0.001, $+$0.018] & [$-$0.012, $+$0.041] & [$-$0.014, $+$0.030] & [$-$0.007, $+$0.019] & [$-$0.008, $+$0.017] \\
+Foursquare & \puffin{} ent., 3.0 & [$+$0.046, $+$0.126]$^*$ & [$+$0.044, $+$0.118]$^*$ & [$-$0.011, $+$0.067] & [$+$0.019, $+$0.088]$^*$ & [$+$0.037, $+$0.088]$^*$ \\
+Foursquare & Lipschitz ent., 0.3 & [$-$0.046, $+$0.036] & [$-$0.038, $+$0.030] & [$-$0.047, $+$0.028] & [$-$0.045, $+$0.025] & [$-$0.035, $+$0.015] \\
+Foursquare & Lipschitz ent., 1.0 & [$-$0.040, $+$0.047] & [$-$0.039, $+$0.043] & [$-$0.039, $+$0.035] & [$-$0.033, $+$0.037] & [$-$0.028, $+$0.030] \\
+Foursquare & Lipschitz ent., 3.0 & [$-$0.050, $+$0.069] & [$-$0.015, $+$0.083] & [$-$0.053, $+$0.041] & [$-$0.043, $+$0.060] & [$-$0.029, $+$0.051] \\
+Foursquare & Lipschitz loc., 0.3 & [$-$0.043, $+$0.042] & [$-$0.034, $+$0.046] & [$-$0.046, $+$0.027] & [$-$0.037, $+$0.038] & [$-$0.028, $+$0.029] \\
+Foursquare & Lipschitz loc., 1.0 & [$-$0.080, $+$0.082] & [$-$0.039, $+$0.095] & [$-$0.060, $+$0.049] & [$-$0.075, $+$0.071] & [$-$0.046, $+$0.050] \\
+Foursquare & Lipschitz loc., 3.0 & [$-$0.007, $+$0.060] & [$+$0.050, $+$0.119]$^*$ & [$-$0.037, $+$0.020] & [$+$0.000, $+$0.055]$^*$ & [$-$0.008, $+$0.032] \\
 Gowalla & \puffin{} ent., 0.3 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
-Gowalla & \puffin{} ent., 1.0 & $+$0.062 [$+$0.045, $+$0.079]$^*$ & $+$0.069 [$+$0.017, $+$0.119]$^*$ & $+$0.047 [$+$0.030, $+$0.066]$^*$ & $+$0.055 [$+$0.032, $+$0.078]$^*$ & $+$0.061 [$+$0.041, $+$0.085]$^*$ \\
-Gowalla & \puffin{} ent., 3.0 & $+$0.068 [$+$0.047, $+$0.090]$^*$ & $+$0.060 [$-$0.001, $+$0.121] & $+$0.032 [$+$0.014, $+$0.049]$^*$ & $+$0.066 [$+$0.044, $+$0.087]$^*$ & $+$0.066 [$+$0.046, $+$0.086]$^*$ \\
+Gowalla & \puffin{} ent., 1.0 & [$+$0.045, $+$0.079]$^*$ & [$+$0.017, $+$0.119]$^*$ & [$+$0.030, $+$0.066]$^*$ & [$+$0.032, $+$0.078]$^*$ & [$+$0.041, $+$0.085]$^*$ \\
+Gowalla & \puffin{} ent., 3.0 & [$+$0.047, $+$0.090]$^*$ & [$-$0.001, $+$0.121] & [$+$0.014, $+$0.049]$^*$ & [$+$0.044, $+$0.087]$^*$ & [$+$0.046, $+$0.086]$^*$ \\
 Gowalla & Lipschitz ent., 0.3 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
 Gowalla & Lipschitz ent., 1.0 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
-Gowalla & Lipschitz ent., 3.0 & $-$0.075 [$-$0.088, $-$0.062]$^*$ & $-$0.055 [$-$0.095, $-$0.016]$^*$ & $-$0.062 [$-$0.081, $-$0.042]$^*$ & $-$0.071 [$-$0.085, $-$0.056]$^*$ & $-$0.066 [$-$0.075, $-$0.055]$^*$ \\
+Gowalla & Lipschitz ent., 3.0 & [$-$0.088, $-$0.062]$^*$ & [$-$0.095, $-$0.016]$^*$ & [$-$0.081, $-$0.042]$^*$ & [$-$0.085, $-$0.056]$^*$ & [$-$0.075, $-$0.055]$^*$ \\
 Gowalla & Lipschitz loc., 0.3 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
 Gowalla & Lipschitz loc., 1.0 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
 Gowalla & Lipschitz loc., 3.0 & \multicolumn{5}{c}{outside Mo-PAE's utility range} \\
-YJMob100K & \puffin{} ent., 0.3 & $+$0.003 [$-$0.008, $+$0.013] & $+$0.014 [$+$0.009, $+$0.020]$^*$ & $-$0.006 [$-$0.021, $+$0.008] & $-$0.002 [$-$0.010, $+$0.005] & $+$0.007 [$+$0.003, $+$0.012]$^*$ \\
-YJMob100K & \puffin{} ent., 1.0 & $-$0.009 [$-$0.019, $+$0.001] & $+$0.014 [$+$0.009, $+$0.019]$^*$ & $-$0.038 [$-$0.051, $-$0.026]$^*$ & $-$0.002 [$-$0.009, $+$0.006] & $+$0.020 [$+$0.015, $+$0.026]$^*$ \\
-YJMob100K & \puffin{} ent., 3.0 & $-$0.036 [$-$0.047, $-$0.027]$^*$ & $+$0.013 [$+$0.008, $+$0.018]$^*$ & $-$0.068 [$-$0.082, $-$0.057]$^*$ & $-$0.003 [$-$0.010, $+$0.004] & $+$0.022 [$+$0.018, $+$0.026]$^*$ \\
+YJMob100K & \puffin{} ent., 0.3 & [$-$0.008, $+$0.013] & [$+$0.009, $+$0.020]$^*$ & [$-$0.021, $+$0.008] & [$-$0.010, $+$0.005] & [$+$0.003, $+$0.012]$^*$ \\
+YJMob100K & \puffin{} ent., 1.0 & [$-$0.019, $+$0.001] & [$+$0.009, $+$0.019]$^*$ & [$-$0.051, $-$0.026]$^*$ & [$-$0.009, $+$0.006] & [$+$0.015, $+$0.026]$^*$ \\
+YJMob100K & \puffin{} ent., 3.0 & [$-$0.047, $-$0.027]$^*$ & [$+$0.008, $+$0.018]$^*$ & [$-$0.082, $-$0.057]$^*$ & [$-$0.010, $+$0.004] & [$+$0.018, $+$0.026]$^*$ \\
 \bottomrule
-\end{tabular}}
+\end{tabular}
 \end{table*}
 
 \clearpage
