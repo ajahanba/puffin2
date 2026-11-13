@@ -13,6 +13,7 @@ SER = [  # label, prefix, color, marker
  ("Lipschitz (entropy)","Lip-ent ","#2a78d6","^"),
  ("Lipschitz (location)","Lip-loc ","#1baf7a","v"),
  ("Group DRO","GroupDRO ","#6250d6","P"),
+ ("LSTM-TrajGAN","TrajGAN","#5a5955","X"),
 ]
 plt.rcParams.update({"font.family":"serif","font.size":7,"axes.linewidth":0.5,"xtick.major.width":0.5,"ytick.major.width":0.5})
 DS=[("GeoLife","geolife"),("Foursquare-NYC","foursquare"),("Gowalla (SF Bay)","gowalla_sf_bay"),("YJMob100K","yjmob100k")]
