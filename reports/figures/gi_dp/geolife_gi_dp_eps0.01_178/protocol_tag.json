@@ -1,0 +1,14 @@
+{
+  "git_commit": "2d20764887dc50b116d290c972e1c1a80ea37dc7",
+  "git_commit_inferred": false,
+  "patience": 8,
+  "val_frac": 0.1,
+  "min_epochs": 20,
+  "n_encoder_seeds": 3,
+  "protocol_ok": true,
+  "epsilon": 0.01,
+  "mechanism": "gi_dp",
+  "dataset": "geolife",
+  "candidate_restricted_to_n_users": 178,
+  "derived_from": "reports/figures/gi_dp/geolife_gi_dp_eps0.01"
+}

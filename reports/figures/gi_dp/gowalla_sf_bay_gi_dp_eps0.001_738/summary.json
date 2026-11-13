@@ -1,0 +1,39 @@
+{
+  "dataset": "gowalla_sf_bay",
+  "mechanism": "gi_dp",
+  "epsilon": 0.001,
+  "encoder_seeds": [
+    0,
+    1,
+    2
+  ],
+  "attacker_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "max_epochs": 80,
+  "patience": 8,
+  "min_epochs": 20,
+  "val_frac": 0.1,
+  "git_commit": "a89828b56078524bba41a99c100ec818528bd128",
+  "actual_epochs_per_encoder_seed": [
+    26,
+    26,
+    23
+  ],
+  "utility_mean": 0.12279747880545318,
+  "utility_std": 0.0025543082393909176,
+  "utility_per_encoder_seed": [
+    0.12046154775569383,
+    0.12157916993898386,
+    0.12635171872168188
+  ],
+  "n_users_before_filter": 1346,
+  "n_users_after_filter": 738,
+  "output_vocab_size": 2070,
+  "embedding_vocab_size": 4818,
+  "note": "candidate population restricted to the 738 users the standard mechanism's run reports on (n_windows>=10 filter); same attacker model/classification problem (total_users unchanged), pure reporting-table filter, no retraining"
+}

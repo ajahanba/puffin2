@@ -1,0 +1,39 @@
+{
+  "dataset": "geolife",
+  "mechanism": "gi_dp",
+  "epsilon": 0.01,
+  "encoder_seeds": [
+    0,
+    1,
+    2
+  ],
+  "attacker_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "max_epochs": 80,
+  "patience": 8,
+  "min_epochs": 20,
+  "val_frac": 0.1,
+  "git_commit": "2d20764887dc50b116d290c972e1c1a80ea37dc7",
+  "actual_epochs_per_encoder_seed": [
+    67,
+    71,
+    80
+  ],
+  "utility_mean": 0.615031041069723,
+  "utility_std": 0.009079857605062218,
+  "utility_per_encoder_seed": [
+    0.6227614613180515,
+    0.60228629417383,
+    0.6200453677172875
+  ],
+  "n_users_before_filter": 181,
+  "n_users_after_filter": 178,
+  "output_vocab_size": 85074,
+  "embedding_vocab_size": 115492,
+  "note": "candidate population restricted to the 178 users the standard mechanism's run reports on (n_windows>=10 filter); same attacker model/classification problem (total_users unchanged), pure reporting-table filter, no retraining"
+}

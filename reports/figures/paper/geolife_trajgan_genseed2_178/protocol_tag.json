@@ -1,0 +1,21 @@
+{
+  "git_commit": "353570898e7f4b9500ae736f26dc485b41d51f1c",
+  "git_commit_inferred": false,
+  "trajgan_seed": 2,
+  "trajgan_group_by": "trajectory",
+  "train_min_traj_len": 11,
+  "checkpoint_every": 5,
+  "collapse_onset_epoch": null,
+  "checkpoint_used": null,
+  "generation_epoch_used": 80,
+  "reused_generator_checkpoints": false,
+  "reused_generator_checkpoints_path": null,
+  "non_converged": false,
+  "protocol_ok": true,
+  "usable": true,
+  "usable_note": "trained under the checkpoint-aware collapse protocol",
+  "mechanism": "trajgan",
+  "dataset": "geolife",
+  "candidate_restricted_to_n_users": 178,
+  "derived_from": "reports/figures/paper/geolife_trajgan_genseed2"
+}
