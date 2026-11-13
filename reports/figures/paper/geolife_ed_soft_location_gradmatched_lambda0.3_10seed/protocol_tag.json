@@ -1,0 +1,11 @@
+{
+  "n_encoder_seeds": 10,
+  "protocol_ok": true,
+  "fairness_rescale": 16663410.0,
+  "usable": true,
+  "usable_note": "pooled from a 3-seed run (seeds 0-2) and a 7-seed run (seeds 3-9), same protocol/rescale",
+  "pooled_from": [
+    "reports/figures/paper/geolife_ed_soft_location_gradmatched_lambda0.3_3seed",
+    "reports/figures/paper/geolife_ed_soft_location_gradmatched_lambda0.3_seeds39"
+  ]
+}
