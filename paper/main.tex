@@ -185,7 +185,7 @@ We use four public mobility datasets. \textbf{GeoLife}~\cite{zheng2010geolife,zh
 \paragraph{Protection across regularity groups.} To see who gains and who loses, we group users into deciles of mobility entropy and report each decile's risk before and after the PUT model, the risk of the most predictable decile (decile~0), and the ratio and difference of post-model risk between the most and least predictable deciles.
 
 \subsection{Training protocol}
-All models use windows of 10 consecutive visits, mini-batches of 128, and the Adam optimizer. Every model, including baselines and the no-privacy reference, is trained with the same early-stopping rule on a chronological validation split, after a fixed minimum number of epochs. Each configuration is trained with at least three independent encoder seeds (ten for the main GeoLife comparison and the GeoLife Lipschitz runs, five for the Gowalla Lipschitz runs), and we report bootstrap 95\% confidence intervals over seeds and users where shown. \puffin{} is evaluated at $\lambda_4\in\{0.3,1.0,3.0\}$. Mo-PAE's privacy weight is swept over $\lambda_3\in\{0.02, 0.1, 0.2, 0.3, 0.5, 0.8\}$ on all datasets and extended to $\{1.2,2,3\}$ on GeoLife, where the shorter sweep does not reach \puffin's utility range. Unless stated otherwise, ``Mo-PAE'' refers to $\lambda_3=0.3$. The reconstruction and utility weights are fixed at $\lambda_1=0.1$ and $\lambda_2=0.8$ for all models, following Mo-PAE's released code~\cite{zhan2023mopae}.
+All models use windows of 10 consecutive visits, mini-batches of 128, and the Adam optimizer. Every model, including baselines and the no-privacy reference, is trained with the same early-stopping rule on a chronological validation split, after a fixed minimum number of epochs. Each configuration is trained with at least three independent encoder seeds (ten for the main GeoLife comparison, the GeoLife Lipschitz runs, and the location variant of \puffin{} at $\lambda_4\le1$; five for the Gowalla Lipschitz runs), and we report bootstrap 95\% confidence intervals over seeds and users where shown. \puffin{} is evaluated at $\lambda_4\in\{0.3,1.0,3.0\}$. Mo-PAE's privacy weight is swept over $\lambda_3\in\{0.02, 0.1, 0.2, 0.3, 0.5, 0.8\}$ on all datasets and extended to $\{1.2,2,3\}$ on GeoLife, where the shorter sweep does not reach \puffin's utility range. Unless stated otherwise, ``Mo-PAE'' refers to $\lambda_3=0.3$. The reconstruction and utility weights are fixed at $\lambda_1=0.1$ and $\lambda_2=0.8$ for all models, following Mo-PAE's released code~\cite{zhan2023mopae}.
 
 \subsection{Comparisons and statistical treatment}
 \label{sec:stats}
@@ -297,7 +297,7 @@ Is the GeoLife result specific to \puffin's objective, or would any fairness ter
  & Objective ($\lambda_4$) & Acc@1 & Mean risk & Most pred. & $D_{\mathrm{abs}}$ (entropy) & $D_{\mathrm{abs}}$ (location) \\
 \midrule
 GeoLife & \puffin, entropy (1.0) & 0.723 & 0.132 $\to$ 0.096$^*$ & 0.334 $\to$ 0.207$^*$ & 0.130 $\to$ 0.097$^*$ & 0.119 $\to$ 0.079$^*$ \\
- & \puffin, location (0.3) & 0.736 & 0.133 $\to$ 0.127 & 0.334 $\to$ 0.202$^*$ & 0.132 $\to$ 0.146$^*$ & 0.117 $\to$ 0.106 \\
+ & \puffin, location (0.3) & 0.736 & 0.133 $\to$ 0.126 & 0.334 $\to$ 0.201 & 0.132 $\to$ 0.137 & 0.117 $\to$ 0.105 \\
  & Lipschitz, entropy (1.0) & 0.737 & 0.133 $\to$ 0.133 & 0.334 $\to$ 0.322 & 0.133 $\to$ 0.131 & 0.116 $\to$ 0.116 \\
  & Lipschitz, location (1.0) & 0.738 & 0.133 $\to$ 0.136 & 0.334 $\to$ 0.340 & 0.133 $\to$ 0.132 & 0.116 $\to$ 0.122 \\
  & Group DRO (1.0) & 0.743 & 0.133 $\to$ 0.135 & 0.334 $\to$ 0.317 & 0.134 $\to$ 0.137 & 0.115 $\to$ 0.117 \\
@@ -325,7 +325,7 @@ Gowalla & \puffin, entropy (0.3) & 0.266$^\dagger$ & 0.188 $\to$ 0.201 & 0.360 $
 \end{figure*}
 \subsection{An attacker with side information}
 \label{sec:results-groupaware}
-The external attacker above chooses among all users. A stronger attacker may also know how predictable a target is, for instance from public check-in counts or commute regularity. We model this with one attacker per entropy decile, trained only on that decile's users, and compare \puffin{} ($\lambda_4=1$) with Mo-PAE at matched utility ($\lambda_3=1.2$) on GeoLife (Appendix~\ref{app:groupaware}). Absolute risk rises for both mechanisms, mostly because the attacker chooses among about 18 rather than 178 users, so the informative quantity is the difference between them under the same attacker. For the two most predictable deciles, \puffin's advantage disappears: $-0.009$ and $-0.001$, with intervals spanning zero, against $-0.128$ and $-0.108$ under the standard attacker on the same target users. For deciles 2--9 \puffin{} remains 0.03--0.08 lower, significantly so for deciles 4, 5 and 7. This is consistent with the form of the objective (Section~\ref{sec:puffin}): $\Delta H_u=0$ constrains only the mean entropy of the adversary's posterior, and for the most predictable users \puffin{} appears to meet it largely by making them harder to tell apart from users of other predictability levels, which an attacker who knows the target's group can undo. Fairer protection against one attacker is thus not fairer protection against all; how much \puffin's redistribution is worth depends on what the attacker knows.
+The external attacker above chooses among all users. A stronger attacker may also know how predictable a target is, for instance from public check-in counts or commute regularity. We model this with one attacker per entropy decile, trained only on that decile's users, and compare \puffin{} ($\lambda_4=1$) with Mo-PAE at matched utility ($\lambda_3=1.2$) on GeoLife (Appendix~\ref{app:groupaware}). Absolute risk rises for both mechanisms, mostly because the attacker chooses among about 18 rather than 178 users, so the informative quantity is the difference between them under the same attacker. For the two most predictable deciles, \puffin's advantage disappears: $-0.009$ and $-0.001$, with intervals spanning zero, against $-0.128$ and $-0.108$ under the standard attacker on the same target users. For deciles 2--9 \puffin{} remains 0.03--0.08 lower, significantly so for deciles 4, 5 and 7. This is consistent with the form of the objective (Section~\ref{sec:puffin}): $\Delta H_u=0$ constrains only the mean entropy of the adversary's posterior, and for the most predictable users \puffin{} appears to meet it largely by making them harder to tell apart from users of other predictability levels, which an attacker who knows the target's group can undo. The location variant behaves the same way: its advantage for the most predictable decile, $-0.125$ under the standard attacker, is $0.000$ $[-0.077, 0.057]$ under the group-aware attacker. The effect therefore does not depend on the similarity used in training. Fairer protection against one attacker is thus not fairer protection against all; how much \puffin's redistribution is worth depends on what the attacker knows.
 
 \subsection{Sensitivity to the similarity definition}
 \label{sec:results-similarity}
@@ -333,7 +333,7 @@ The four similarity definitions largely disagree about which users are alike: th
 
 \puffin's objective also accepts other similarities. We trained a variant that replaces each user's entropy with their visitation histogram over cells, so that the adversary's expected histogram must match the true user's (a squared error between histograms). Computed as a mean over roughly 85{,}000 cells of very small visit shares, this term's gradient is about $10^{7}$ times smaller than the entropy term's, and unscaled it leaves training unchanged (most predictable decile 0.315--0.318, as Mo-PAE). We therefore scale it by a fixed factor chosen so that its gradient norm on the encoder matches the entropy term's at initialization. Logged during training, the scaled term stays of the same order as the privacy and utility terms through to the final epoch.
 
-Scaled, the location variant protects the most predictable users about as well as entropy-based \puffin{}: at matched utility ($\lambda_4=0.3$, accuracy 0.736), their risk falls from 0.334 to 0.202, while mean risk barely changes (0.133 to 0.127). Its gain is therefore almost purely redistributive. Its effect on individual fairness follows the similarity it was trained on: $D_{\mathrm{abs}}$ falls under location distribution ($-9\%$), trajectory shape ($-20\%$) and radius of gyration ($-16\%$), but rises under entropy ($+11\%$). Higher weights cost utility (0.690 at $\lambda_4=1$, 0.639 at $\lambda_4=3$) without further gains. Which users count as similar is thus a design choice that the objective respects, not a detail it ignores.
+Scaled, the location variant protects the most predictable users about as well as entropy-based \puffin{}: at matched utility ($\lambda_4=0.3$, accuracy 0.736), their risk falls from 0.334 to 0.201 (ten encoder seeds), while mean risk barely changes (0.133 to 0.126). Its gain is therefore almost purely redistributive. Its effect on individual fairness follows the similarity it was trained on: $D_{\mathrm{abs}}$ falls under location distribution ($-10\%$), trajectory shape ($-21\%$) and radius of gyration ($-17\%$), but not under entropy ($+3\%$). Higher weights cost utility (0.690 at $\lambda_4=1$, 0.639 at $\lambda_4=3$) without further gains. Which users count as similar is thus a design choice that the objective respects, not a detail it ignores.
 
 \subsection{Training overhead}
 The fairness module adds no measurable training cost. Per epoch, \puffin{} and Mo-PAE take the same time to within run-to-run variation: 2.4\,s on GeoLife, 3.2--3.7\,s versus 3.1--3.6\,s on Foursquare, 4.1--4.2\,s versus 4.0--4.2\,s on Gowalla, and 16.2--16.5\,s versus 16.0--17.4\,s on YJMob100K, measured on a shared GPU. \puffin's term needs only the URU posterior already computed in each mini-batch and a per-user entropy table computed once before training. Total training time depends mostly on when early stopping triggers.
@@ -448,6 +448,31 @@ Decile & Cand./targets & Chance & Mo-PAE (group) & \puffin{} (group) & $\Delta$,
 \end{tabular}
 \end{table*}
 
+Table~\ref{tab:groupaware-loc} repeats the analysis for the location variant of \puffin{} ($\lambda_4=0.3$, ten encoder seeds), with the same deciles, candidates, and targets. Its advantage for the most predictable decile disappears in the same way ($-0.125$ under the standard attacker, $0.000$ under the group-aware attacker). Under the standard attacker it is significantly worse than Mo-PAE for decile 5 ($+0.058$), consistent with a redistribution of protection across groups.
+
+\begin{table*}[!htbp]
+\centering
+\caption{GeoLife, group-aware attacker, location variant of \puffin{} ($\lambda_4=0.3$) vs.\ Mo-PAE at matched utility. Columns as in Table~\ref{tab:groupaware}. $^*$Interval excludes zero.}
+\label{tab:groupaware-loc}
+\scriptsize
+\begin{tabular}{@{}rrcccc@{}}
+\toprule
+Decile & Cand./targets & Mo-PAE (group) & \puffin{} loc.\ (group) & $\Delta$, group attacker & $\Delta$, standard attacker \\
+\midrule
+0 & 19/16 & 0.47--0.53 & 0.48--0.52 & 0.000 [$-$0.077, $+$0.057] & $-$0.125 [$-$0.206, $-$0.056]$^*$ \\
+1 & 18/18 & 0.49--0.52 & 0.48--0.52 & $-$0.009 [$-$0.049, $+$0.029] & $-$0.033 [$-$0.094, $+$0.022] \\
+2 & 18/18 & 0.41--0.46 & 0.40--0.44 & $-$0.014 [$-$0.056, $+$0.024] & $-$0.007 [$-$0.058, $+$0.032] \\
+3 & 18/18 & 0.35--0.39 & 0.36--0.38 & $+$0.002 [$-$0.050, $+$0.047] & $+$0.008 [$-$0.018, $+$0.033] \\
+4 & 18/18 & 0.37--0.39 & 0.31--0.35 & $-$0.039 [$-$0.094, $+$0.008] & $+$0.008 [$-$0.015, $+$0.036] \\
+5 & 18/18 & 0.47--0.49 & 0.42--0.44 & $-$0.047 [$-$0.086, $-$0.011]$^*$ & $+$0.058 [$+$0.031, $+$0.089]$^*$ \\
+6 & 17/17 & 0.30--0.33 & 0.29--0.31 & $-$0.016 [$-$0.046, $+$0.013] & $+$0.013 [$-$0.009, $+$0.032] \\
+7 & 19/19 & 0.31--0.35 & 0.29--0.31 & $-$0.025 [$-$0.077, $+$0.023] & $+$0.004 [$-$0.013, $+$0.020] \\
+8 & 18/18 & 0.24--0.27 & 0.24--0.25 & $-$0.011 [$-$0.030, $+$0.007] & $+$0.007 [$-$0.008, $+$0.022] \\
+9 & 18/18 & 0.19--0.22 & 0.18--0.19 & $-$0.020 [$-$0.054, $+$0.012] & $+$0.006 [$-$0.001, $+$0.015] \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
 
 \section{Sensitivity to the similar-pair threshold}
 \label{app:topk}
@@ -463,7 +488,7 @@ Table~\ref{tab:topk} repeats the matched-utility comparison of $D_{\mathrm{abs}}
  & Method ($\lambda_4$) & Entropy & Location & Traj.\ shape & Rad.\ gyr. \\
 \midrule
 GeoLife & \puffin, entropy (1.0) & $-$24 / $-$26 / $-$25 / $-$26 & $-$47 / $-$38 / $-$33 / $-$30 & $-$38 / $-$41 / $-$39 / $-$36 & $-$32 / $-$33 / $-$36 / $-$37 \\
- & \puffin, location (0.3) & $+$16 / $+$10 / $+$11 / $+$8 & $-$30 / $-$17 / $-$9 / $-$5 & $-$11 / $-$21 / $-$20 / $-$19 & $-$16 / $-$12 / $-$16 / $-$16 \\
+ & \puffin, location (0.3) & $+$9 / $+$3 / $+$3 / $+$2 & $-$32 / $-$17 / $-$10 / $-$7 & $-$13 / $-$21 / $-$21 / $-$19 & $-$17 / $-$14 / $-$17 / $-$18 \\
  & Lipschitz, entropy (1.0) & $-$3 / $-$2 / $-$1 / $-$2 & $+$1 / $-$2 / $-$1 / $-$1 & $-$1 / $-$3 / $-$3 / $-$3 & $-$2 / $-$4 / $-$3 / $-$2 \\
  & Group DRO (1.0) & $+$4 / $+$3 / $+$2 / $+$2 & $-$3 / $-$2 / $+$2 / $+$2 & $+$5 / $-$1 / $-$1 / $-$2 & $-$2 / $-$1 / 0 / $-$1 \\
 Foursquare & \puffin, entropy (0.3) & $-$3 / $-$4 / $-$4 / $-$4 & $-$10 / $-$10 / $-$9 / $-$8 & $-$4 / $-$4 / $-$4 / $-$4 & $-$3 / $-$4 / $-$4 / $-$4 \\

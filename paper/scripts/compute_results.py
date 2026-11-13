@@ -62,7 +62,7 @@ for ds,ns in [('geolife','10seed'),('foursquare','3seed'),('gowalla_sf_bay','3se
     for b,lab in [('entropy','Lip-ent'),('location_distribution','Lip-loc')]:
         cfg[ds]+=[(f'{lab} {x}',(pool5(ds,b,x) if ds=='gowalla_sf_bay' else None) or f'{T}/{ds}_lipschitz_{b}_lambda{x}_{ns}') for x in ['0.3','1.0','3.0']]
     cfg[ds]+=[(f'GI-DP {e}',f'gi_dp/{ds}_gi_dp_eps{e}') for e in ['0.0005','0.001','0.002','0.005','0.01']]
-cfg['geolife']+=[(f'LocGM {x}',f'paper/geolife_ed_soft_location_gradmatched_lambda{x}_3seed') for x in ['0.3','1.0','3.0']]
+cfg['geolife']+=[(f'LocGM {x}',f'paper/geolife_ed_soft_location_gradmatched_lambda{x}_'+('3seed' if x=='3.0' else '10seed')) for x in ['0.3','1.0','3.0']]
 for ds in ['geolife','foursquare','gowalla_sf_bay']:
     p=pool_trajgan(ds)
     if p: cfg[ds].append(('TrajGAN',p))

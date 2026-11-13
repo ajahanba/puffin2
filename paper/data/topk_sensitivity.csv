@@ -103,22 +103,22 @@ top,ds,method,util,sim,meas,pct
 1%,geolife,GI-DP 0.01,0.615,traj,rel,-4.953310329827632
 1%,geolife,GI-DP 0.01,0.615,rog,abs,28.535231307546894
 1%,geolife,GI-DP 0.01,0.615,rog,rel,-14.078999761788957
-1%,geolife,LocGM 0.3,0.736,ent,abs,16.098727198454732
-1%,geolife,LocGM 0.3,0.736,ent,rel,20.73195697911059
-1%,geolife,LocGM 0.3,0.736,loc,abs,-29.823218493141802
-1%,geolife,LocGM 0.3,0.736,loc,rel,-27.043747980774135
-1%,geolife,LocGM 0.3,0.736,traj,abs,-10.953416112543291
-1%,geolife,LocGM 0.3,0.736,traj,rel,-7.403793550243131
-1%,geolife,LocGM 0.3,0.736,rog,abs,-16.389531963766224
-1%,geolife,LocGM 0.3,0.736,rog,rel,-13.052422360719163
-1%,geolife,LocGM 1.0,0.69,ent,abs,19.82111382913494
-1%,geolife,LocGM 1.0,0.69,ent,rel,22.41908584072714
-1%,geolife,LocGM 1.0,0.69,loc,abs,-38.87697827569934
-1%,geolife,LocGM 1.0,0.69,loc,rel,-37.78597111207299
-1%,geolife,LocGM 1.0,0.69,traj,abs,-7.973234760477432
-1%,geolife,LocGM 1.0,0.69,traj,rel,-6.124959599509805
-1%,geolife,LocGM 1.0,0.69,rog,abs,-8.044356261787245
-1%,geolife,LocGM 1.0,0.69,rog,rel,-6.106728702788167
+1%,geolife,LocGM 0.3,0.736,ent,abs,8.500925771411506
+1%,geolife,LocGM 0.3,0.736,ent,rel,14.390511307128673
+1%,geolife,LocGM 0.3,0.736,loc,abs,-31.640619291107996
+1%,geolife,LocGM 0.3,0.736,loc,rel,-27.950948755263926
+1%,geolife,LocGM 0.3,0.736,traj,abs,-12.845393047196596
+1%,geolife,LocGM 0.3,0.736,traj,rel,-8.118521504952747
+1%,geolife,LocGM 0.3,0.736,rog,abs,-16.786824258911505
+1%,geolife,LocGM 0.3,0.736,rog,rel,-12.269478043475168
+1%,geolife,LocGM 1.0,0.69,ent,abs,19.016187355647563
+1%,geolife,LocGM 1.0,0.69,ent,rel,19.057595606905476
+1%,geolife,LocGM 1.0,0.69,loc,abs,-39.024824908109615
+1%,geolife,LocGM 1.0,0.69,loc,rel,-39.23221669410189
+1%,geolife,LocGM 1.0,0.69,traj,abs,-11.183340905787686
+1%,geolife,LocGM 1.0,0.69,traj,rel,-11.291261365451854
+1%,geolife,LocGM 1.0,0.69,rog,abs,-10.292028192912195
+1%,geolife,LocGM 1.0,0.69,rog,rel,-10.314405883713441
 1%,geolife,LocGM 3.0,0.639,ent,abs,30.378326340778173
 1%,geolife,LocGM 3.0,0.639,ent,rel,23.828593703021305
 1%,geolife,LocGM 3.0,0.639,loc,abs,-36.68137703005272
@@ -255,6 +255,14 @@ top,ds,method,util,sim,meas,pct
 1%,foursquare,GI-DP 0.01,0.256,traj,rel,-15.054546804191327
 1%,foursquare,GI-DP 0.01,0.256,rog,abs,4.736783135299416
 1%,foursquare,GI-DP 0.01,0.256,rog,rel,-16.429472988855764
+1%,foursquare,TrajGAN,0.253,ent,abs,4.405429212152523
+1%,foursquare,TrajGAN,0.253,ent,rel,-17.82552039760581
+1%,foursquare,TrajGAN,0.253,loc,abs,22.58983136549759
+1%,foursquare,TrajGAN,0.253,loc,rel,-3.393958431677424
+1%,foursquare,TrajGAN,0.253,traj,abs,8.748849807840454
+1%,foursquare,TrajGAN,0.253,traj,rel,-14.377201596213274
+1%,foursquare,TrajGAN,0.253,rog,abs,3.3043627482425064
+1%,foursquare,TrajGAN,0.253,rog,rel,-18.714842115848175
 1%,gowalla_sf_bay,PUFFIN 1.0,0.245,ent,abs,30.975878365440423
 1%,gowalla_sf_bay,PUFFIN 1.0,0.245,ent,rel,-5.181545864457105
 1%,gowalla_sf_bay,PUFFIN 1.0,0.245,loc,abs,52.094338042671076
@@ -287,6 +295,14 @@ top,ds,method,util,sim,meas,pct
 1%,gowalla_sf_bay,GI-DP 0.01,0.239,traj,rel,-23.686417021560867
 1%,gowalla_sf_bay,GI-DP 0.01,0.239,rog,abs,62.79973937992822
 1%,gowalla_sf_bay,GI-DP 0.01,0.239,rog,rel,-24.49769461555036
+1%,gowalla_sf_bay,TrajGAN,0.232,ent,abs,85.72105284784506
+1%,gowalla_sf_bay,TrajGAN,0.232,ent,rel,-16.31249103053457
+1%,gowalla_sf_bay,TrajGAN,0.232,loc,abs,114.05738736221048
+1%,gowalla_sf_bay,TrajGAN,0.232,loc,rel,-3.618066210856319
+1%,gowalla_sf_bay,TrajGAN,0.232,traj,abs,73.96183077317544
+1%,gowalla_sf_bay,TrajGAN,0.232,traj,rel,-21.99391612156799
+1%,gowalla_sf_bay,TrajGAN,0.232,rog,abs,63.91249504706311
+1%,gowalla_sf_bay,TrajGAN,0.232,rog,rel,-26.406756039943737
 5%,geolife,PUFFIN 0.3,0.735,ent,abs,-15.285057302593986
 5%,geolife,PUFFIN 0.3,0.735,ent,rel,2.158931576352474
 5%,geolife,PUFFIN 0.3,0.735,loc,abs,-27.21505814834967
@@ -391,22 +407,22 @@ top,ds,method,util,sim,meas,pct
 5%,geolife,GI-DP 0.01,0.615,traj,rel,-19.374934382220697
 5%,geolife,GI-DP 0.01,0.615,rog,abs,38.845729250913344
 5%,geolife,GI-DP 0.01,0.615,rog,rel,-7.13638502228533
-5%,geolife,LocGM 0.3,0.736,ent,abs,9.672309993231343
-5%,geolife,LocGM 0.3,0.736,ent,rel,14.05003361905852
-5%,geolife,LocGM 0.3,0.736,loc,abs,-16.749345648769708
-5%,geolife,LocGM 0.3,0.736,loc,rel,-13.44250743427925
-5%,geolife,LocGM 0.3,0.736,traj,abs,-21.046409577785152
-5%,geolife,LocGM 0.3,0.736,traj,rel,-17.89930740347684
-5%,geolife,LocGM 0.3,0.736,rog,abs,-11.975462379776758
-5%,geolife,LocGM 0.3,0.736,rog,rel,-8.46116194810681
-5%,geolife,LocGM 1.0,0.69,ent,abs,17.0358788845709
-5%,geolife,LocGM 1.0,0.69,ent,rel,19.64651583814867
-5%,geolife,LocGM 1.0,0.69,loc,abs,-22.146088917859842
-5%,geolife,LocGM 1.0,0.69,loc,rel,-20.67209402207688
-5%,geolife,LocGM 1.0,0.69,traj,abs,-15.131616211507293
-5%,geolife,LocGM 1.0,0.69,traj,rel,-13.284391949329388
-5%,geolife,LocGM 1.0,0.69,rog,abs,-1.7618664448831756
-5%,geolife,LocGM 1.0,0.69,rog,rel,0.34672657906604787
+5%,geolife,LocGM 0.3,0.736,ent,abs,3.2064746905727137
+5%,geolife,LocGM 0.3,0.736,ent,rel,8.809586720910945
+5%,geolife,LocGM 0.3,0.736,loc,abs,-16.886721238805492
+5%,geolife,LocGM 0.3,0.736,loc,rel,-12.390981485659491
+5%,geolife,LocGM 0.3,0.736,traj,abs,-20.529030863881403
+5%,geolife,LocGM 0.3,0.736,traj,rel,-16.219077871409006
+5%,geolife,LocGM 0.3,0.736,rog,abs,-13.649252868562156
+5%,geolife,LocGM 0.3,0.736,rog,rel,-8.96056672761566
+5%,geolife,LocGM 1.0,0.69,ent,abs,16.038807311266435
+5%,geolife,LocGM 1.0,0.69,ent,rel,16.15002074336114
+5%,geolife,LocGM 1.0,0.69,loc,abs,-20.4164395877091
+5%,geolife,LocGM 1.0,0.69,loc,rel,-20.60276789684128
+5%,geolife,LocGM 1.0,0.69,traj,abs,-16.619421859096494
+5%,geolife,LocGM 1.0,0.69,traj,rel,-16.583589131268806
+5%,geolife,LocGM 1.0,0.69,rog,abs,-4.331412945666191
+5%,geolife,LocGM 1.0,0.69,rog,rel,-4.318525104437565
 5%,geolife,LocGM 3.0,0.639,ent,abs,26.083450644504367
 5%,geolife,LocGM 3.0,0.639,ent,rel,19.73291830822772
 5%,geolife,LocGM 3.0,0.639,loc,abs,-18.07205376457003
@@ -543,6 +559,14 @@ top,ds,method,util,sim,meas,pct
 5%,foursquare,GI-DP 0.01,0.256,traj,rel,-14.883130844595904
 5%,foursquare,GI-DP 0.01,0.256,rog,abs,5.020126791953672
 5%,foursquare,GI-DP 0.01,0.256,rog,rel,-16.200132412774927
+5%,foursquare,TrajGAN,0.253,ent,abs,4.900112387246169
+5%,foursquare,TrajGAN,0.253,ent,rel,-17.434900958089706
+5%,foursquare,TrajGAN,0.253,loc,abs,25.911945367714463
+5%,foursquare,TrajGAN,0.253,loc,rel,-0.755008698592452
+5%,foursquare,TrajGAN,0.253,traj,abs,7.795217682123412
+5%,foursquare,TrajGAN,0.253,traj,rel,-15.150737303046046
+5%,foursquare,TrajGAN,0.253,rog,abs,3.519384779409518
+5%,foursquare,TrajGAN,0.253,rog,rel,-18.542767812995585
 5%,gowalla_sf_bay,PUFFIN 1.0,0.245,ent,abs,30.91232566060096
 5%,gowalla_sf_bay,PUFFIN 1.0,0.245,ent,rel,-5.372847543766368
 5%,gowalla_sf_bay,PUFFIN 1.0,0.245,loc,abs,45.88823172822316
@@ -575,6 +599,14 @@ top,ds,method,util,sim,meas,pct
 5%,gowalla_sf_bay,GI-DP 0.01,0.239,traj,rel,-20.818336695922014
 5%,gowalla_sf_bay,GI-DP 0.01,0.239,rog,abs,64.52742662362627
 5%,gowalla_sf_bay,GI-DP 0.01,0.239,rog,rel,-23.658493130451753
+5%,gowalla_sf_bay,TrajGAN,0.232,ent,abs,85.67969900700115
+5%,gowalla_sf_bay,TrajGAN,0.232,ent,rel,-16.406811655907326
+5%,gowalla_sf_bay,TrajGAN,0.232,loc,abs,101.2621859242373
+5%,gowalla_sf_bay,TrajGAN,0.232,loc,rel,-9.468382325672586
+5%,gowalla_sf_bay,TrajGAN,0.232,traj,abs,79.55806350618701
+5%,gowalla_sf_bay,TrajGAN,0.232,traj,rel,-19.331893576013726
+5%,gowalla_sf_bay,TrajGAN,0.232,rog,abs,65.11715322042535
+5%,gowalla_sf_bay,TrajGAN,0.232,rog,rel,-25.84319952422238
 10%,geolife,PUFFIN 0.3,0.735,ent,abs,-14.295385353984624
 10%,geolife,PUFFIN 0.3,0.735,ent,rel,3.3525051216653834
 10%,geolife,PUFFIN 0.3,0.735,loc,abs,-22.957311915226885
@@ -679,22 +711,22 @@ top,ds,method,util,sim,meas,pct
 10%,geolife,GI-DP 0.01,0.615,traj,rel,-18.794870447542657
 10%,geolife,GI-DP 0.01,0.615,rog,abs,34.342093736248636
 10%,geolife,GI-DP 0.01,0.615,rog,rel,-10.132787751051342
-10%,geolife,LocGM 0.3,0.736,ent,abs,10.540317200356263
-10%,geolife,LocGM 0.3,0.736,ent,rel,14.952815864278634
-10%,geolife,LocGM 0.3,0.736,loc,abs,-8.798871951388964
-10%,geolife,LocGM 0.3,0.736,loc,rel,-5.174587270235365
-10%,geolife,LocGM 0.3,0.736,traj,abs,-20.09282857412674
-10%,geolife,LocGM 0.3,0.736,traj,rel,-16.906593487110456
-10%,geolife,LocGM 0.3,0.736,rog,abs,-15.621652429200573
-10%,geolife,LocGM 0.3,0.736,rog,rel,-12.255297304288026
-10%,geolife,LocGM 1.0,0.69,ent,abs,18.86192667028852
-10%,geolife,LocGM 1.0,0.69,ent,rel,21.59048846661178
-10%,geolife,LocGM 1.0,0.69,loc,abs,-12.180734176731999
-10%,geolife,LocGM 1.0,0.69,loc,rel,-10.462897143068606
-10%,geolife,LocGM 1.0,0.69,traj,abs,-13.216477474966148
-10%,geolife,LocGM 1.0,0.69,traj,rel,-11.362733547485714
-10%,geolife,LocGM 1.0,0.69,rog,abs,-6.4738466467619045
-10%,geolife,LocGM 1.0,0.69,rog,rel,-4.439706723973291
+10%,geolife,LocGM 0.3,0.736,ent,abs,3.183873659987446
+10%,geolife,LocGM 0.3,0.736,ent,rel,8.78587963805455
+10%,geolife,LocGM 0.3,0.736,loc,abs,-9.558892189757795
+10%,geolife,LocGM 0.3,0.736,loc,rel,-4.665117204682112
+10%,geolife,LocGM 0.3,0.736,traj,abs,-20.578239275107947
+10%,geolife,LocGM 0.3,0.736,traj,rel,-16.269818321088202
+10%,geolife,LocGM 0.3,0.736,rog,abs,-16.614843248455603
+10%,geolife,LocGM 0.3,0.736,rog,rel,-12.08957173565397
+10%,geolife,LocGM 1.0,0.69,ent,abs,16.44903687741497
+10%,geolife,LocGM 1.0,0.69,ent,rel,16.63460397198171
+10%,geolife,LocGM 1.0,0.69,loc,abs,-10.286533034425528
+10%,geolife,LocGM 1.0,0.69,loc,rel,-10.441445084272804
+10%,geolife,LocGM 1.0,0.69,traj,abs,-15.660015646074822
+10%,geolife,LocGM 1.0,0.69,traj,rel,-15.657195622066212
+10%,geolife,LocGM 1.0,0.69,rog,abs,-8.497881714593081
+10%,geolife,LocGM 1.0,0.69,rog,rel,-8.460020125676781
 10%,geolife,LocGM 3.0,0.639,ent,abs,28.805389377657555
 10%,geolife,LocGM 3.0,0.639,ent,rel,22.329137813736555
 10%,geolife,LocGM 3.0,0.639,loc,abs,-7.734015882882517
@@ -831,6 +863,14 @@ top,ds,method,util,sim,meas,pct
 10%,foursquare,GI-DP 0.01,0.256,traj,rel,-14.64167600023446
 10%,foursquare,GI-DP 0.01,0.256,rog,abs,5.043692834614943
 10%,foursquare,GI-DP 0.01,0.256,rog,rel,-16.180330419573096
+10%,foursquare,TrajGAN,0.253,ent,abs,5.109986938922506
+10%,foursquare,TrajGAN,0.253,ent,rel,-17.272920859784048
+10%,foursquare,TrajGAN,0.253,loc,abs,24.093977608256935
+10%,foursquare,TrajGAN,0.253,loc,rel,-2.1972328189698076
+10%,foursquare,TrajGAN,0.253,traj,abs,6.959190754933697
+10%,foursquare,TrajGAN,0.253,traj,rel,-15.811734156685164
+10%,foursquare,TrajGAN,0.253,rog,abs,3.583700249059074
+10%,foursquare,TrajGAN,0.253,rog,rel,-18.491275529766092
 10%,gowalla_sf_bay,PUFFIN 1.0,0.245,ent,abs,30.72132926770339
 10%,gowalla_sf_bay,PUFFIN 1.0,0.245,ent,rel,-5.512584104205754
 10%,gowalla_sf_bay,PUFFIN 1.0,0.245,loc,abs,44.06449705841358
@@ -863,6 +903,14 @@ top,ds,method,util,sim,meas,pct
 10%,gowalla_sf_bay,GI-DP 0.01,0.239,traj,rel,-20.125267095188683
 10%,gowalla_sf_bay,GI-DP 0.01,0.239,rog,abs,64.74977992794044
 10%,gowalla_sf_bay,GI-DP 0.01,0.239,rog,rel,-23.562268975902356
+10%,gowalla_sf_bay,TrajGAN,0.232,ent,abs,84.73292009648472
+10%,gowalla_sf_bay,TrajGAN,0.232,ent,rel,-16.833918393402058
+10%,gowalla_sf_bay,TrajGAN,0.232,loc,abs,96.80410814852966
+10%,gowalla_sf_bay,TrajGAN,0.232,loc,rel,-11.467908790405223
+10%,gowalla_sf_bay,TrajGAN,0.232,traj,abs,79.91843447371502
+10%,gowalla_sf_bay,TrajGAN,0.232,traj,rel,-19.169058146929764
+10%,gowalla_sf_bay,TrajGAN,0.232,rog,abs,65.6148969347726
+10%,gowalla_sf_bay,TrajGAN,0.232,rog,rel,-25.623820705382418
 20%,geolife,PUFFIN 0.3,0.735,ent,abs,-15.84673146086878
 20%,geolife,PUFFIN 0.3,0.735,ent,rel,1.4803695671524286
 20%,geolife,PUFFIN 0.3,0.735,loc,abs,-20.32112176881694
@@ -967,22 +1015,22 @@ top,ds,method,util,sim,meas,pct
 20%,geolife,GI-DP 0.01,0.615,traj,rel,-17.2194244252184
 20%,geolife,GI-DP 0.01,0.615,rog,abs,28.77253791145744
 20%,geolife,GI-DP 0.01,0.615,rog,rel,-13.885379606757454
-20%,geolife,LocGM 0.3,0.736,ent,abs,8.324862103085785
-20%,geolife,LocGM 0.3,0.736,ent,rel,12.647432003509618
-20%,geolife,LocGM 0.3,0.736,loc,abs,-5.141983464981992
-20%,geolife,LocGM 0.3,0.736,loc,rel,-1.3668258763371632
-20%,geolife,LocGM 0.3,0.736,traj,abs,-18.583503218878693
-20%,geolife,LocGM 0.3,0.736,traj,rel,-15.337502879668685
-20%,geolife,LocGM 0.3,0.736,rog,abs,-16.47104556566368
-20%,geolife,LocGM 0.3,0.736,rog,rel,-13.14200926928043
-20%,geolife,LocGM 1.0,0.69,ent,abs,15.338292133480769
-20%,geolife,LocGM 1.0,0.69,ent,rel,17.984024057800596
-20%,geolife,LocGM 1.0,0.69,loc,abs,-5.370425087228448
-20%,geolife,LocGM 1.0,0.69,loc,rel,-3.4477646130279926
-20%,geolife,LocGM 1.0,0.69,traj,abs,-10.913052337438355
-20%,geolife,LocGM 1.0,0.69,traj,rel,-9.018871358589553
-20%,geolife,LocGM 1.0,0.69,rog,abs,-8.656861511002989
-20%,geolife,LocGM 1.0,0.69,rog,rel,-6.6842190951979745
+20%,geolife,LocGM 0.3,0.736,ent,abs,1.905881450789737
+20%,geolife,LocGM 0.3,0.736,ent,rel,7.437073430360952
+20%,geolife,LocGM 0.3,0.736,loc,abs,-6.84251951579633
+20%,geolife,LocGM 0.3,0.736,loc,rel,-1.7962054525632265
+20%,geolife,LocGM 0.3,0.736,traj,abs,-19.473222440793037
+20%,geolife,LocGM 0.3,0.736,traj,rel,-15.10527813619863
+20%,geolife,LocGM 0.3,0.736,rog,abs,-17.515626847244036
+20%,geolife,LocGM 0.3,0.736,rog,rel,-13.042690866283024
+20%,geolife,LocGM 1.0,0.69,ent,abs,13.05205350415044
+20%,geolife,LocGM 1.0,0.69,ent,rel,13.230345519490182
+20%,geolife,LocGM 1.0,0.69,loc,abs,-4.042017805637233
+20%,geolife,LocGM 1.0,0.69,loc,rel,-4.1366845393300045
+20%,geolife,LocGM 1.0,0.69,traj,abs,-13.67673103949879
+20%,geolife,LocGM 1.0,0.69,traj,rel,-13.682152013287286
+20%,geolife,LocGM 1.0,0.69,rog,abs,-11.609879256881339
+20%,geolife,LocGM 1.0,0.69,rog,rel,-11.586572677357399
 20%,geolife,LocGM 3.0,0.639,ent,abs,25.324544097003642
 20%,geolife,LocGM 3.0,0.639,ent,rel,19.021118009634954
 20%,geolife,LocGM 3.0,0.639,loc,abs,0.3989013510065753
@@ -1119,6 +1167,14 @@ top,ds,method,util,sim,meas,pct
 20%,foursquare,GI-DP 0.01,0.256,traj,rel,-14.417534802437737
 20%,foursquare,GI-DP 0.01,0.256,rog,abs,5.000765327583778
 20%,foursquare,GI-DP 0.01,0.256,rog,rel,-16.21500573909781
+20%,foursquare,TrajGAN,0.253,ent,abs,5.196628212082399
+20%,foursquare,TrajGAN,0.253,ent,rel,-17.204637049385873
+20%,foursquare,TrajGAN,0.253,loc,abs,19.911506225081688
+20%,foursquare,TrajGAN,0.253,loc,rel,-5.515655825449917
+20%,foursquare,TrajGAN,0.253,traj,abs,6.6443654657676765
+20%,foursquare,TrajGAN,0.253,traj,rel,-16.06346136530493
+20%,foursquare,TrajGAN,0.253,rog,abs,3.412103663603183
+20%,foursquare,TrajGAN,0.253,rog,rel,-18.62667549519026
 20%,gowalla_sf_bay,PUFFIN 1.0,0.245,ent,abs,30.154213231329628
 20%,gowalla_sf_bay,PUFFIN 1.0,0.245,ent,rel,-5.92399893893899
 20%,gowalla_sf_bay,PUFFIN 1.0,0.245,loc,abs,39.527021398747195
@@ -1151,3 +1207,11 @@ top,ds,method,util,sim,meas,pct
 20%,gowalla_sf_bay,GI-DP 0.01,0.239,traj,rel,-21.459608492455384
 20%,gowalla_sf_bay,GI-DP 0.01,0.239,rog,abs,65.24172011014113
 20%,gowalla_sf_bay,GI-DP 0.01,0.239,rog,rel,-23.318207549764026
+20%,gowalla_sf_bay,TrajGAN,0.232,ent,abs,83.85740865254867
+20%,gowalla_sf_bay,TrajGAN,0.232,ent,rel,-17.22884081200209
+20%,gowalla_sf_bay,TrajGAN,0.232,loc,abs,89.27237127780323
+20%,gowalla_sf_bay,TrajGAN,0.232,loc,rel,-14.907013391640122
+20%,gowalla_sf_bay,TrajGAN,0.232,traj,abs,74.39407981906798
+20%,gowalla_sf_bay,TrajGAN,0.232,traj,rel,-21.689620232634432
+20%,gowalla_sf_bay,TrajGAN,0.232,rog,abs,66.1620954239657
+20%,gowalla_sf_bay,TrajGAN,0.232,rog,rel,-25.36858906065853
