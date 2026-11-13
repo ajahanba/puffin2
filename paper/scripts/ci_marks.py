@@ -12,7 +12,7 @@ for ds in N:
         if g.unresolvable_extrapolation.any(): rows.append(f"{N[ds]} & {lab} & \\multicolumn{{5}}{{c}}{{outside Mo-PAE's utility range}} \\\\"); continue
         cells=[]
         for m,_ in M:
-            r=g.loc[m]; cells.append(f"{r.mean_delta:+.3f} [{r.ci_lo:+.3f}, {r.ci_hi:+.3f}]"+("$^*$" if r.sig else ""))
+            r=g.loc[m]; cells.append(f"[{r.ci_lo:+.3f}, {r.ci_hi:+.3f}]"+("$^*$" if r.sig else ""))
         rows.append(f"{N[ds]} & {lab} & "+" & ".join(cells)+" \\\\")
         print("SIG",ds,cmp,{m:bool(g.loc[m].sig) for m,_ in M})
 open("paper/ci_appendix_rows.tex","w").write("\n".join(rows)+"\n")
