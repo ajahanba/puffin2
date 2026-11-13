@@ -140,9 +140,7 @@ geo_mechs = []
 for l4 in (0.3, 1.0, 3.0):
     geo_mechs.append((f"ed_soft_entropy_lambda{l4}", RETRAIN_BASE / f"geolife_ed_soft_lambda{l4}_10seed"))
 for l4 in (0.3, 1.0, 3.0):
-    seed_suffix = "10seed" if l4 in (0.3, 1.0) else "3seed"
-    geo_mechs.append((f"ed_soft_location_gradmatched_lambda{l4}",
-                      PAPER_BASE / f"geolife_ed_soft_location_gradmatched_lambda{l4}_{seed_suffix}"))
+    geo_mechs.append((f"ed_soft_location_gradmatched_lambda{l4}", PAPER_BASE / f"geolife_ed_soft_location_gradmatched_lambda{l4}_3seed"))
 for basis in ("entropy", "location_distribution"):
     for l4 in (0.3, 1.0, 3.0):
         geo_mechs.append((f"lipschitz_{basis}_lambda{l4}", TASK2_BASE / f"geolife_lipschitz_{basis}_lambda{l4}_10seed"))
