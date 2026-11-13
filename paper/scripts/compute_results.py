@@ -40,6 +40,17 @@ def pool5(ds,b,x):
     M.to_csv(out+'/per_user_04d.csv',index=False); json.dump({'utility_mean':float(np.mean(u))},open(out+'/summary.json','w'))
     return '/'+os.path.abspath(out).lstrip('/')
 
+def pool_trajgan(ds):
+    """Average the external attacker's per-user risk over TrajGAN's three generator seeds."""
+    ps=[f'{base}/paper/{ds}_trajgan_genseed{g}' for g in range(3)]
+    if not all(os.path.exists(p+'/summary.json') for p in ps): return None
+    dfs=[pd.read_csv(p+'/per_user_04d.csv') for p in ps]
+    M=dfs[0].drop(columns=[c for c in dfs[0] if c.startswith('post_top1')]).copy()
+    M['post_top1']=pd.concat([x.set_index('user_id').post_top1 for x in dfs],axis=1).mean(axis=1).reindex(M.user_id).values
+    out=f'paper/data/pooled/{ds}_trajgan_3seed'; os.makedirs(out,exist_ok=True); M.to_csv(out+'/per_user_04d.csv',index=False)
+    json.dump({'utility_mean':float(np.mean([json.load(open(p+'/summary.json'))['utility_mean'] for p in ps]))},open(out+'/summary.json','w'))
+    return '/'+os.path.abspath(out).lstrip('/')
+
 R='retraining_to_convergence'
 cfg={
  'geolife':[('no-privacy',f'{R}/geolife_no_privacy')]+[(f'Mo-PAE lp{x}',f'{R}/geolife_plain_lp{x}') for x in ['0.02','0.1','0.2','0.3','0.5','0.8']]+[('Mo-PAE lp1.2',f'{R}/geolife_plain_lp1.2_10seed'),('Mo-PAE lp2',f'{R}/geolife_plain_lp2_10seed_corrected'),('Mo-PAE lp3',f'{R}/geolife_plain_lp3_10seed_corrected')]+[(f'PUFFIN {x}',f'{R}/geolife_ed_soft_lambda{x}_10seed') for x in ['0.3','1.0','3.0']]+[(f'PUFFIN-loc {x}',f'task2_formulations/geolife_ed_soft_location_distribution_lambda{x}_10seed') for x in ['0.3','1.0']],
@@ -52,6 +63,9 @@ for ds,ns in [('geolife','10seed'),('foursquare','3seed'),('gowalla_sf_bay','3se
         cfg[ds]+=[(f'{lab} {x}',(pool5(ds,b,x) if ds=='gowalla_sf_bay' else None) or f'{T}/{ds}_lipschitz_{b}_lambda{x}_{ns}') for x in ['0.3','1.0','3.0']]
     cfg[ds]+=[(f'GI-DP {e}',f'gi_dp/{ds}_gi_dp_eps{e}') for e in ['0.0005','0.001','0.002','0.005','0.01']]
 cfg['geolife']+=[(f'LocGM {x}',f'paper/geolife_ed_soft_location_gradmatched_lambda{x}_3seed') for x in ['0.3','1.0','3.0']]
+for ds in ['geolife','foursquare','gowalla_sf_bay']:
+    p=pool_trajgan(ds)
+    if p: cfg[ds].append(('TrajGAN',p))
 cfg['geolife']+=[(f'GroupDRO {x}',f'{T}/geolife_group_dro_lambda{x}_3seed') for x in ['0.3','1.0']]
 allrows=[]
 for ds,runs in cfg.items(): allrows+=run_rows(ds,runs)
