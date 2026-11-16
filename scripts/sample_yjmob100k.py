@@ -176,4 +176,11 @@ def main():
 
 
 if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--seed", type=int, default=SEED)
+    ap.add_argument("--out-dir", default=str(OUT_DIR))
+    args = ap.parse_args()
+    SEED = args.seed
+    OUT_DIR = pathlib.Path(args.out_dir)
     main()
