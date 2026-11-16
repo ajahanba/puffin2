@@ -1,0 +1,14 @@
+.venv/
+.venv-legacy-tf/
+__pycache__/
+*.pyc
+results/
+data/raw/*
+!data/raw/geolife_sample/
+data/processed/
+legacy/Mo-PAE_upstream/
+logs/
+legacy/POIPrivacy/
+legacy/MainTUL/
+legacy/LSTM-TrajGAN/
+reports/figures/yjmob100k_sample/similarities.npz

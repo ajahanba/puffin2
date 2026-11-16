@@ -1,0 +1,15 @@
+{
+  "trajgan_seed": 1,
+  "trajgan_group_by": "week",
+  "train_min_traj_len": 2,
+  "checkpoint_every": 5,
+  "collapse_onset_epoch": null,
+  "checkpoint_used": null,
+  "generation_epoch_used": 80,
+  "reused_generator_checkpoints": false,
+  "reused_generator_checkpoints_path": null,
+  "non_converged": false,
+  "protocol_ok": true,
+  "usable": true,
+  "usable_note": "trained under the checkpoint-aware collapse protocol"
+}
