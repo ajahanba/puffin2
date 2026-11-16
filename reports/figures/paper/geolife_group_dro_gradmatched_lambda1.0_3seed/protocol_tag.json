@@ -1,0 +1,13 @@
+{
+  "git_commit": "1ac1d098900b05f651ba0db60c97e60addcb68e6",
+  "git_commit_inferred": false,
+  "patience": 8,
+  "val_frac": 0.1,
+  "min_epochs": 20,
+  "n_encoder_seeds": 3,
+  "protocol_ok": true,
+  "fairness_rescale": 36.67631,
+  "fairness_sigma": null,
+  "usable": true,
+  "usable_note": "current-protocol run, gradient-matched fairness rescale/sigma explicit in summary.json"
+}
