@@ -104,6 +104,14 @@ LOSS_FORMULATIONS = dict(ed_soft=ed_soft, floor=floor_loss, lipschitz=lipschitz_
                           per_user_minimax=per_user_minimax_loss)
 
 
+def _rescaled_fairness_fn(id_logits, z_user_idx, table, fn, rescale):
+    return rescale * fn(id_logits, z_user_idx, table)
+
+
+def _maybe_rescale(fn, rescale):
+    return fn if rescale is None else functools.partial(_rescaled_fairness_fn, fn=fn, rescale=rescale)
+
+
 def _state_of(modules: dict) -> dict:
     """Snapshots state dicts to CPU, not a same-device deepcopy: with
     early stopping now running up to --mopae-epochs (a much higher
@@ -529,6 +537,12 @@ def main():
                           "not rely on the function's own default, so it is auditable from the "
                           "launch command and recorded in summary.json). No effect on other "
                           "mechanisms/similarity bases.")
+    ap.add_argument("--fairness-sigma", type=float, default=None,
+                     help="explicit Gaussian-kernel sigma for lipschitz/lipschitz_soft_pairtable "
+                          "(overrides the function's own default sigma=1.0); set by a rule (e.g. "
+                          "the 10th percentile of pairwise distances among training-split users), "
+                          "not tuned, so it is auditable and recorded in summary.json. No effect "
+                          "on other mechanisms.")
     ap.add_argument("--log-gradients", action="store_true",
                      help="log the encoder-gradient norm of each loss term (recon, util, priv, "
                           "fairness) every epoch, for encoder-seed 0 only, saved into summary.json "
@@ -549,21 +563,31 @@ def main():
 
     fairness_table = entropy_table
     fairness_fn_override = None
-    if args.similarity_basis == "location_distribution" and args.mechanism in ("ed_soft", "lipschitz"):
+    sigma_kwargs = {"sigma": args.fairness_sigma} if args.fairness_sigma is not None else {}
+    if args.mechanism == "lipschitz" and args.similarity_basis == "location_distribution":
         import puffin.metrics.individual_fairness as ifm
         train_df = ifm.train_only(df)
         hist_by_user = ifm.per_user_cell_histogram(train_df, total_locations)
-        if args.mechanism == "ed_soft":
-            fairness_table = build_histogram_table(hist_by_user, total_users, total_locations, device=device)
-            fairness_fn_override = (functools.partial(ed_soft_location, rescale=args.fairness_rescale)
-                                     if args.fairness_rescale is not None else ed_soft_location)
-        else:
-            user_ids = sorted(hist_by_user.keys())
-            sim_matrix = ifm.sim_location_distribution(hist_by_user, user_ids)
-            fairness_table = build_pairwise_distance_table(sim_matrix, user_ids, total_users, device=device)
-            fairness_fn_override = lipschitz_soft_pairtable
-        print(f"[{tag}] similarity-basis=location_distribution: built "
-              f"{'histogram' if args.mechanism == 'ed_soft' else 'pairwise-distance'} table "
+        user_ids = sorted(hist_by_user.keys())
+        sim_matrix = ifm.sim_location_distribution(hist_by_user, user_ids)
+        fairness_table = build_pairwise_distance_table(sim_matrix, user_ids, total_users, device=device)
+        base_fn = functools.partial(lipschitz_soft_pairtable, **sigma_kwargs)
+        fairness_fn_override = _maybe_rescale(base_fn, args.fairness_rescale)
+        print(f"[{tag}] similarity-basis=location_distribution: built pairwise-distance table "
+              f"from {len(hist_by_user)} train-split users", flush=True)
+    elif args.mechanism == "lipschitz":
+        base_fn = functools.partial(lipschitz_soft, **sigma_kwargs)
+        fairness_fn_override = _maybe_rescale(base_fn, args.fairness_rescale)
+    elif args.mechanism == "group_dro":
+        fairness_fn_override = _maybe_rescale(group_dro_loss, args.fairness_rescale)
+    elif args.similarity_basis == "location_distribution" and args.mechanism == "ed_soft":
+        import puffin.metrics.individual_fairness as ifm
+        train_df = ifm.train_only(df)
+        hist_by_user = ifm.per_user_cell_histogram(train_df, total_locations)
+        fairness_table = build_histogram_table(hist_by_user, total_users, total_locations, device=device)
+        fairness_fn_override = (functools.partial(ed_soft_location, rescale=args.fairness_rescale)
+                                 if args.fairness_rescale is not None else ed_soft_location)
+        print(f"[{tag}] similarity-basis=location_distribution: built histogram table "
               f"from {len(hist_by_user)} train-split users", flush=True)
 
     print(f"[{tag}] building windows...", flush=True)
@@ -659,6 +683,7 @@ def main():
         chance_level=chance_level,
         raw_decile_ci=raw_ci, post_decile_ci=post_ci, inmodel_confidence_decile_ci=inmodel_ci,
         fairness_rescale=args.fairness_rescale,
+        fairness_sigma=args.fairness_sigma,
         gradient_log_seed0=gradient_log_seed0,
     )
 
