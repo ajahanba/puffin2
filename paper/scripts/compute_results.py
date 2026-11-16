@@ -66,6 +66,9 @@ cfg['geolife']+=[(f'LocGM {x}',f'paper/geolife_ed_soft_location_gradmatched_lamb
 for ds in ['geolife','foursquare','gowalla_sf_bay']:
     p=pool_trajgan(ds)
     if p: cfg[ds].append(('TrajGAN',p))
+# gradmatched_alt
+for _o,_l in [('lipschitz_entropy','LipGM-ent'),('lipschitz_location','LipGM-loc'),('group_dro','DROGM')]:
+    cfg['geolife']+=[(f'{_l} {x}',f'paper/geolife_{_o}_gradmatched_lambda{x}_3seed') for x in ['0.3','1.0','3.0']]
 cfg['geolife']+=[(f'GroupDRO {x}',f'{T}/geolife_group_dro_lambda{x}_3seed') for x in ['0.3','1.0']]
 allrows=[]
 for ds,runs in cfg.items(): allrows+=run_rows(ds,runs)
