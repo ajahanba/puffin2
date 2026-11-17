@@ -1,0 +1,10 @@
+{
+  "git_commit": "8ddbe1a04a834c4d550a7703589a4f94ec4323d5",
+  "git_commit_inferred": false,
+  "patience": 8,
+  "val_frac": 0.1,
+  "min_epochs": 20,
+  "n_encoder_seeds": 3,
+  "protocol_ok": true,
+  "sample_seed": 1
+}
