@@ -10,9 +10,9 @@ d = pd.concat([d,y],ignore_index=True)
 SER = [  # label, prefix, color, marker
  ("PUFFIN (entropy)","PUFFIN ","#eb6834","s"),
  ("PUFFIN (location, scaled)","LocGM ","#e87ba4","D"),
- ("Lipschitz (entropy)","Lip-ent ","#2a78d6","^"),
- ("Lipschitz (location)","Lip-loc ","#1baf7a","v"),
- ("Group DRO","GroupDRO ","#6250d6","P"),
+ ("Lipschitz (entropy)","LipGM-ent ","#2a78d6","^"),
+ ("Lipschitz (location)","LipGM-loc ","#1baf7a","v"),
+ ("Group DRO","DROGM ","#6250d6","P"),
  ("LSTM-TrajGAN","TrajGAN","#5a5955","X"),
 ]
 plt.rcParams.update({"font.family":"serif","font.size":7,"axes.linewidth":0.5,"xtick.major.width":0.5,"ytick.major.width":0.5})
@@ -31,7 +31,7 @@ def draw(ax,g,small=False):
 for ax,(t,ds) in zip(axs,DS):
     g=d[d.ds==ds]; draw(ax,g); ax.set_title(t,fontsize=7.5)
     if ds=="geolife":
-        ia=inset_axes(ax,width="52%",height="48%",loc="lower right",borderpad=0.6)
+        ia=ax.inset_axes([0.36,0.06,0.40,0.42])
         draw(ia,g); ia.set_xlim(0.68,0.765); ia.set_ylim(0.18,0.36); ia.tick_params(labelsize=5,length=1.5)
         mark_inset(ax,ia,loc1=2,loc2=4,fc="none",ec="#8a8984",lw=0.4)
 axs[0].set_ylabel("Risk, most predictable decile")

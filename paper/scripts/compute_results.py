@@ -68,7 +68,7 @@ for ds in ['geolife','foursquare','gowalla_sf_bay']:
     if p: cfg[ds].append(('TrajGAN',p))
 # gradmatched_alt
 for _o,_l in [('lipschitz_entropy','LipGM-ent'),('lipschitz_location','LipGM-loc'),('group_dro','DROGM')]:
-    cfg['geolife']+=[(f'{_l} {x}',f'paper/geolife_{_o}_gradmatched_lambda{x}_3seed') for x in ['0.3','1.0','3.0']]
+    cfg['geolife']+=[(f'{_l} {x}',f'paper/geolife_{_o}_gradmatched_lambda{x}_3seed') for x in ['0.001','0.003','0.01','0.03','0.1','0.3','1.0','3.0'] if __import__('os').path.exists(f'{base}/paper/geolife_{_o}_gradmatched_lambda{x}_3seed/summary.json')]
 cfg['geolife']+=[(f'GroupDRO {x}',f'{T}/geolife_group_dro_lambda{x}_3seed') for x in ['0.3','1.0']]
 allrows=[]
 for ds,runs in cfg.items(): allrows+=run_rows(ds,runs)
